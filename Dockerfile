@@ -8,7 +8,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Vérifier l'installation de magick
-RUN which magick || echo "magick not found"
+RUN which magick || (echo "magick not found" && exit 1)
+RUN magick -version
 
 # Installer Flask et les autres dépendances Python
 WORKDIR /app
