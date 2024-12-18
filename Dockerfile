@@ -1,8 +1,12 @@
 FROM python:3.9-slim
 
-# Installer les dépendances nécessaires pour ImageMagick
+# Installer les dépendances nécessaires pour compiler ImageMagick
 RUN apt-get update && apt-get install -y \
     wget \
+    build-essential \
+    libjpeg-dev \
+    libpng-dev \
+    libfreetype6-dev \
     libmagickcore-6.q16-6-extra \
     && rm -rf /var/lib/apt/lists/*
 
@@ -10,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 RUN wget https://download.imagemagick.org/ImageMagick/download/ImageMagick-7.1.1-41.tar.gz \
     && tar -xzvf ImageMagick-7.1.1-41.tar.gz \
     && cd ImageMagick-7.1.1-41 \
-    && ./configure \
+    && ./configure --with-modules \
     && make \
     && make install \
     && ldconfig /usr/local/lib \
