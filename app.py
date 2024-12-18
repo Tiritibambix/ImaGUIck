@@ -1,137 +1,112 @@
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash
 import os
 import subprocess
 import requests
-from tkinter import Tk, Label, Entry, Button, filedialog, messagebox, Radiobutton, StringVar, Listbox, Scrollbar, END
-from tkinter.ttk import Progressbar
+from werkzeug.utils import secure_filename
 
-# Liste des fichiers sélectionnés
-file_list = []
+# Configuration
+UPLOAD_FOLDER = 'uploads'
+OUTPUT_FOLDER = 'output'
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 
-def select_files():
-    global file_list
-    files = filedialog.askopenfilenames(filetypes=[("Image Files", "*.jpg;*.png")])
-    if files:
-        file_list.extend(files)
-        update_file_list()
+# Création du répertoire pour les fichiers uploadés
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-def add_url_image():
-    url = url_entry.get()
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
+app.secret_key = 'supersecretkey'
+
+# Vérifie si l'extension est autorisée
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Page d'accueil
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# Téléchargement d'une image depuis l'ordinateur
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        flash('Aucun fichier sélectionné.')
+        return redirect(request.url)
+    file = request.files['file']
+    if file.filename == '':
+        flash('Aucun fichier sélectionné.')
+        return redirect(request.url)
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        flash(f'Fichier {filename} uploadé avec succès.')
+        return redirect(url_for('resize_options', filename=filename))
+    else:
+        flash('Format de fichier non supporté. Utilisez jpg, jpeg, ou png.')
+        return redirect(request.url)
+
+# Téléchargement d'une image via URL
+@app.route('/upload_url', methods=['POST'])
+def upload_url():
+    url = request.form['url']
     if not url:
-        messagebox.showerror("Erreur", "Veuillez entrer une URL valide.")
-        return
+        flash('Veuillez entrer une URL valide.')
+        return redirect(url_for('index'))
     try:
         response = requests.get(url, stream=True)
         if response.status_code == 200:
-            filename = os.path.basename(url.split("?")[0])
-            save_path = os.path.join(os.getcwd(), filename)
-            with open(save_path, "wb") as f:
+            filename = secure_filename(os.path.basename(url.split("?")[0]))
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            with open(filepath, "wb") as f:
                 f.write(response.content)
-            file_list.append(save_path)
-            update_file_list()
+            flash(f'Image téléchargée depuis l’URL : {filename}')
+            return redirect(url_for('resize_options', filename=filename))
         else:
-            messagebox.showerror("Erreur", "Impossible de télécharger l'image.")
+            flash('Erreur lors du téléchargement de l’image.')
+            return redirect(url_for('index'))
     except Exception as e:
-        messagebox.showerror("Erreur", f"Échec du téléchargement : {str(e)}")
+        flash(f'Échec du téléchargement : {str(e)}')
+        return redirect(url_for('index'))
 
-def update_file_list():
-    file_listbox.delete(0, END)
-    for file in file_list:
-        file_listbox.insert(END, os.path.basename(file))
+# Page pour choisir les options de redimensionnement
+@app.route('/resize_options/<filename>')
+def resize_options(filename):
+    return render_template('resize.html', filename=filename)
 
-def clear_file_list():
-    global file_list
-    file_list = []
-    file_listbox.delete(0, END)
+# Redimensionner l'image
+@app.route('/resize/<filename>', methods=['POST'])
+def resize_image(filename):
+    resize_mode = request.form['resize_mode']
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    output_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
 
-def resize_images():
-    if not file_list:
-        messagebox.showerror("Erreur", "Aucune image sélectionnée.")
-        return
-
-    if resize_mode.get() == "pixels":
-        width = width_entry.get()
-        height = height_entry.get()
+    if resize_mode == 'pixels':
+        width = request.form['width']
+        height = request.form['height']
         if not width.isdigit() or not height.isdigit():
-            messagebox.showerror("Erreur", "Veuillez entrer des dimensions valides.")
-            return
-        resize_value = f"{width}x{height}"  # Dimensions en pixels
-    elif resize_mode.get() == "percent":
-        percentage = percentage_entry.get()
+            flash('Dimensions invalides.')
+            return redirect(url_for('resize_options', filename=filename))
+        resize_value = f"{width}x{height}"
+    elif resize_mode == 'percent':
+        percentage = request.form['percentage']
         if not percentage.isdigit() or int(percentage) <= 0 or int(percentage) > 100:
-            messagebox.showerror("Erreur", "Veuillez entrer un pourcentage valide (1-100).")
-            return
-        resize_value = f"{percentage}%"  # Pourcentage
+            flash('Pourcentage invalide.')
+            return redirect(url_for('resize_options', filename=filename))
+        resize_value = f"{percentage}%"
 
-    output_dir = filedialog.askdirectory()
-    if not output_dir:
-        return
+    # Exécuter ImageMagick
+    command = ["magick", "convert", filepath, "-resize", resize_value, output_path]
+    subprocess.run(command)
 
-    progress_bar["maximum"] = len(file_list)
-    progress_bar["value"] = 0
+    flash(f'L’image a été redimensionnée avec succès.')
+    return redirect(url_for('download', filename=filename))
 
-    for i, file in enumerate(file_list):
-        output_path = os.path.join(output_dir, os.path.basename(file))
-        command = ["magick", "convert", file, "-resize", resize_value, output_path]
-        subprocess.run(command)
-        progress_bar["value"] += 1
-        progress_bar_label.config(text=f"Traitement : {i + 1}/{len(file_list)}")
-        root.update_idletasks()  # Mise à jour de la barre de progression
+# Télécharger l'image redimensionnée
+@app.route('/download/<filename>')
+def download(filename):
+    return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
 
-    messagebox.showinfo("Succès", f"Redimensionnement terminé. Images enregistrées dans : {output_dir}")
-    progress_bar_label.config(text="")
-    progress_bar["value"] = 0
-
-# Interface graphique
-root = Tk()
-root.title("Image Resizer - GUI pour ImageMagick")
-
-Label(root, text="Ajout d'images").pack()
-
-# Ajout depuis le système de fichiers
-Button(root, text="Ajouter des fichiers", command=select_files).pack(pady=5)
-
-# Ajout depuis une URL
-url_entry = Entry(root, width=50)
-url_entry.pack(pady=5)
-url_entry.insert(0, "Entrez l'URL de l'image ici")
-Button(root, text="Ajouter depuis URL", command=add_url_image).pack(pady=5)
-
-# Liste des fichiers
-scrollbar = Scrollbar(root)
-scrollbar.pack(side="right", fill="y")
-
-file_listbox = Listbox(root, selectmode="multiple", width=50, height=10, yscrollcommand=scrollbar.set)
-file_listbox.pack(pady=5)
-scrollbar.config(command=file_listbox.yview)
-
-Button(root, text="Vider la liste", command=clear_file_list).pack(pady=5)
-
-# Mode de redimensionnement
-resize_mode = StringVar(value="pixels")
-
-Radiobutton(root, text="Dimensions (pixels)", variable=resize_mode, value="pixels").pack()
-Label(root, text="Largeur :").pack()
-width_entry = Entry(root)
-width_entry.pack()
-
-Label(root, text="Hauteur :").pack()
-height_entry = Entry(root)
-height_entry.pack()
-
-Radiobutton(root, text="Pourcentage (%)", variable=resize_mode, value="percent").pack()
-Label(root, text="Pourcentage :").pack()
-percentage_entry = Entry(root)
-percentage_entry.pack()
-
-# Barre de progression
-progress_bar_label = Label(root, text="")
-progress_bar_label.pack(pady=5)
-
-progress_bar = Progressbar(root, orient="horizontal", length=300, mode="determinate")
-progress_bar.pack(pady=5)
-
-# Bouton pour redimensionner
-resize_button = Button(root, text="Redimensionner", command=resize_images)
-resize_button.pack(pady=20)
-
-root.mainloop()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
