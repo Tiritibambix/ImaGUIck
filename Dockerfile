@@ -25,8 +25,11 @@ RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.t
     && make install \
     && rm -rf /tmp/*
 
+# Ajouter /usr/local/bin au PATH
+ENV PATH="/usr/local/bin:${PATH}"
+
 # Vérifier que ImageMagick est bien installé
-RUN /usr/local/bin/magick -version
+RUN magick -version
 
 # Copier l'application dans le conteneur
 WORKDIR /app
