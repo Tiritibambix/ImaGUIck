@@ -28,15 +28,20 @@ def index():
     return render_template('index.html')
 
 # Téléchargement d'une image depuis l'ordinateur
-@app.route('/upload', methods=['POST'])
+@app.route('/upload', methods=['GET', 'POST'])
 def upload_file():
+    if request.method == 'GET':
+        return redirect(url_for('index'))
+
     if 'file' not in request.files:
         flash('Aucun fichier sélectionné.')
         return redirect(url_for('index'))
+
     file = request.files['file']
     if file.filename == '':
         flash('Aucun fichier sélectionné.')
         return redirect(url_for('index'))
+
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -44,7 +49,7 @@ def upload_file():
         flash(f'Fichier {filename} uploadé avec succès.')
         return redirect(url_for('resize_options', filename=filename))
     else:
-        flash(f'Format de fichier non supporté. Formats acceptés : {", ".join(ALLOWED_EXTENSIONS)}')
+        flash(f'Format de fichier non supporté. Formats acceptés : {', '.join(ALLOWED_EXTENSIONS)}')
         return redirect(url_for('index'))
 
 # Téléchargement d'une image via URL
