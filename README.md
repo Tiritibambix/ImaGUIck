@@ -62,7 +62,7 @@ image-resizer/
 ├── requirements.txt   # Python dependencies
 ├── app.py             # The main Python application
 ├── README.md          # Documentation
-├── Lisence.md         # Lisence for ImageMagick
+├── LISENCE            # Lisence for ImageMagick
 └── .gitignore         # Excluded files for version control
 ```
 
@@ -71,4 +71,4 @@ ___
 ## **License**
 
 This project is licensed under the MIT License.
-ImageMagic's license [HERE](https://github.com/tiritibambix/ImageMagickSimpleGUI/blob/main/Lisence.md).
+ImageMagic's license [HERE](https://github.com/tiritibambix/ImageMagickSimpleGUI/blob/main/LISENCE).
