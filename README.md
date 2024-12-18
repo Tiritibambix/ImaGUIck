@@ -1,6 +1,6 @@
 ## **Image Resizer GUI with Docker**
 
-This repository contains a Python-based graphical application for resizing images, built using Tkinter and `ImageMagick 7.1.1-41`. The application supports resizing local files, downloading images from URLs, and batch processing.
+This repository contains a Python-based graphical application for resizing images, built using Tkinter and [`ImageMagick 7.1.1-41`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.1-41). The application supports resizing local files, downloading images from URLs, and batch processing.
 
 ## **Features**
 
