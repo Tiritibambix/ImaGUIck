@@ -51,6 +51,24 @@ If you encounter issues with GUI display, run this command to allow X11 connecti
 ```bash
 xhost +local:
 ```
+___
+
+## **Docker-compose**:
+
+Alternatively, you can use docker-compose with a prebuilt image:
+```yaml
+services:
+  imagemagicksimplegui:
+    stdin_open: true
+    tty: true
+    volumes:
+      - $(pwd)/uploads:/app/uploads
+      - $(pwd)/output:/app/output
+    ports:
+      - 5000:5000
+    image: tiritibambix/imagemagicksimplegui
+networks: {}
+```
 
 ___
 
