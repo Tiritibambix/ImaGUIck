@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Télécharger et installer ImageMagick 7.1.1-41
-RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz \
+RUN wget https://download.imagemagick.org/archive/ImageMagick-7.1.1-41.tar.gz \
     && tar -xzvf ImageMagick-7.1.1-41.tar.gz \
     && cd ImageMagick-7.1.1-41 \
     && ./configure --with-modules \
