@@ -42,15 +42,16 @@ def upload_file():
         flash('Aucun fichier sélectionné.')
         return redirect(url_for('index'))
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        flash(f'Fichier {filename} uploadé avec succès.')
-        return redirect(url_for('resize_options', filename=filename))
-    else:
-        flash(f'Format de fichier non supporté. Formats acceptés : {', '.join(ALLOWED_EXTENSIONS)}')
-        return redirect(url_for('index'))
+if file and allowed_file(file.filename):
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+    flash(f'Fichier {filename} uploadé avec succès.')
+    return redirect(url_for('resize_options', filename=filename))
+else:
+    extensions = ', '.join(ALLOWED_EXTENSIONS)
+    flash(f"Format de fichier non supporté. Formats acceptés : {extensions}")
+    return redirect(url_for('index'))
 
 # Téléchargement d'une image via URL
 @app.route('/upload_url', methods=['POST'])
