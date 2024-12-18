@@ -7,7 +7,7 @@ from werkzeug.utils import secure_filename
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'tiff', 'pdf'}
 
 # Création du répertoire pour les fichiers uploadés
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -44,7 +44,7 @@ def upload_file():
         flash(f'Fichier {filename} uploadé avec succès.')
         return redirect(url_for('resize_options', filename=filename))
     else:
-        flash('Format de fichier non supporté. Utilisez jpg, jpeg, ou png.')
+        flash('Format de fichier non supporté. Utilisez jpg, jpeg, png, gif, tiff ou pdf.')
         return redirect(request.url)
 
 # Téléchargement d'une image via URL
