@@ -1,15 +1,21 @@
 FROM python:3.9-slim
 
-# Ajouter le dépôt d'ImageMagick
+# Installer les dépendances nécessaires pour ImageMagick
 RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    && add-apt-repository ppa:graphicsmagick/imagemagick \
-    && apt-get update
-
-# Installer la version spécifique d'ImageMagick
-RUN apt-get install -y \
-    imagemagick=7.1.1-41 \
+    wget \
+    libmagickcore-6.q16-6-extra \
     && rm -rf /var/lib/apt/lists/*
+
+# Télécharger et installer ImageMagick 7.1.1-41
+RUN wget https://download.imagemagick.org/ImageMagick/download/ImageMagick-7.1.1-41.tar.gz \
+    && tar -xzvf ImageMagick-7.1.1-41.tar.gz \
+    && cd ImageMagick-7.1.1-41 \
+    && ./configure \
+    && make \
+    && make install \
+    && ldconfig /usr/local/lib \
+    && cd .. \
+    && rm -rf ImageMagick-7.1.1-41 ImageMagick-7.1.1-41.tar.gz
 
 # Vérifier l'installation de magick
 RUN which magick || (echo "magick not found" && exit 1)
