@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Resizer</title>
+</head>
+<body>
+    <h1>Image Resizer</h1>
+    <h2>Upload an image</h2>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <button type="submit">Upload</button>
+    </form>
+
+    <h2>Or provide an image URL</h2>
+    <form action="/upload_url" method="post">
+        <input type="text" name="url" placeholder="Enter image URL">
+        <button type="submit">Download and Upload</button>
+    </form>
+</body>
+</html>
