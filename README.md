@@ -32,17 +32,17 @@ cd image-resizer
 ### 2\. **Build the Docker image**
 
 ```bash
-docker build -t image-resizer .
+docker build -t imagemagicksimplegui .
 ```
 
 ### 3\. **Run the application**
 
 ```bash
 docker run -it --rm \
-    -v $(pwd):/app \
-    -e DISPLAY=$DISPLAY \
-    -v /tmp/.X11-unix:/tmp/.X11-unix \
-    image-resizer
+    -v $(pwd)/uploads:/app/uploads \
+    -v $(pwd)/output:/app/output \
+    -p 5000:5000 \
+    imagemagicksimplegui
 ```
 
 #### **Note (for Linux users):**
@@ -62,7 +62,7 @@ image-resizer/
 ├── requirements.txt   # Python dependencies
 ├── app.py             # The main Python application
 ├── README.md          # Documentation
-├──Lisence.md          # Lisence for ImageMagick
+├── Lisence.md         # Lisence for ImageMagick
 └── .gitignore         # Excluded files for version control
 ```
 
