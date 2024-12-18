@@ -1,21 +1,17 @@
-# Utiliser une image de base avec Python
 FROM python:3.9-slim
 
-# Installer les dépendances du système, y compris ImageMagick
+# Installer les dépendances système
 RUN apt-get update && apt-get install -y \
     imagemagick \
-    tcl \
-    tk \
     && rm -rf /var/lib/apt/lists/*
 
-# Définir le répertoire de travail
+# Installer Flask et les bibliothèques nécessaires
 WORKDIR /app
-
-# Copier les fichiers de l'application
 COPY . /app
+RUN pip install flask requests
 
-# Installer les dépendances Python
-RUN pip install --no-cache-dir -r requirements.txt
+# Exposer le port Flask
+EXPOSE 5000
 
-# Exposer l'application pour l'exécution
+# Commande de démarrage
 CMD ["python", "app.py"]
