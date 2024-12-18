@@ -9,7 +9,7 @@ UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'tiff', 'pdf'}
 
-# Création du répertoire pour les fichiers uploadés
+# Création des répertoires nécessaires
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -32,11 +32,11 @@ def index():
 def upload_file():
     if 'file' not in request.files:
         flash('Aucun fichier sélectionné.')
-        return redirect(request.url)
+        return redirect(url_for('index'))
     file = request.files['file']
     if file.filename == '':
         flash('Aucun fichier sélectionné.')
-        return redirect(request.url)
+        return redirect(url_for('index'))
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -44,8 +44,8 @@ def upload_file():
         flash(f'Fichier {filename} uploadé avec succès.')
         return redirect(url_for('resize_options', filename=filename))
     else:
-        flash('Format de fichier non supporté. Utilisez jpg, jpeg, png, gif, tiff ou pdf.')
-        return redirect(request.url)
+        flash(f'Format de fichier non supporté. Formats acceptés : {", ".join(ALLOWED_EXTENSIONS)}')
+        return redirect(url_for('index'))
 
 # Téléchargement d'une image via URL
 @app.route('/upload_url', methods=['POST'])
@@ -78,30 +78,53 @@ def resize_options(filename):
 # Redimensionner l'image
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
-    resize_mode = request.form['resize_mode']
+    resize_mode = request.form.get('resize_mode', '')
+    quality = request.form.get('quality', '100')  # Valeur par défaut : 100%
+    format_conversion = request.form.get('format', None)
+    keep_ratio = 'keep_ratio' in request.form  # Checkbox pour garder le ratio
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    output_filename = filename
+    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
-    if resize_mode == 'pixels':
-        width = request.form['width']
-        height = request.form['height']
-        if not width.isdigit() or not height.isdigit():
-            flash('Dimensions invalides.')
+    if format_conversion:
+        output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+    try:
+        # Déterminer les options de redimensionnement
+        if resize_mode == 'pixels':
+            width = request.form.get('width', '')
+            height = request.form.get('height', '')
+            if not width.isdigit() or not height.isdigit():
+                flash('Dimensions invalides.')
+                return redirect(url_for('resize_options', filename=filename))
+            resize_value = f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
+        elif resize_mode == 'percent':
+            percentage = request.form.get('percentage', '')
+            if not percentage.isdigit() or int(percentage) <= 0 or int(percentage) > 100:
+                flash('Pourcentage invalide.')
+                return redirect(url_for('resize_options', filename=filename))
+            resize_value = f"{percentage}%"
+        else:
+            flash('Mode de redimensionnement invalide.')
             return redirect(url_for('resize_options', filename=filename))
-        resize_value = f"{width}x{height}"
-    elif resize_mode == 'percent':
-        percentage = request.form['percentage']
-        if not percentage.isdigit() or int(percentage) <= 0 or int(percentage) > 100:
-            flash('Pourcentage invalide.')
-            return redirect(url_for('resize_options', filename=filename))
-        resize_value = f"{percentage}%"
 
-    # Exécuter ImageMagick
-    command = ["/usr/local/bin/magick", "convert", filepath, "-resize", resize_value, output_path]
-    subprocess.run(command)
+        # Commande ImageMagick
+        command = ["/usr/local/bin/magick", "convert", filepath]
+        command.extend(["-resize", resize_value])
+        if quality.isdigit() and 1 <= int(quality) <= 100:
+            command.extend(["-quality", quality])
+        command.extend(["-strip", output_path])  # Supprime les métadonnées inutiles
+        subprocess.run(command, check=True)
 
-    flash(f'L’image a été redimensionnée avec succès.')
-    return redirect(url_for('download', filename=filename))
+        flash(f'L’image a été redimensionnée avec succès sous le nom {output_filename}.')
+        return redirect(url_for('download', filename=output_filename))
+    except subprocess.CalledProcessError as e:
+        flash(f"Erreur lors du traitement de l'image : {e}")
+        return redirect(url_for('resize_options', filename=filename))
+    except Exception as e:
+        flash(f"Une erreur est survenue : {e}")
+        return redirect(url_for('resize_options', filename=filename))
 
 # Télécharger l'image redimensionnée
 @app.route('/download/<filename>')
