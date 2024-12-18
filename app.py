@@ -97,7 +97,7 @@ def resize_image(filename):
         resize_value = f"{percentage}%"
 
     # Exécuter ImageMagick
-    command = ["/usr/bin/magick", "convert", filepath, "-resize", resize_value, output_path]
+    command = ["/usr/local/bin/magick", "convert", filepath, "-resize", resize_value, output_path]
     subprocess.run(command)
 
     flash(f'L’image a été redimensionnée avec succès.')
