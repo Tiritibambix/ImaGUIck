@@ -1,37 +1,40 @@
+# Choisir l'image de base
 FROM python:3.9-slim
 
-# Installer les dépendances nécessaires pour compiler ImageMagick
+# Dépendances nécessaires pour compiler ImageMagick et d'autres utilitaires
 RUN apt-get update && apt-get install -y \
-    wget \
     build-essential \
+    wget \
+    tar \
     libjpeg-dev \
     libpng-dev \
-    libfreetype6-dev \
-    libmagickcore-6.q16-6-extra \
+    libtiff-dev \
+    libgif-dev \
+    libx11-dev \
+    libxt-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Télécharger et installer ImageMagick 7.1.1-41
-RUN wget https://download.imagemagick.org/archive/ImageMagick-7.1.1-41.tar.gz \
-    && tar -xzvf ImageMagick-7.1.1-41.tar.gz \
-    && cd ImageMagick-7.1.1-41 \
-    && ./configure --with-modules \
+RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz \
+    && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
+    && cd /tmp/ImageMagick-7.1.1-41 \
+    && ./configure --prefix=/usr/local \
     && make \
     && make install \
-    && ldconfig /usr/local/lib \
-    && cd .. \
-    && rm -rf ImageMagick-7.1.1-41 ImageMagick-7.1.1-41.tar.gz
+    && rm -rf /tmp/*
 
-# Vérifier l'installation de magick
-RUN which magick || (echo "magick not found" && exit 1)
+# Vérifier que ImageMagick est bien installé
 RUN magick -version
 
-# Installer Flask et les autres dépendances Python
+# Copier l'application dans le conteneur
 WORKDIR /app
 COPY . /app
-RUN pip install -r requirements.txt
 
-# Exposer le port Flask
+# Installer les dépendances Python
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Exposer le port
 EXPOSE 5000
 
-# Commande de démarrage
+# Commande pour démarrer l'application Flask
 CMD ["python", "app.py"]
