@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resize Options</title>
+</head>
+<body>
+    <h1>Resize Image: {{ filename }}</h1>
+    <form action="/resize/{{ filename }}" method="post">
+        <h2>Resize by Pixels</h2>
+        Width: <input type="text" name="width">
+        Height: <input type="text" name="height">
+        <button type="submit" name="resize_mode" value="pixels">Resize</button>
+
+        <h2>Resize by Percentage</h2>
+        Percentage: <input type="text" name="percentage">
+        <button type="submit" name="resize_mode" value="percent">Resize</button>
+    </form>
+</body>
+</html>
