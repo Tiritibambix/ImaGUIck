@@ -41,3 +41,4 @@ jobs:
 
     - name: Logout from Docker Hub
       run: docker logout  # Se déconnecter de Docker Hub après avoir poussé l'image
+#
