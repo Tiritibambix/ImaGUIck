@@ -25,8 +25,8 @@ ___
 ### 1\. **Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/image-resizer.git
-cd image-resizer
+git clone https://github.com/tiritibambix/ImageMagickSimpleGUI.git
+cd ImageMagickSimpleGUI
 ```
 
 ### 2\. **Build the Docker image**
