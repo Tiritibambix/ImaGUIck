@@ -5,6 +5,7 @@ from zipfile import ZipFile
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from PIL import Image
+import requests
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -68,6 +69,35 @@ def upload_file():
         return redirect(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
     else:
         flash('No valid files uploaded.')
+        return redirect(url_for('index'))
+
+
+@app.route('/upload_url', methods=['POST'])
+def upload_url():
+    """Handle image upload from a URL."""
+    url = request.form.get('url')
+    if not url:
+        flash("No URL provided.")
+        return redirect(url_for('index'))
+
+    try:
+        # Fetch the image from the URL
+        response = requests.get(url, stream=True)
+        response.raise_for_status()  # Raise error for bad status codes
+
+        # Extract the filename from the URL
+        filename = url.split("/")[-1]
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+
+        # Write the content to a file
+        with open(filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        flash(f"Image downloaded successfully: {filename}")
+        return redirect(url_for('resize_options', filename=filename))
+    except requests.exceptions.RequestException as e:
+        flash(f"Error downloading image: {e}")
         return redirect(url_for('index'))
 
 
