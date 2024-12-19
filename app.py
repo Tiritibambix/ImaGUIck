@@ -3,15 +3,14 @@ import os
 import subprocess
 import requests
 from werkzeug.utils import secure_filename
-from PIL import Image
 from zipfile import ZipFile
+from PIL import Image
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'tiff', 'pdf'}
 
-# Création des répertoires nécessaires
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -20,43 +19,37 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.secret_key = 'supersecretkey'
 
-# Vérifie si l'extension est autorisée
+
 def allowed_file(filename):
+    """Check if the file extension is allowed."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Obtenir les dimensions d'une image
+
 def get_image_dimensions(filepath):
-    """Retourne les dimensions d'une image sous forme de tuple (width, height)."""
+    """Get image dimensions as (width, height)."""
     try:
         with Image.open(filepath) as img:
-            return img.size  # Retourne (width, height)
-    except Exception as e:
+            return img.size
+    except Exception:
         return None
 
-# Détermine la valeur de redimensionnement
-def determine_resize_value(width, height, percentage, keep_ratio):
-    if width.isdigit() and height.isdigit():
-        return f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
-    elif percentage.isdigit() and 0 < int(percentage) <= 100:
-        return f"{percentage}%"
-    else:
-        raise ValueError("Invalid resize parameters")
 
-# Page d'accueil
 @app.route('/')
 def index():
+    """Homepage with upload options."""
     return render_template('index.html')
 
-# Téléchargement d'une ou plusieurs images
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    """Handle file uploads."""
     if 'file' not in request.files:
-        flash('Aucun fichier sélectionné.')
+        flash('No file selected.')
         return redirect(url_for('index'))
 
-    files = request.files.getlist('file')  # Récupérer tous les fichiers
+    files = request.files.getlist('file')  # Multiple files support
     if not files or files[0].filename == '':
-        flash('Aucun fichier sélectionné.')
+        flash('No file selected.')
         return redirect(url_for('index'))
 
     uploaded_files = []
@@ -67,25 +60,40 @@ def upload_file():
             file.save(filepath)
             uploaded_files.append(filename)
         else:
-            extensions = ', '.join(ALLOWED_EXTENSIONS)
-            flash(f"Format non supporté pour {file.filename}. Formats acceptés : {extensions}")
+            flash(f"Unsupported file format for {file.filename}.")
 
+    # Redirect logic
     if len(uploaded_files) == 1:
-        # Redirection pour un fichier unique
         return redirect(url_for('resize_options', filename=uploaded_files[0]))
-    else:
-        # Redirection pour un batch
+    elif len(uploaded_files) > 1:
         return redirect(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
+    else:
+        flash('No valid files uploaded.')
+        return redirect(url_for('index'))
 
-# Page pour choisir les options d'un batch
+
+@app.route('/resize_options/<filename>')
+def resize_options(filename):
+    """Resize options page for a single image."""
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    dimensions = get_image_dimensions(filepath)
+    if not dimensions:
+        flash("Unable to get image dimensions.")
+        return redirect(url_for('index'))
+    width, height = dimensions
+    return render_template('resize.html', filename=filename, width=width, height=height)
+
+
 @app.route('/resize_batch_options/<filenames>')
 def resize_batch_options(filenames):
+    """Resize options page for batch processing."""
     files = filenames.split(',')
     return render_template('resize_batch.html', files=files)
 
-# Redimensionner un batch d'images
+
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():
+    """Resize multiple images and compress them into a ZIP."""
     filenames = request.form.getlist('filenames')
     quality = request.form.get('quality', '100')
     format_conversion = request.form.get('format', None)
@@ -102,7 +110,6 @@ def resize_batch():
             output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
-        # Commande ImageMagick
         try:
             resize_value = determine_resize_value(width, height, percentage, keep_ratio)
             command = ["/usr/local/bin/magick", "convert", filepath, "-resize", resize_value]
@@ -112,7 +119,7 @@ def resize_batch():
             subprocess.run(command, check=True)
             output_files.append(output_path)
         except Exception as e:
-            flash(f"Erreur avec {filename} : {str(e)}")
+            flash(f"Error with {filename}: {e}")
 
     if len(output_files) > 1:
         zip_path = os.path.join(app.config['OUTPUT_FOLDER'], "batch_output.zip")
@@ -123,18 +130,31 @@ def resize_batch():
     elif len(output_files) == 1:
         return redirect(url_for('download', filename=os.path.basename(output_files[0])))
     else:
-        flash("Aucune image traitée.")
+        flash("No images processed.")
         return redirect(url_for('index'))
 
-# Télécharger un fichier ZIP
+
+def determine_resize_value(width, height, percentage, keep_ratio):
+    """Determine resize value for ImageMagick."""
+    if width.isdigit() and height.isdigit():
+        return f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
+    elif percentage.isdigit() and 0 < int(percentage) <= 100:
+        return f"{percentage}%"
+    else:
+        raise ValueError("Invalid resize parameters.")
+
+
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
+    """Serve the ZIP file for download."""
     return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
 
-# Télécharger une image redimensionnée
+
 @app.route('/download/<filename>')
 def download(filename):
+    """Serve a single file for download."""
     return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
