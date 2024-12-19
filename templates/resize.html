@@ -9,10 +9,10 @@
     <h1>Resize Image: {{ filename }}</h1>
     <form action="/resize/{{ filename }}" method="post">
         <h2>Resize by Pixels</h2>
-        <p>Original dimensions: {{ width }} x {{ height }} pixels</p>
         Width: <input type="text" name="width" placeholder="Enter width">
         Height: <input type="text" name="height" placeholder="Enter height">
         <input type="checkbox" name="keep_ratio"> Keep Aspect Ratio
+        <p><small>Original dimensions: {{ width }} x {{ height }} pixels</small></p>
         <br>
 
         <h2>Resize by Percentage</h2>
