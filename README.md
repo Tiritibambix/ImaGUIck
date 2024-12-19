@@ -21,8 +21,8 @@ The application supports resizing local files, downloading images from URLs, bat
 - **Responsive Web Interface:**
   - Accessible on desktop and mobile devices.
   - Modern design using HTML5 and CSS.
-- **Preserves Original Metadata:**
-  - Removes unnecessary metadata to optimize file size.
+- **Optimized Metadata Handling:**
+  - Removes unnecessary metadata (e.g., EXIF data) to optimize file size.
 
 ---
 
