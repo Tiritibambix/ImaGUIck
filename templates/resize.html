@@ -9,13 +9,14 @@
     <h1>Resize Image: {{ filename }}</h1>
     <form action="/resize/{{ filename }}" method="post">
         <h2>Resize by Pixels</h2>
-        Width: <input type="text" name="width">
-        Height: <input type="text" name="height">
+        <p>Original dimensions: {{ width }} x {{ height }} pixels</p>
+        Width: <input type="text" name="width" placeholder="Enter width">
+        Height: <input type="text" name="height" placeholder="Enter height">
         <input type="checkbox" name="keep_ratio"> Keep Aspect Ratio
         <br>
 
         <h2>Resize by Percentage</h2>
-        Percentage: <input type="text" name="percentage">
+        Percentage: <input type="text" name="percentage" placeholder="Enter percentage (1-100)">
         <br>
 
         <h2>Additional Options</h2>
@@ -29,7 +30,7 @@
             <option value="webp">WEBP</option>
         </select>
         <br>
-        
+
         <h2>Apply Resize</h2>
         <button type="submit">Resize</button>
     </form>

@@ -3,6 +3,7 @@ import os
 import subprocess
 import requests
 from werkzeug.utils import secure_filename
+from PIL import Image
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -21,6 +22,15 @@ app.secret_key = 'supersecretkey'
 # Vérifie si l'extension est autorisée
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Obtenir les dimensions d'une image
+def get_image_dimensions(filepath):
+    """Retourne les dimensions d'une image sous forme de tuple (width, height)."""
+    try:
+        with Image.open(filepath) as img:
+            return img.size  # Retourne (width, height)
+    except Exception as e:
+        return None
 
 # Page d'accueil
 @app.route('/')
@@ -79,7 +89,14 @@ def upload_url():
 # Page pour choisir les options de redimensionnement
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
-    return render_template('resize.html', filename=filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    dimensions = get_image_dimensions(filepath)
+    if not dimensions:
+        flash("Impossible d'obtenir les dimensions de l'image.")
+        return redirect(url_for('index'))
+    
+    width, height = dimensions
+    return render_template('resize.html', filename=filename, width=width, height=height)
 
 # Redimensionner l'image
 @app.route('/resize/<filename>', methods=['POST'])
