@@ -13,12 +13,10 @@
         Height: <input type="text" name="height">
         <input type="checkbox" name="keep_ratio"> Keep Aspect Ratio
         <br>
-        <button type="submit" name="resize_mode" value="pixels">Resize</button>
 
         <h2>Resize by Percentage</h2>
         Percentage: <input type="text" name="percentage">
         <br>
-        <button type="submit" name="resize_mode" value="percent">Resize</button>
 
         <h2>Additional Options</h2>
         Quality (1-100): <input type="text" name="quality" value="100">
@@ -31,6 +29,10 @@
             <option value="webp">WEBP</option>
         </select>
         <br>
+        
+        <h2>Apply Resize</h2>
+        <button type="submit" name="resize_mode" value="pixels">Resize by Pixels</button>
+        <button type="submit" name="resize_mode" value="percent">Resize by Percentage</button>
     </form>
 </body>
 </html>
