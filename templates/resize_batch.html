@@ -133,10 +133,11 @@
             Format: 
             <select name="format">
                 <option value="">Keep Original</option>
-                <option value="jpg">JPG</option>
-                <option value="png">PNG</option>
-                <option value="webp">WEBP</option>
+                {% for fmt in formats %}
+                    <option value="{{ fmt|lower }}">{{ fmt }}</option>
+                {% endfor %}
             </select>
+
 
             <h2>Apply Resize</h2>
             <button type="submit">Resize Batch</button>

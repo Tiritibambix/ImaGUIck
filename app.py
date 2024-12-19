@@ -9,8 +9,6 @@ from PIL import Image
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'tiff', 'pdf'}
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -21,8 +19,26 @@ app.secret_key = 'supersecretkey'
 
 
 def allowed_file(filename):
-    """Check if the file extension is allowed."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    """Allow all file types supported by ImageMagick."""
+    return '.' in filename
+
+
+def get_supported_formats():
+    """Retrieve the list of supported formats by ImageMagick."""
+    try:
+        result = subprocess.run(
+            ["/usr/local/bin/magick", "convert", "-list", "format"],
+            stdout=subprocess.PIPE,
+            text=True
+        )
+        formats = []
+        for line in result.stdout.split("\n"):
+            if line.strip() and not line.startswith(" "):
+                formats.append(line.split()[0])
+        return sorted(formats)  # Returns a sorted list of supported formats
+    except Exception as e:
+        print(f"Error retrieving formats: {e}")
+        return []
 
 
 def get_image_dimensions(filepath):
@@ -77,11 +93,12 @@ def resize_options(filename):
     """Resize options page for a single image."""
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     dimensions = get_image_dimensions(filepath)
+    formats = get_supported_formats()  # Get all formats
     if not dimensions:
         flash("Unable to get image dimensions.")
         return redirect(url_for('index'))
     width, height = dimensions
-    return render_template('resize.html', filename=filename, width=width, height=height)
+    return render_template('resize.html', filename=filename, width=width, height=height, formats=formats)
 
 
 @app.route('/resize/<filename>', methods=['POST'])
@@ -99,6 +116,9 @@ def resize_image(filename):
     output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
     if format_conversion:
+        if format_conversion.upper() not in get_supported_formats():
+            flash(f"Unsupported output format: {format_conversion}")
+            return redirect(url_for('resize_options', filename=filename))
         output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
@@ -124,7 +144,8 @@ def resize_image(filename):
 def resize_batch_options(filenames):
     """Resize options page for batch processing."""
     files = filenames.split(',')
-    return render_template('resize_batch.html', files=files)
+    formats = get_supported_formats()  # Get all formats
+    return render_template('resize_batch.html', files=files, formats=formats)
 
 
 @app.route('/resize_batch', methods=['POST'])
@@ -143,6 +164,9 @@ def resize_batch():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         output_filename = filename
         if format_conversion:
+            if format_conversion.upper() not in get_supported_formats():
+                flash(f"Unsupported output format: {format_conversion}")
+                continue
             output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
