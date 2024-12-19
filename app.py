@@ -24,7 +24,7 @@ def allowed_file(filename):
 
 
 def get_supported_formats():
-    """Retrieve only valid file formats supported by ImageMagick."""
+    """Retrieve only valid native file formats supported by ImageMagick."""
     try:
         result = subprocess.run(
             ["/usr/local/bin/magick", "convert", "-list", "format"],
@@ -33,11 +33,10 @@ def get_supported_formats():
         )
         formats = []
         for line in result.stdout.split("\n"):
-            # Format lines typically have this structure: `FORMAT  rw-  DESCRIPTION`
             parts = line.split()
-            if len(parts) > 1 and ("r" in parts[1] or "w" in parts[1]):
-                formats.append(parts[0])  # The first part is the format name
-        return sorted(formats)  # Return a clean, sorted list of formats
+            if len(parts) > 1 and ("r" in parts[1] or "w" in parts[1]) and "*" in parts[0]:
+                formats.append(parts[0].strip('*'))  # Keep only native formats
+        return sorted(formats)
     except Exception as e:
         print(f"Error retrieving formats: {e}")
         return []
