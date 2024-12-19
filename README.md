@@ -1,5 +1,5 @@
 
-## **Image Resizer Web Application with Docker**
+## **Imaguick: Image Resizer Web Application with Docker**
 
 This repository contains a Python-based web application for resizing images, built using Flask and [`ImageMagick 7.1.1-41`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.1-41).
 
@@ -40,14 +40,14 @@ The application supports resizing local files, downloading images from URLs, bat
 ### 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/tiritibambix/ImageMagickSimpleGUI.git
-cd ImageMagickSimpleGUI
+git clone https://github.com/tiritibambix/ImaGUIck.git
+cd ImaGUIck
 ```
 
 ### 2. **Build the Docker image**
 
 ```bash
-docker build -t imagemagicksimplegui .
+docker build -t imaguick .
 ```
 
 ### 3. **Run the application**
@@ -57,7 +57,7 @@ docker run -it --rm \
     -v $(pwd)/uploads:/app/uploads \
     -v $(pwd)/output:/app/output \
     -p 5000:5000 \
-    imagemagicksimplegui
+    imaguick
 ```
 
 ### 4. **Access the Web Interface**
@@ -92,7 +92,7 @@ Alternatively, you can use docker-compose to run the application:
 
 ```yaml
 services:
-  imagemagicksimplegui:
+  imaguick:
     stdin_open: true
     tty: true
     volumes:
@@ -100,7 +100,7 @@ services:
       - ./output:/app/output
     ports:
       - 5000:5000
-    image: tiritibambix/imagemagicksimplegui:latest
+    image: tiritibambix/imaguick:latest
 networks: {}
 ```
 
@@ -109,7 +109,7 @@ networks: {}
 ## **Project Structure**
 
 ```
-imagemagicksimplegui/
+imaguick/
 ├── Dockerfile         # Instructions to build the Docker image
 ├── requirements.txt   # Python dependencies
 ├── app.py             # The main Python application
@@ -135,4 +135,4 @@ imagemagicksimplegui/
 ## **License**
 
 This project is licensed under the MIT License.  
-ImageMagick's license can be found [HERE](https://github.com/tiritibambix/ImageMagickSimpleGUI/blob/main/LICENSE).
+ImageMagick's license can be found [HERE](https://github.com/tiritibambix/ImaGUIck/blob/main/LICENSE).
