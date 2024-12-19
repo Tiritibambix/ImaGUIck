@@ -4,6 +4,7 @@ import subprocess
 from zipfile import ZipFile
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from PIL import Image
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -20,6 +21,16 @@ app.secret_key = 'supersecretkey'
 def allowed_file(filename):
     """Allow all file types supported by ImageMagick."""
     return '.' in filename
+
+
+def get_image_dimensions(filepath):
+    """Get image dimensions as (width, height)."""
+    try:
+        with Image.open(filepath) as img:
+            return img.size  # Returns (width, height)
+    except Exception as e:
+        print(f"Error retrieving dimensions for {filepath}: {e}")
+        return None
 
 
 @app.route('/')
@@ -64,9 +75,62 @@ def upload_file():
 def resize_options(filename):
     """Resize options page for a single image."""
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    dimensions = (1000, 1000)  # Placeholder dimensions if not implemented
+    dimensions = get_image_dimensions(filepath)  # Get real dimensions
+    if not dimensions:
+        flash("Unable to get image dimensions.")
+        return redirect(url_for('index'))
+
     formats = ['jpg', 'png', 'webp']  # Placeholder formats
-    return render_template('resize.html', filename=filename, width=dimensions[0], height=dimensions[1], formats=formats)
+    width, height = dimensions
+    return render_template('resize.html', filename=filename, width=width, height=height, formats=formats)
+
+
+@app.route('/resize/<filename>', methods=['POST'])
+def resize_image(filename):
+    """Handle resizing or format conversion for a single image."""
+    quality = request.form.get('quality', '100')  # Default quality is 100
+    format_conversion = request.form.get('format', None)
+    keep_ratio = 'keep_ratio' in request.form  # Checkbox for aspect ratio
+    width = request.form.get('width', '')
+    height = request.form.get('height', '')
+    percentage = request.form.get('percentage', '')
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    name, ext = os.path.splitext(filename)
+    output_filename = f"{name}_rsz{ext}"  # Add the `_rsz` suffix before extension
+    if format_conversion:
+        output_filename = f"{name}_rsz.{format_conversion.lower()}"  # Apply format conversion
+    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+    try:
+        # Build the ImageMagick command
+        command = ["/usr/local/bin/magick", filepath]
+
+        if width.isdigit() and height.isdigit():
+            if keep_ratio:
+                resize_value = f"{width}x{height}"  # Keep aspect ratio
+            else:
+                resize_value = f"{width}x{height}!"  # Allow deformation
+            command.extend(["-resize", resize_value])
+        elif percentage.isdigit() and 0 < int(percentage) <= 100:
+            resize_value = f"{percentage}%"
+            command.extend(["-resize", resize_value])
+
+        # Add quality if specified
+        if quality.isdigit() and 1 <= int(quality) <= 100:
+            command.extend(["-quality", quality])
+
+        # Output path
+        command.append(output_path)
+
+        # Run the ImageMagick command
+        subprocess.run(command, check=True)
+
+        flash(f'Image processed successfully: {output_filename}')
+        return redirect(url_for('download', filename=output_filename))
+    except Exception as e:
+        flash(f"Error processing image: {e}")
+        return redirect(url_for('resize_options', filename=filename))
 
 
 @app.route('/resize_batch_options/<filenames>')
@@ -137,6 +201,12 @@ def resize_batch():
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
+    return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
+
+
+@app.route('/download/<filename>')
+def download(filename):
+    """Serve a single file for download."""
     return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
 
 
