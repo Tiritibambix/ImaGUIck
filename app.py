@@ -104,7 +104,7 @@ def resize_options(filename):
 
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
-    """Handle resizing for a single image."""
+    """Handle resizing or format conversion for a single image."""
     quality = request.form.get('quality', '100')  # Default quality is 100
     format_conversion = request.form.get('format', None)
     keep_ratio = 'keep_ratio' in request.form  # Checkbox for aspect ratio
@@ -124,17 +124,28 @@ def resize_image(filename):
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
     try:
-        # Determine resize options
-        resize_value = determine_resize_value(width, height, percentage, keep_ratio)
+        # Build the ImageMagick command
+        command = ["/usr/local/bin/magick", filepath]
 
-        # ImageMagick command
-        command = ["/usr/local/bin/magick", filepath, "-resize", resize_value]
+        # Add resize options if specified
+        if width.isdigit() and height.isdigit():
+            resize_value = f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
+            command.extend(["-resize", resize_value])
+        elif percentage.isdigit() and 0 < int(percentage) <= 100:
+            resize_value = f"{percentage}%"
+            command.extend(["-resize", resize_value])
+
+        # Add quality if specified
         if quality.isdigit() and 1 <= int(quality) <= 100:
             command.extend(["-quality", quality])
-        command.extend(["-strip", output_path])  # Remove unnecessary metadata
+
+        # Output path
+        command.append(output_path)
+
+        # Run the ImageMagick command
         subprocess.run(command, check=True)
 
-        flash(f'Image resized successfully: {output_filename}')
+        flash(f'Image processed successfully: {output_filename}')
         return redirect(url_for('download', filename=output_filename))
     except Exception as e:
         flash(f"Error processing image: {e}")
@@ -172,14 +183,25 @@ def resize_batch():
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
         try:
-            # Determine resize options
-            resize_value = determine_resize_value(width, height, percentage, keep_ratio)
+            # Build the ImageMagick command
+            command = ["/usr/local/bin/magick", filepath]
 
-            # ImageMagick command
-            command = ["/usr/local/bin/magick", filepath, "-resize", resize_value]
+            # Add resize options if specified
+            if width.isdigit() and height.isdigit():
+                resize_value = f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
+                command.extend(["-resize", resize_value])
+            elif percentage.isdigit() and 0 < int(percentage) <= 100:
+                resize_value = f"{percentage}%"
+                command.extend(["-resize", resize_value])
+
+            # Add quality if specified
             if quality.isdigit() and 1 <= int(quality) <= 100:
                 command.extend(["-quality", quality])
-            command.extend(["-strip", output_path])
+
+            # Output path
+            command.append(output_path)
+
+            # Run the ImageMagick command
             subprocess.run(command, check=True)
             output_files.append(output_path)
         except Exception as e:
