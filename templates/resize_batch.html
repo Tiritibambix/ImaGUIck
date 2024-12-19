@@ -136,11 +136,11 @@
             <h2>Resize Options</h2>
             <label>
                 Width:
-                <input type="text" name="width" placeholder="Enter width" id="batch_width" data-original-width="0" data-original-height="0">
+                <input type="text" name="width" placeholder="Enter width" id="batch_width">
             </label>
             <label>
                 Height:
-                <input type="text" name="height" placeholder="Enter height" id="batch_height" data-original-width="0" data-original-height="0">
+                <input type="text" name="height" placeholder="Enter height" id="batch_height">
             </label>
             <label>
                 <input type="checkbox" name="keep_ratio" id="batch_keep_ratio"> Keep Aspect Ratio
@@ -172,24 +172,14 @@
         const batchHeightInput = document.getElementById('batch_height');
         const batchKeepRatioCheckbox = document.getElementById('batch_keep_ratio');
 
-        function calculateOtherDimensionBatch(changedInput, otherInput) {
-            if (!batchKeepRatioCheckbox.checked) return;
-
-            const originalWidth = 1000; // Placeholder for default ratio
-            const originalHeight = 1000;
-
-            const value = parseInt(changedInput.value, 10);
-            if (!isNaN(value)) {
-                if (changedInput.id === 'batch_width') {
-                    otherInput.value = Math.round((value / originalWidth) * originalHeight);
-                } else if (changedInput.id === 'batch_height') {
-                    otherInput.value = Math.round((value / originalHeight) * originalWidth);
-                }
+        function resetDimensionsIfRatioNotKept() {
+            if (!batchKeepRatioCheckbox.checked) {
+                batchWidthInput.value = '';
+                batchHeightInput.value = '';
             }
         }
 
-        batchWidthInput.addEventListener('input', () => calculateOtherDimensionBatch(batchWidthInput, batchHeightInput));
-        batchHeightInput.addEventListener('input', () => calculateOtherDimensionBatch(batchHeightInput, batchWidthInput));
+        batchKeepRatioCheckbox.addEventListener('change', resetDimensionsIfRatioNotKept);
     </script>
 </body>
 </html>

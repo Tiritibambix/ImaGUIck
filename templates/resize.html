@@ -196,6 +196,13 @@
             const originalHeight = parseInt(heightInput.dataset.originalHeight, 10);
             calculateOtherDimension(heightInput, widthInput, originalWidth, originalHeight);
         });
+
+        keepRatioCheckbox.addEventListener('change', () => {
+            if (!keepRatioCheckbox.checked) {
+                widthInput.value = '';
+                heightInput.value = '';
+            }
+        });
     </script>
 </body>
 </html>
