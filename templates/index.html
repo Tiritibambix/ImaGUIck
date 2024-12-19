@@ -3,22 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Resizer</title>
+    <title>ImageMagickSimpleGUI</title>
+    <style>
+        :root {
+            /** Dark theme primary colors */
+            --clr-primary-a0: #808080;
+            --clr-primary-a10: #8d8d8d;
+            --clr-primary-a20: #9b9b9b;
+            --clr-primary-a30: #a9a9a9;
+            --clr-primary-a40: #b6b6b6;
+            --clr-primary-a50: #c5c5c5;
+
+            /** Dark theme surface colors */
+            --clr-surface-a0: #121212;
+            --clr-surface-a10: #282828;
+            --clr-surface-a20: #3f3f3f;
+            --clr-surface-a30: #575757;
+            --clr-surface-a40: #717171;
+            --clr-surface-a50: #8b8b8b;
+
+            /** Dark theme tonal surface colors */
+            --clr-surface-tonal-a0: #262626;
+            --clr-surface-tonal-a10: #3a3a3a;
+            --clr-surface-tonal-a20: #505050;
+            --clr-surface-tonal-a30: #676767;
+            --clr-surface-tonal-a40: #7e7e7e;
+            --clr-surface-tonal-a50: #979797;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: var(--clr-surface-a0);
+            color: var(--clr-primary-a50);
+        }
+        .container {
+            background-color: var(--clr-surface-a10);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        h1 {
+            color: var(--clr-primary-a30);
+        }
+        h2 {
+            color: var(--clr-primary-a40);
+            margin-top: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input[type="file"], input[type="text"] {
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid var(--clr-surface-a30);
+            border-radius: 4px;
+            width: calc(100% - 22px);
+            background-color: var(--clr-surface-a20);
+            color: var(--clr-primary-a50);
+        }
+        button {
+            padding: 10px 20px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--clr-primary-a30);
+            color: var(--clr-surface-a0);
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: var(--clr-primary-a20);
+        }
+    </style>
 </head>
 <body>
-    <h1>Image Resizer</h1>
-    <h2>Upload an image</h2>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <br>
-        <button type="submit">Upload</button>
-    </form>
-
-    <h2>Or provide an image URL</h2>
-    <form action="/upload_url" method="post">
-        <input type="text" name="url" placeholder="Enter image URL">
-        <br>
-        <button type="submit">Download and Upload</button>
-    </form>
+    <div class="container">
+        <h1>ImageMagickSimpleGUI</h1>
+        <h2>Upload an image</h2>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="file">
+            <button type="submit">Upload</button>
+        </form>
+        <h2>Or provide an image URL</h2>
+        <form action="/upload_url" method="post">
+            <input type="text" name="url" placeholder="Enter image URL">
+            <button type="submit">Download and Upload</button>
+        </form>
+    </div>
 </body>
 </html>
