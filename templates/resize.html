@@ -30,6 +30,9 @@
             /** Input field sizes */
             --input-width: 100%;
             --input-max-width: 300px;
+
+            /** Header font size */
+            --header-font-size: 1.5rem;
         }
 
         body {
@@ -56,7 +59,8 @@
 
         h1 {
             color: var(--clr-primary-a30);
-            font-size: 1.8rem;
+            font-size: var(--header-font-size); /* Smaller font size */
+            margin: var(--spacing-small) 0; /* Reduce margin */
         }
 
         h2 {
@@ -114,7 +118,7 @@
             }
 
             h1 {
-                font-size: 2.4rem;
+                font-size: 1.8rem; /* Slightly larger on larger screens */
             }
 
             h2 {
@@ -130,7 +134,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Resize Image: {{ filename }}</h1>
+        <h4>Resize Image: {{ filename }}</h4>
         <form action="/resize/{{ filename }}" method="post">
             <h2>Resize by Pixels</h2>
             <label>
