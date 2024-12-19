@@ -84,10 +84,13 @@ def resize_options(filename):
 # Redimensionner l'image
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
-    resize_mode = request.form.get('resize_mode', '')
     quality = request.form.get('quality', '100')  # Valeur par défaut : 100%
     format_conversion = request.form.get('format', None)
     keep_ratio = 'keep_ratio' in request.form  # Checkbox pour garder le ratio
+    width = request.form.get('width', '')
+    height = request.form.get('height', '')
+    percentage = request.form.get('percentage', '')
+    
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     output_filename = filename
     output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
@@ -98,21 +101,12 @@ def resize_image(filename):
 
     try:
         # Déterminer les options de redimensionnement
-        if resize_mode == 'pixels':
-            width = request.form.get('width', '')
-            height = request.form.get('height', '')
-            if not width.isdigit() or not height.isdigit():
-                flash('Dimensions invalides.')
-                return redirect(url_for('resize_options', filename=filename))
+        if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
-        elif resize_mode == 'percent':
-            percentage = request.form.get('percentage', '')
-            if not percentage.isdigit() or int(percentage) <= 0 or int(percentage) > 100:
-                flash('Pourcentage invalide.')
-                return redirect(url_for('resize_options', filename=filename))
+        elif percentage.isdigit() and 0 < int(percentage) <= 100:
             resize_value = f"{percentage}%"
         else:
-            flash('Mode de redimensionnement invalide.')
+            flash('Veuillez spécifier soit des dimensions (width/height), soit un pourcentage valide.')
             return redirect(url_for('resize_options', filename=filename))
 
         # Commande ImageMagick
