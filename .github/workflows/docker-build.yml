@@ -35,8 +35,8 @@ jobs:
 
     - name: Build and push Docker image
       run: |
-        docker build -t tiritibambix/imagemagicksimplegui:latest .
-        docker push tiritibambix/imagemagicksimplegui:latest
+        docker build -t tiritibambix/imaguick:latest .
+        docker push tiritibambix/imaguick:latest
       # Construire et pousser l'image vers Docker Hub
 
     - name: Logout from Docker Hub
