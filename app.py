@@ -81,12 +81,21 @@ def upload_url():
         return redirect(url_for('index'))
 
     try:
+        # Set headers for the request
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+
         # Fetch the image from the URL
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, headers=headers)
         response.raise_for_status()  # Raise error for bad status codes
 
         # Extract the filename from the URL
-        filename = url.split("/")[-1]
+        filename = url.split("/")[-1].split("?")[0]  # Remove query parameters
+        if not filename:
+            flash("Unable to determine a valid filename from the URL.")
+            return redirect(url_for('index'))
+
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
 
         # Write the content to a file
