@@ -84,6 +84,42 @@ def resize_options(filename):
     return render_template('resize.html', filename=filename, width=width, height=height)
 
 
+@app.route('/resize/<filename>', methods=['POST'])
+def resize_image(filename):
+    """Handle resizing for a single image."""
+    quality = request.form.get('quality', '100')  # Default quality is 100
+    format_conversion = request.form.get('format', None)
+    keep_ratio = 'keep_ratio' in request.form  # Checkbox for aspect ratio
+    width = request.form.get('width', '')
+    height = request.form.get('height', '')
+    percentage = request.form.get('percentage', '')
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    output_filename = filename
+    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+    if format_conversion:
+        output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+    try:
+        # Determine resize options
+        resize_value = determine_resize_value(width, height, percentage, keep_ratio)
+
+        # ImageMagick command
+        command = ["/usr/local/bin/magick", "convert", filepath, "-resize", resize_value]
+        if quality.isdigit() and 1 <= int(quality) <= 100:
+            command.extend(["-quality", quality])
+        command.extend(["-strip", output_path])  # Remove unnecessary metadata
+        subprocess.run(command, check=True)
+
+        flash(f'Image resized successfully: {output_filename}')
+        return redirect(url_for('download', filename=output_filename))
+    except Exception as e:
+        flash(f"Error processing image: {e}")
+        return redirect(url_for('resize_options', filename=filename))
+
+
 @app.route('/resize_batch_options/<filenames>')
 def resize_batch_options(filenames):
     """Resize options page for batch processing."""

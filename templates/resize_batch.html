@@ -3,25 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resize Batch Options</title>
+    <title>Resize Batch</title>
     <style>
-        /* Réutilisation du thème défini dans les autres fichiers */
-        :root {
-            --clr-primary-a0: #808080;
-            --clr-primary-a10: #8d8d8d;
-            --clr-primary-a20: #9b9b9b;
-            --clr-primary-a30: #a9a9a9;
-            --clr-primary-a40: #b6b6b6;
-            --clr-primary-a50: #c5c5c5;
-
-            --clr-surface-a0: #121212;
-            --clr-surface-a10: #282828;
-            --clr-surface-a20: #3f3f3f;
-            --clr-surface-a30: #575757;
-            --clr-surface-a40: #717171;
-            --clr-surface-a50: #8b8b8b;
-        }
-
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -29,70 +12,49 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: var(--clr-surface-a0);
-            color: var(--clr-primary-a50);
+            background-color: #121212;
+            color: #c5c5c5;
         }
         .container {
-            background-color: var(--clr-surface-a10);
+            background-color: #282828;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
-        h1, h2 {
-            color: var(--clr-primary-a30);
-        }
-        form {
-            margin-bottom: 20px;
-        }
-        input, select {
+        input, select, button {
+            margin-top: 10px;
             padding: 10px;
-            margin: 10px 0;
-            border: 1px solid var(--clr-surface-a30);
+            border: 1px solid #575757;
             border-radius: 4px;
-            background-color: var(--clr-surface-a20);
-            color: var(--clr-primary-a50);
-            width: 100%;
         }
         button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            background-color: var(--clr-primary-a30);
-            color: var(--clr-surface-a0);
             cursor: pointer;
+            background-color: #a9a9a9;
         }
         button:hover {
-            background-color: var(--clr-primary-a20);
+            background-color: #9b9b9b;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Resize Batch Options</h1>
+        <h1>Resize Batch</h1>
         <form action="/resize_batch" method="post">
-            {% for file in files %}
-                <input type="hidden" name="filenames" value="{{ file }}">
-            {% endfor %}
-            <h2>Resize by Pixels</h2>
+            <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
+            <h2>Resize Options</h2>
             Width: <input type="text" name="width" placeholder="Enter width">
             Height: <input type="text" name="height" placeholder="Enter height">
             <input type="checkbox" name="keep_ratio"> Keep Aspect Ratio<br>
-
-            <h2>Resize by Percentage</h2>
             Percentage: <input type="text" name="percentage" placeholder="Enter percentage (1-100)"><br>
-
-            <h2>Additional Options</h2>
             Quality (1-100): <input type="text" name="quality" value="100"><br>
-            Convert to format:
+            Format: 
             <select name="format">
                 <option value="">Keep Original</option>
                 <option value="jpg">JPG</option>
                 <option value="png">PNG</option>
                 <option value="webp">WEBP</option>
             </select><br>
-
-            <button type="submit">Process Batch</button>
+            <button type="submit">Resize Batch</button>
         </form>
     </div>
 </body>
