@@ -4,6 +4,7 @@ import subprocess
 import requests
 from werkzeug.utils import secure_filename
 from PIL import Image
+from zipfile import ZipFile
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -32,118 +33,105 @@ def get_image_dimensions(filepath):
     except Exception as e:
         return None
 
+# Détermine la valeur de redimensionnement
+def determine_resize_value(width, height, percentage, keep_ratio):
+    if width.isdigit() and height.isdigit():
+        return f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
+    elif percentage.isdigit() and 0 < int(percentage) <= 100:
+        return f"{percentage}%"
+    else:
+        raise ValueError("Invalid resize parameters")
+
 # Page d'accueil
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Téléchargement d'une image depuis l'ordinateur
-@app.route('/upload', methods=['GET', 'POST'])
+# Téléchargement d'une ou plusieurs images
+@app.route('/upload', methods=['POST'])
 def upload_file():
-    if request.method == 'GET':
-        return redirect(url_for('index'))
-
     if 'file' not in request.files:
         flash('Aucun fichier sélectionné.')
         return redirect(url_for('index'))
 
-    file = request.files['file']
-    if file.filename == '':
+    files = request.files.getlist('file')  # Récupérer tous les fichiers
+    if not files or files[0].filename == '':
         flash('Aucun fichier sélectionné.')
         return redirect(url_for('index'))
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        flash(f'Fichier {filename} uploadé avec succès.')
-        return redirect(url_for('resize_options', filename=filename))
-    else:
-        extensions = ', '.join(ALLOWED_EXTENSIONS)
-        flash(f"Format de fichier non supporté. Formats acceptés : {extensions}")
-        return redirect(url_for('index'))
-
-# Téléchargement d'une image via URL
-@app.route('/upload_url', methods=['POST'])
-def upload_url():
-    url = request.form['url']
-    if not url:
-        flash('Veuillez entrer une URL valide.')
-        return redirect(url_for('index'))
-    try:
-        response = requests.get(url, stream=True)
-        if response.status_code == 200:
-            filename = secure_filename(os.path.basename(url.split("?")[0]))
+    uploaded_files = []
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            with open(filepath, "wb") as f:
-                f.write(response.content)
-            flash(f'Image téléchargée depuis l’URL : {filename}')
-            return redirect(url_for('resize_options', filename=filename))
+            file.save(filepath)
+            uploaded_files.append(filename)
         else:
-            flash('Erreur lors du téléchargement de l’image.')
-            return redirect(url_for('index'))
-    except Exception as e:
-        flash(f'Échec du téléchargement : {str(e)}')
-        return redirect(url_for('index'))
+            extensions = ', '.join(ALLOWED_EXTENSIONS)
+            flash(f"Format non supporté pour {file.filename}. Formats acceptés : {extensions}")
 
-# Page pour choisir les options de redimensionnement
-@app.route('/resize_options/<filename>')
-def resize_options(filename):
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    dimensions = get_image_dimensions(filepath)
-    if not dimensions:
-        flash("Impossible d'obtenir les dimensions de l'image.")
-        return redirect(url_for('index'))
-    
-    width, height = dimensions
-    return render_template('resize.html', filename=filename, width=width, height=height)
+    if len(uploaded_files) == 1:
+        # Redirection pour un fichier unique
+        return redirect(url_for('resize_options', filename=uploaded_files[0]))
+    else:
+        # Redirection pour un batch
+        return redirect(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
 
-# Redimensionner l'image
-@app.route('/resize/<filename>', methods=['POST'])
-def resize_image(filename):
-    quality = request.form.get('quality', '100')  # Valeur par défaut : 100%
+# Page pour choisir les options d'un batch
+@app.route('/resize_batch_options/<filenames>')
+def resize_batch_options(filenames):
+    files = filenames.split(',')
+    return render_template('resize_batch.html', files=files)
+
+# Redimensionner un batch d'images
+@app.route('/resize_batch', methods=['POST'])
+def resize_batch():
+    filenames = request.form.getlist('filenames')
+    quality = request.form.get('quality', '100')
     format_conversion = request.form.get('format', None)
-    keep_ratio = 'keep_ratio' in request.form  # Checkbox pour garder le ratio
+    keep_ratio = 'keep_ratio' in request.form
     width = request.form.get('width', '')
     height = request.form.get('height', '')
     percentage = request.form.get('percentage', '')
-    
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    output_filename = filename
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
-    if format_conversion:
-        output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
+    output_files = []
+    for filename in filenames:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        output_filename = filename
+        if format_conversion:
+            output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
-    try:
-        # Déterminer les options de redimensionnement
-        if width.isdigit() and height.isdigit():
-            resize_value = f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
-        elif percentage.isdigit() and 0 < int(percentage) <= 100:
-            resize_value = f"{percentage}%"
-        else:
-            flash('Veuillez spécifier soit des dimensions (width/height), soit un pourcentage valide.')
-            return redirect(url_for('resize_options', filename=filename))
-
         # Commande ImageMagick
-        command = ["/usr/local/bin/magick", "convert", filepath]
-        command.extend(["-resize", resize_value])
-        if quality.isdigit() and 1 <= int(quality) <= 100:
-            command.extend(["-quality", quality])
-        command.extend(["-strip", output_path])  # Supprime les métadonnées inutiles
-        subprocess.run(command, check=True)
+        try:
+            resize_value = determine_resize_value(width, height, percentage, keep_ratio)
+            command = ["/usr/local/bin/magick", "convert", filepath, "-resize", resize_value]
+            if quality.isdigit() and 1 <= int(quality) <= 100:
+                command.extend(["-quality", quality])
+            command.extend(["-strip", output_path])
+            subprocess.run(command, check=True)
+            output_files.append(output_path)
+        except Exception as e:
+            flash(f"Erreur avec {filename} : {str(e)}")
 
-        flash(f'L’image a été redimensionnée avec succès sous le nom {output_filename}.')
-        return redirect(url_for('download', filename=output_filename))
-    except subprocess.CalledProcessError as e:
-        flash(f"Erreur lors du traitement de l'image : {e}")
-        return redirect(url_for('resize_options', filename=filename))
-    except Exception as e:
-        flash(f"Une erreur est survenue : {e}")
-        return redirect(url_for('resize_options', filename=filename))
+    if len(output_files) > 1:
+        zip_path = os.path.join(app.config['OUTPUT_FOLDER'], "batch_output.zip")
+        with ZipFile(zip_path, 'w') as zipf:
+            for file in output_files:
+                zipf.write(file, os.path.basename(file))
+        return redirect(url_for('download_batch', filename="batch_output.zip"))
+    elif len(output_files) == 1:
+        return redirect(url_for('download', filename=os.path.basename(output_files[0])))
+    else:
+        flash("Aucune image traitée.")
+        return redirect(url_for('index'))
 
-# Télécharger l'image redimensionnée
+# Télécharger un fichier ZIP
+@app.route('/download_batch/<filename>')
+def download_batch(filename):
+    return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
+
+# Télécharger une image redimensionnée
 @app.route('/download/<filename>')
 def download(filename):
     return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)

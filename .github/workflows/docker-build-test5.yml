@@ -3,10 +3,10 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - test4  # Déclenche le workflow sur chaque push vers la branche "main"
+      - test5  # Déclenche le workflow sur chaque push vers la branche "main"
   pull_request:
     branches:
-      - test4  # Déclenche sur un PR vers "main" (si besoin)
+      - test5  # Déclenche sur un PR vers "main" (si besoin)
 
 jobs:
   build:
@@ -35,8 +35,8 @@ jobs:
 
     - name: Build and push Docker image
       run: |
-        docker build -t tiritibambix/imagemagicksimplegui:test4 .
-        docker push tiritibambix/imagemagicksimplegui:test4
+        docker build -t tiritibambix/imagemagicksimplegui:test5 .
+        docker push tiritibambix/imagemagicksimplegui:test5
       # Construire et pousser l'image vers Docker Hub
 
     - name: Logout from Docker Hub
