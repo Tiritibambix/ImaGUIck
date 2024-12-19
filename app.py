@@ -4,6 +4,7 @@ import subprocess
 import requests
 from werkzeug.utils import secure_filename
 from zipfile import ZipFile
+from datetime import datetime
 from PIL import Image
 
 # Configuration
@@ -113,15 +114,11 @@ def resize_image(filename):
     percentage = request.form.get('percentage', '')
 
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    output_filename = filename
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-
+    name, ext = os.path.splitext(filename)
+    output_filename = f"{name}_rsz{ext}"  # Add the `_rsz` suffix before extension
     if format_conversion:
-        if format_conversion.upper() not in get_supported_formats():
-            flash(f"Unsupported output format: {format_conversion}")
-            return redirect(url_for('resize_options', filename=filename))
-        output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        output_filename = f"{name}_rsz.{format_conversion.lower()}"  # Apply format conversion
+    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
     try:
         # Build the ImageMagick command
@@ -174,12 +171,10 @@ def resize_batch():
     output_files = []
     for filename in filenames:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        output_filename = filename
+        name, ext = os.path.splitext(filename)
+        output_filename = f"{name}_rsz{ext}"  # Add the `_rsz` suffix before extension
         if format_conversion:
-            if format_conversion.upper() not in get_supported_formats():
-                flash(f"Unsupported output format: {format_conversion}")
-                continue
-            output_filename = f"{os.path.splitext(filename)[0]}.{format_conversion.lower()}"
+            output_filename = f"{name}_rsz.{format_conversion.lower()}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
         try:
@@ -208,26 +203,19 @@ def resize_batch():
             flash(f"Error processing {filename}: {e}")
 
     if len(output_files) > 1:
-        zip_path = os.path.join(app.config['OUTPUT_FOLDER'], "batch_output.zip")
+        # Generate the ZIP file with a datetime suffix
+        zip_suffix = datetime.now().strftime("%y%m%d-%H%M")
+        zip_filename = f"batch_output_{zip_suffix}.zip"
+        zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
         with ZipFile(zip_path, 'w') as zipf:
             for file in output_files:
                 zipf.write(file, os.path.basename(file))
-        return redirect(url_for('download_batch', filename="batch_output.zip"))
+        return redirect(url_for('download_batch', filename=zip_filename))
     elif len(output_files) == 1:
         return redirect(url_for('download', filename=os.path.basename(output_files[0])))
     else:
         flash("No images processed.")
         return redirect(url_for('index'))
-
-
-def determine_resize_value(width, height, percentage, keep_ratio):
-    """Determine resize value for ImageMagick."""
-    if width.isdigit() and height.isdigit():
-        return f"{width}x{height}" if not keep_ratio else f"{width}x{height}!"
-    elif percentage.isdigit() and 0 < int(percentage) <= 100:
-        return f"{percentage}%"
-    else:
-        raise ValueError("Invalid resize parameters.")
 
 
 @app.route('/download_batch/<filename>')
