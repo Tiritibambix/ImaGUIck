@@ -2,6 +2,7 @@
 ## **Image Resizer Web Application with Docker**
 
 This repository contains a Python-based web application for resizing images, built using Flask and [`ImageMagick 7.1.1-41`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.1-41).
+
 The application supports resizing local files, downloading images from URLs, batch processing, and format conversions. It provides a modern web-based interface with responsive design.
 
 ## **Features**
