@@ -1,7 +1,7 @@
 # Choisir l'image de base
 FROM python:3.9-slim
 
-# Dépendances nécessaires pour compiler ImageMagick et d'autres utilitaires
+# Dépendances nécessaires pour compiler ImageMagick et autres utilitaires
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libxt-dev \
     libmagickcore-dev \
     libmagickwand-dev \
+    zip unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Télécharger et installer ImageMagick 7.1.1-41

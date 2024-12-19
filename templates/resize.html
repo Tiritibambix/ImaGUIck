@@ -4,18 +4,209 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resize Options</title>
+    <style>
+        :root {
+            /** Dark theme primary colors */
+            --clr-primary-a0: #808080;
+            --clr-primary-a10: #8d8d8d;
+            --clr-primary-a20: #9b9b9b;
+            --clr-primary-a30: #a9a9a9;
+            --clr-primary-a40: #b6b6b6;
+            --clr-primary-a50: #c5c5c5;
+
+            /** Dark theme surface colors */
+            --clr-surface-a0: #121212;
+            --clr-surface-a10: #282828;
+            --clr-surface-a20: #3f3f3f;
+            --clr-surface-a30: #575757;
+            --clr-surface-a40: #717171;
+            --clr-surface-a50: #8b8b8b;
+
+            /** Spacing and size variables */
+            --spacing-small: 10px;
+            --spacing-medium: 20px;
+            --spacing-large: 40px;
+
+            /** Input field sizes */
+            --input-width: 100%;
+            --input-max-width: 300px;
+
+            /** Header font size */
+            --header-font-size: 1.5rem;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--clr-surface-a0);
+            color: var(--clr-primary-a50);
+        }
+
+        .container {
+            width: 90%;
+            max-width: 400px;
+            background-color: var(--clr-surface-a10);
+            padding: var(--spacing-medium);
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--clr-primary-a30);
+            font-size: var(--header-font-size); /* Smaller font size */
+            margin: var(--spacing-small) 0; /* Reduce margin */
+        }
+
+        h2 {
+            color: var(--clr-primary-a40);
+            font-size: 1.2rem;
+            margin-top: var(--spacing-medium);
+        }
+
+        form {
+            margin-bottom: var(--spacing-medium);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input[type="text"],
+        input[type="checkbox"],
+        select {
+            padding: var(--spacing-small);
+            margin-top: var(--spacing-small);
+            border: 1px solid var(--clr-surface-a30);
+            border-radius: 4px;
+            width: var(--input-width);
+            max-width: var(--input-max-width);
+            background-color: var(--clr-surface-a20);
+            color: var(--clr-primary-a50);
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: var(--spacing-small) var(--spacing-medium);
+            margin-top: var(--spacing-small);
+            border: none;
+            border-radius: 4px;
+            background-color: var(--clr-primary-a30);
+            color: var(--clr-surface-a0);
+            cursor: pointer;
+            font-size: 1rem;
+            width: var(--input-width);
+        }
+
+        button:hover {
+            background-color: var(--clr-primary-a20);
+        }
+
+        small {
+            display: block;
+            color: var(--clr-primary-a40);
+            margin-top: var(--spacing-small);
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                max-width: 600px;
+            }
+
+            h1 {
+                font-size: 1.8rem; /* Slightly larger on larger screens */
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            button {
+                font-size: 1.1rem;
+                width: auto;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Resize Image: {{ filename }}</h1>
-    <form action="/resize/{{ filename }}" method="post">
-        <h2>Resize by Pixels</h2>
-        Width: <input type="text" name="width">
-        Height: <input type="text" name="height">
-        <button type="submit" name="resize_mode" value="pixels">Resize</button>
+    <div class="container">
+        <h4>Resize Image: {{ filename }}</h4>
+        <form action="/resize/{{ filename }}" method="post">
+            <h2>Resize by Pixels</h2>
+            <label>
+                Width:
+                <input type="text" name="width" placeholder="Enter width" id="width" data-original-width="{{ width }}" data-original-height="{{ height }}">
+            </label>
+            <label>
+                Height:
+                <input type="text" name="height" placeholder="Enter height" id="height" data-original-width="{{ width }}" data-original-height="{{ height }}">
+            </label>
+            <label>
+                <input type="checkbox" name="keep_ratio" id="keep_ratio"> Keep Aspect Ratio
+            </label>
+            <small>Original dimensions: {{ width }} x {{ height }} pixels</small>
 
-        <h2>Resize by Percentage</h2>
-        Percentage: <input type="text" name="percentage">
-        <button type="submit" name="resize_mode" value="percent">Resize</button>
-    </form>
+            <h2>Resize by Percentage</h2>
+            <input type="text" name="percentage" placeholder="Enter percentage (1-100)">
+
+            <h2>Additional Options</h2>
+            <label>
+                Quality (1-100):
+                <input type="text" name="quality" value="100">
+            </label>
+            <label>
+                Convert to format:
+                <select name="format">
+                    <option value="">Keep Original</option>
+                    {% for fmt in formats %}
+                        <option value="{{ fmt|lower }}">{{ fmt }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <button type="submit">Resize</button>
+        </form>
+    </div>
+    <script>
+        const widthInput = document.getElementById('width');
+        const heightInput = document.getElementById('height');
+        const keepRatioCheckbox = document.getElementById('keep_ratio');
+
+        function calculateOtherDimension(changedInput, otherInput, originalWidth, originalHeight) {
+            if (!keepRatioCheckbox.checked) return;
+
+            const value = parseInt(changedInput.value, 10);
+            if (!isNaN(value)) {
+                if (changedInput.id === 'width') {
+                    otherInput.value = Math.round((value / originalWidth) * originalHeight);
+                } else if (changedInput.id === 'height') {
+                    otherInput.value = Math.round((value / originalHeight) * originalWidth);
+                }
+            }
+        }
+
+        widthInput.addEventListener('input', () => {
+            const originalWidth = parseInt(widthInput.dataset.originalWidth, 10);
+            const originalHeight = parseInt(widthInput.dataset.originalHeight, 10);
+            calculateOtherDimension(widthInput, heightInput, originalWidth, originalHeight);
+        });
+
+        heightInput.addEventListener('input', () => {
+            const originalWidth = parseInt(heightInput.dataset.originalWidth, 10);
+            const originalHeight = parseInt(heightInput.dataset.originalHeight, 10);
+            calculateOtherDimension(heightInput, widthInput, originalWidth, originalHeight);
+        });
+
+        keepRatioCheckbox.addEventListener('change', () => {
+            if (!keepRatioCheckbox.checked) {
+                widthInput.value = '';
+                heightInput.value = '';
+            }
+        });
+    </script>
 </body>
 </html>
