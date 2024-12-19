@@ -3,6 +3,7 @@ import os
 import subprocess
 from zipfile import ZipFile
 from datetime import datetime
+from werkzeug.utils import secure_filename
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -16,10 +17,64 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.secret_key = 'supersecretkey'
 
 
+def allowed_file(filename):
+    """Allow all file types supported by ImageMagick."""
+    return '.' in filename
+
+
 @app.route('/')
 def index():
     """Homepage with upload options."""
     return render_template('index.html')
+
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Handle file uploads."""
+    if 'file' not in request.files:
+        flash('No file selected.')
+        return redirect(url_for('index'))
+
+    files = request.files.getlist('file')  # Multiple files support
+    if not files or files[0].filename == '':
+        flash('No file selected.')
+        return redirect(url_for('index'))
+
+    uploaded_files = []
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            uploaded_files.append(filename)
+        else:
+            flash(f"Unsupported file format for {file.filename}.")
+
+    # Redirect logic
+    if len(uploaded_files) == 1:
+        return redirect(url_for('resize_options', filename=uploaded_files[0]))
+    elif len(uploaded_files) > 1:
+        return redirect(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
+    else:
+        flash('No valid files uploaded.')
+        return redirect(url_for('index'))
+
+
+@app.route('/resize_options/<filename>')
+def resize_options(filename):
+    """Resize options page for a single image."""
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    dimensions = (1000, 1000)  # Placeholder dimensions if not implemented
+    formats = ['jpg', 'png', 'webp']  # Placeholder formats
+    return render_template('resize.html', filename=filename, width=dimensions[0], height=dimensions[1], formats=formats)
+
+
+@app.route('/resize_batch_options/<filenames>')
+def resize_batch_options(filenames):
+    """Resize options page for batch processing."""
+    files = filenames.split(',')
+    formats = ['jpg', 'png', 'webp']  # Placeholder formats
+    return render_template('resize_batch.html', files=files, formats=formats)
 
 
 @app.route('/resize_batch', methods=['POST'])
