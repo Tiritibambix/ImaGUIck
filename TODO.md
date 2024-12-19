@@ -18,3 +18,5 @@
 - [ ] Cron purge
 
 - [ ] Batch: small scrollable window at the top of the form displaying the list of files, with a red cross next to each file name to remove a file from the batch if needed. Must be responsive.
+
+- [ ] Add `home` button to `resize` page.
