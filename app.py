@@ -107,7 +107,7 @@ def resize_image(filename):
         resize_value = determine_resize_value(width, height, percentage, keep_ratio)
 
         # ImageMagick command
-        command = ["/usr/local/bin/magick", "convert", filepath, "-resize", resize_value]
+        command = ["/usr/local/bin/magick", filepath, "-resize", resize_value]
         if quality.isdigit() and 1 <= int(quality) <= 100:
             command.extend(["-quality", quality])
         command.extend(["-strip", output_path])  # Remove unnecessary metadata
@@ -130,7 +130,7 @@ def resize_batch_options(filenames):
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():
     """Resize multiple images and compress them into a ZIP."""
-    filenames = request.form.getlist('filenames')
+    filenames = request.form.get('filenames').split(',')
     quality = request.form.get('quality', '100')
     format_conversion = request.form.get('format', None)
     keep_ratio = 'keep_ratio' in request.form
@@ -147,15 +147,18 @@ def resize_batch():
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
         try:
+            # Determine resize options
             resize_value = determine_resize_value(width, height, percentage, keep_ratio)
-            command = ["/usr/local/bin/magick", "convert", filepath, "-resize", resize_value]
+
+            # ImageMagick command
+            command = ["/usr/local/bin/magick", filepath, "-resize", resize_value]
             if quality.isdigit() and 1 <= int(quality) <= 100:
                 command.extend(["-quality", quality])
             command.extend(["-strip", output_path])
             subprocess.run(command, check=True)
             output_files.append(output_path)
         except Exception as e:
-            flash(f"Error with {filename}: {e}")
+            flash(f"Error processing {filename}: {e}")
 
     if len(output_files) > 1:
         zip_path = os.path.join(app.config['OUTPUT_FOLDER'], "batch_output.zip")

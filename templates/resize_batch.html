@@ -5,6 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resize Batch</title>
     <style>
+        :root {
+            /** Dark theme primary colors */
+            --clr-primary-a0: #808080;
+            --clr-primary-a10: #8d8d8d;
+            --clr-primary-a20: #9b9b9b;
+            --clr-primary-a30: #a9a9a9;
+            --clr-primary-a40: #b6b6b6;
+            --clr-primary-a50: #c5c5c5;
+
+            /** Dark theme surface colors */
+            --clr-surface-a0: #121212;
+            --clr-surface-a10: #282828;
+            --clr-surface-a20: #3f3f3f;
+            --clr-surface-a30: #575757;
+            --clr-surface-a40: #717171;
+            --clr-surface-a50: #8b8b8b;
+
+            /** Dark theme tonal surface colors */
+            --clr-surface-tonal-a0: #262626;
+            --clr-surface-tonal-a10: #3a3a3a;
+            --clr-surface-tonal-a20: #505050;
+            --clr-surface-tonal-a30: #676767;
+            --clr-surface-tonal-a40: #7e7e7e;
+            --clr-surface-tonal-a50: #979797;
+        }
+
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -12,27 +38,46 @@
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #121212;
-            color: #c5c5c5;
+            background-color: var(--clr-surface-a0);
+            color: var(--clr-primary-a50);
         }
         .container {
-            background-color: #282828;
+            background-color: var(--clr-surface-a10);
             padding: 20px;
             border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
+        h1 {
+            color: var(--clr-primary-a30);
+        }
+        h2 {
+            color: var(--clr-primary-a40);
+            margin-top: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
         input, select, button {
-            margin-top: 10px;
             padding: 10px;
-            border: 1px solid #575757;
+            margin-top: 10px;
+            border: 1px solid var(--clr-surface-a30);
             border-radius: 4px;
+            width: calc(100% - 22px);
+            background-color: var(--clr-surface-a20);
+            color: var(--clr-primary-a50);
         }
         button {
+            padding: 10px 20px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--clr-primary-a30);
+            color: var(--clr-surface-a0);
             cursor: pointer;
-            background-color: #a9a9a9;
         }
         button:hover {
-            background-color: #9b9b9b;
+            background-color: var(--clr-primary-a20);
         }
     </style>
 </head>
@@ -45,6 +90,8 @@
             Width: <input type="text" name="width" placeholder="Enter width">
             Height: <input type="text" name="height" placeholder="Enter height">
             <input type="checkbox" name="keep_ratio"> Keep Aspect Ratio<br>
+            <br>
+            <br>
             Percentage: <input type="text" name="percentage" placeholder="Enter percentage (1-100)"><br>
             Quality (1-100): <input type="text" name="quality" value="100"><br>
             Format: 
