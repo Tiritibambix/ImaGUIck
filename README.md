@@ -109,7 +109,7 @@ networks: {}
 ## **Project Structure**
 
 ```
-image-resizer/
+imagemagicksimplegui/
 ├── Dockerfile         # Instructions to build the Docker image
 ├── requirements.txt   # Python dependencies
 ├── app.py             # The main Python application
