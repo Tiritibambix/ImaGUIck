@@ -45,7 +45,8 @@ def get_available_formats():
             # Parse lines with supported formats (e.g., "PNG  rw+   Portable Network Graphics")
             parts = line.split()
             if len(parts) > 1 and parts[1] in {"r", "rw", "rw+", "w"}:  # Ensure it's writable/readable
-                formats.append(parts[0].lower())  # Add format name in lowercase
+                format_name = parts[0].lower().rstrip('*')  # Remove trailing '*' if present
+                formats.append(format_name)
         return formats
     except Exception as e:
         print(f"Error fetching formats: {e}")
