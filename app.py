@@ -18,11 +18,9 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.secret_key = 'supersecretkey'
 
-
 def allowed_file(filename):
     """Allow all file types supported by ImageMagick."""
     return '.' in filename
-
 
 def get_image_dimensions(filepath):
     """Get image dimensions as (width, height)."""
@@ -33,12 +31,30 @@ def get_image_dimensions(filepath):
         print(f"Error retrieving dimensions for {filepath}: {e}")
         return None
 
+def get_available_formats():
+    """Get a list of supported formats from ImageMagick."""
+    try:
+        # Execute the `magick` command to list supported formats
+        result = subprocess.run(["/usr/local/bin/magick", "convert", "-list", "format"], 
+                                stdout=subprocess.PIPE, 
+                                stderr=subprocess.PIPE, 
+                                text=True, 
+                                check=True)
+        formats = []
+        for line in result.stdout.splitlines():
+            # Parse lines with supported formats (e.g., "PNG  rw+   Portable Network Graphics")
+            parts = line.split()
+            if len(parts) > 1 and parts[1] in {"r", "rw", "rw+", "w"}:  # Ensure it's writable/readable
+                formats.append(parts[0].lower())  # Add format name in lowercase
+        return formats
+    except Exception as e:
+        print(f"Error fetching formats: {e}")
+        return ["jpg", "png", "webp"]  # Fallback to basic formats
 
 @app.route('/')
 def index():
     """Homepage with upload options."""
     return render_template('index.html')
-
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -70,7 +86,6 @@ def upload_file():
     else:
         flash('No valid files uploaded.')
         return redirect(url_for('index'))
-
 
 @app.route('/upload_url', methods=['POST'])
 def upload_url():
@@ -109,7 +124,6 @@ def upload_url():
         flash(f"Error downloading image: {e}")
         return redirect(url_for('index'))
 
-
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
@@ -119,10 +133,9 @@ def resize_options(filename):
         flash("Unable to get image dimensions.")
         return redirect(url_for('index'))
 
-    formats = ['jpg', 'png', 'webp']  # Placeholder formats
+    formats = get_available_formats()  # Dynamically fetch supported formats
     width, height = dimensions
     return render_template('resize.html', filename=filename, width=width, height=height, formats=formats)
-
 
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
@@ -171,14 +184,12 @@ def resize_image(filename):
         flash(f"Error processing image: {e}")
         return redirect(url_for('resize_options', filename=filename))
 
-
 @app.route('/resize_batch_options/<filenames>')
 def resize_batch_options(filenames):
     """Resize options page for batch processing."""
     files = filenames.split(',')
-    formats = ['jpg', 'png', 'webp']  # Placeholder formats
+    formats = get_available_formats()  # Dynamically fetch supported formats
     return render_template('resize_batch.html', files=files, formats=formats)
-
 
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():
@@ -236,18 +247,15 @@ def resize_batch():
         flash("No images processed.")
         return redirect(url_for('index'))
 
-
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
     return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
 
-
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
     return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
