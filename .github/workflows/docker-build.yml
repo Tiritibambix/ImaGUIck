@@ -3,25 +3,26 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - main  # Déclenche sur chaque push vers la branche "test"
+      - test
   pull_request:
     branches:
-      - main  # Déclenche sur un PR vers la branche "test"
+      - test
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest  # Utilise une VM Ubuntu pour la tâche
+  build-and-push:
+    runs-on: ubuntu-latest
 
     steps:
-    # Étape 1 : Cloner le dépôt
+    # Checkout the repository
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # Étape 2 : Configurer Docker Buildx
+    # Set up Docker Buildx
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
-    # Étape 3 : Cacher les couches Docker pour accélérer les builds
+    # Cache Docker layers to speed up builds
     - name: Cache Docker layers
       uses: actions/cache@v4
       with:
@@ -30,22 +31,25 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildx-
 
-    # Étape 4 : Se connecter à Docker Hub
+    # Log in to Docker Hub
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # Étape 5 : Construire et pousser l'image Docker
+    # Build and push Docker image
     - name: Build and push Docker image
-      run: |
-        IMAGE_NAME=tiritibambix/imaguick:latest
-        docker buildx build --cache-from=type=local,src=/tmp/.buildx-cache \
-                            --cache-to=type=local,dest=/tmp/.buildx-cache \
-                            --push \
-                            -t $IMAGE_NAME .
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: Dockerfile
+        push: true
+        tags: tiritibambix/imaguick:test
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache
+        platforms: linux/amd64,linux/arm64
 
-    # Étape 6 : Se déconnecter de Docker Hub
+    # Logout from Docker Hub
     - name: Logout from Docker Hub
       run: docker logout
