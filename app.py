@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash
 import os
 import subprocess
 from zipfile import ZipFile
@@ -251,17 +251,13 @@ def resize_batch():
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
-    return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
+    return send_file(os.path.join(app.config['OUTPUT_FOLDER'], filename), as_attachment=True)
 
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    return send_from_directory(
-        app.config['OUTPUT_FOLDER'],
-        filename,
-        as_attachment=True,
-        download_name=filename
-    )
+    filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    return send_file(filepath, as_attachment=True, download_name=filename)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
