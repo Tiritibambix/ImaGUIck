@@ -69,26 +69,6 @@ Open your browser and navigate to `http://localhost:5000` to access the applicat
 
 ---
 
-## **Usage Instructions**
-
-### Upload Local Files
-- Navigate to the homepage and upload one or more images.
-- Proceed to the resize options for individual or batch processing.
-
-### Resize Options
-- **Resize by Pixels:** Enter width and height. Enable the "Keep Aspect Ratio" checkbox to maintain proportions.
-- **Resize by Percentage:** Enter a percentage (1-100) for scaling.
-
-### Download from URLs
-- Enter an image URL in the "Download and Upload" section.
-- The image will be downloaded and processed.
-
-### Batch Processing
-- Select multiple images for batch resizing.
-- Results are provided as a downloadable ZIP file.
-
----
-
 ## **Docker-compose**
 
 Alternatively, you can use docker-compose to run the application:
@@ -106,6 +86,26 @@ services:
     image: tiritibambix/imaguick:latest
 networks: {}
 ```
+
+---
+
+## **Usage Instructions**
+
+### Upload Local Files
+- Navigate to the homepage and upload one or more images.
+- Proceed to the resize options for individual or batch processing.
+
+### Resize Options
+- **Resize by Pixels:** Enter width and height. Enable the "Keep Aspect Ratio" checkbox to maintain proportions.
+- **Resize by Percentage:** Enter a percentage (1-100) for scaling.
+
+### Download from URLs
+- Enter an image URL in the "Download and Upload" section.
+- The image will be downloaded and processed.
+
+### Batch Processing
+- Select multiple images for batch resizing.
+- Results are provided as a downloadable ZIP file.
 
 ---
 
