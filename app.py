@@ -256,7 +256,7 @@ def download_batch(filename):
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True)
+    return send_from_directory(app.config['OUTPUT_FOLDER'], filename, as_attachment=True, mimetype='application/octet-stream')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
