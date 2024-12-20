@@ -3,10 +3,10 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - test
+      - main
   pull_request:
     branches:
-      - test
+      - main
   workflow_dispatch:
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
         context: .
         file: Dockerfile
         push: true
-        tags: tiritibambix/imaguick:test
+        tags: tiritibambix/imaguick:latest
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache
         platforms: linux/amd64,linux/arm64
