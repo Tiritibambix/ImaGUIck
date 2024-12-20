@@ -6,30 +6,26 @@
     <title>Resize Batch</title>
     <style>
         :root {
-            /** Dark theme primary colors */
             --clr-primary-a0: #808080;
             --clr-primary-a10: #8d8d8d;
             --clr-primary-a20: #9b9b9b;
             --clr-primary-a30: #a9a9a9;
             --clr-primary-a40: #b6b6b6;
-            --clr-primary-a50: #c5c5c5;
+            --clr-primary-a50: #ffffff;
 
-            /** Dark theme surface colors */
             --clr-surface-a0: #121212;
             --clr-surface-a10: #282828;
             --clr-surface-a20: #3f3f3f;
             --clr-surface-a30: #575757;
-            --clr-surface-a40: #717171;
-            --clr-surface-a50: #8b8b8b;
 
-            /** Spacing and size variables */
             --spacing-small: 10px;
             --spacing-medium: 20px;
             --spacing-large: 40px;
 
-            /** Input field sizes */
             --input-width: 100%;
             --input-max-width: 300px;
+
+            --header-font-size: 1.8rem;
         }
 
         body {
@@ -56,24 +52,31 @@
 
         h1 {
             color: var(--clr-primary-a30);
-            font-size: 1.8rem;
-        }
-
-        h2 {
-            color: var(--clr-primary-a40);
-            font-size: 1.2rem;
-            margin-top: var(--spacing-medium);
-        }
-
-        form {
+            font-size: var(--header-font-size);
             margin-bottom: var(--spacing-medium);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        }
+
+        form fieldset {
+            margin-bottom: var(--spacing-medium);
+            border: none;
+            padding: 0;
+        }
+
+        legend {
+            text-align: center;
+            font-weight: bold;
+            color: var(--clr-primary-a40);
+            margin-bottom: var(--spacing-small);
+        }
+
+        form label {
+            display: block;
+            margin-top: var(--spacing-small);
+            color: var(--clr-primary-a40);
+            font-size: 0.9rem;
         }
 
         input[type="text"],
-        input[type="checkbox"],
         select {
             padding: var(--spacing-small);
             margin-top: var(--spacing-small);
@@ -96,6 +99,7 @@
             cursor: pointer;
             font-size: 1rem;
             width: var(--input-width);
+            transition: background-color 0.3s ease;
         }
 
         button:hover {
@@ -117,10 +121,6 @@
                 font-size: 2.4rem;
             }
 
-            h2 {
-                font-size: 1.5rem;
-            }
-
             button {
                 font-size: 1.1rem;
                 width: auto;
@@ -133,53 +133,57 @@
         <h1>Resize Batch</h1>
         <form action="/resize_batch" method="post">
             <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
-            <h2>Resize Options</h2>
-            <label>
-                Width:
-                <input type="text" name="width" placeholder="Enter width" id="batch_width">
-            </label>
-            <label>
-                Height:
-                <input type="text" name="height" placeholder="Enter height" id="batch_height">
-            </label>
-            <label>
-                <input type="checkbox" name="keep_ratio" id="batch_keep_ratio"> Keep Aspect Ratio
-            </label>
+            <fieldset>
+                <legend>Resize Options</legend>
+                <label for="batch_width">Width:</label>
+                <input type="text" name="width" id="batch_width" placeholder="Enter width">
 
-            <h2>Resize by Percentage</h2>
-            <input type="text" name="percentage" placeholder="Enter percentage (1-100)">
+                <label for="batch_height">Height:</label>
+                <input type="text" name="height" id="batch_height" placeholder="Enter height">
 
-            <h2>Additional Options</h2>
-            <label>
-                Quality (1-100):
-                <input type="text" name="quality" value="100">
-            </label>
-            <label>
-                Format:
-                <select name="format">
+                <label>
+                    <input type="checkbox" name="keep_ratio" id="batch_keep_ratio"> Keep Aspect Ratio
+                </label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Resize by Percentage</legend>
+                <label for="batch_percentage">Percentage:</label>
+                <input type="text" name="percentage" id="batch_percentage" placeholder="Enter percentage (1-100)">
+            </fieldset>
+
+            <fieldset>
+                <legend>Additional Options</legend>
+                <label for="batch_quality">Quality (1-100):</label>
+                <input type="text" name="quality" id="batch_quality" value="100">
+
+                <label for="batch_format">Format:</label>
+                <select name="format" id="batch_format">
                     <option value="">Keep Original</option>
                     {% for fmt in formats %}
                         <option value="{{ fmt|lower }}">{{ fmt }}</option>
                     {% endfor %}
                 </select>
-            </label>
+            </fieldset>
 
             <button type="submit">Resize Batch</button>
         </form>
     </div>
     <script>
-        const batchWidthInput = document.getElementById('batch_width');
-        const batchHeightInput = document.getElementById('batch_height');
-        const batchKeepRatioCheckbox = document.getElementById('batch_keep_ratio');
+        document.addEventListener('DOMContentLoaded', () => {
+            const batchWidthInput = document.getElementById('batch_width');
+            const batchHeightInput = document.getElementById('batch_height');
+            const batchKeepRatioCheckbox = document.getElementById('batch_keep_ratio');
 
-        function resetDimensionsIfRatioNotKept() {
-            if (!batchKeepRatioCheckbox.checked) {
-                batchWidthInput.value = '';
-                batchHeightInput.value = '';
+            function resetDimensionsIfRatioNotKept() {
+                if (!batchKeepRatioCheckbox.checked) {
+                    batchWidthInput.value = '';
+                    batchHeightInput.value = '';
+                }
             }
-        }
 
-        batchKeepRatioCheckbox.addEventListener('change', resetDimensionsIfRatioNotKept);
+            batchKeepRatioCheckbox.addEventListener('change', resetDimensionsIfRatioNotKept);
+        });
     </script>
 </body>
 </html>
