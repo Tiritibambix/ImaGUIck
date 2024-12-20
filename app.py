@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, Response
 import os
 import subprocess
 from zipfile import ZipFile
@@ -257,7 +257,15 @@ def download_batch(filename):
 def download(filename):
     """Serve a single file for download."""
     filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
-    return send_file(filepath, as_attachment=True, download_name=filename)
+
+    # Read file content
+    with open(filepath, 'rb') as f:
+        file_content = f.read()
+
+    # Create a response with the file content
+    response = Response(file_content, mimetype='application/octet-stream')
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
