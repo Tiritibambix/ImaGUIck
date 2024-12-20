@@ -120,7 +120,6 @@ imaguick/
 │   ├── index.html     # Homepage
 │   ├── resize.html    # Resize options for individual images
 │   ├── resize_batch.html # Batch processing options
-├── static/            # Static files (CSS, JS)
 ├── README.md          # Documentation
 ├── LICENSE            # License for ImageMagick
 └── .gitignore         # Excluded files for version control
