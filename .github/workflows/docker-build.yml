@@ -3,10 +3,10 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - test  # Déclenche sur chaque push vers la branche "test"
+      - main  # Déclenche sur chaque push vers la branche "test"
   pull_request:
     branches:
-      - test  # Déclenche sur un PR vers la branche "test"
+      - main  # Déclenche sur un PR vers la branche "test"
 
 jobs:
   build:
@@ -40,7 +40,7 @@ jobs:
     # Étape 5 : Construire et pousser l'image Docker
     - name: Build and push Docker image
       run: |
-        IMAGE_NAME=tiritibambix/imaguick:test
+        IMAGE_NAME=tiritibambix/imaguick:latest
         docker buildx build --cache-from=type=local,src=/tmp/.buildx-cache \
                             --cache-to=type=local,dest=/tmp/.buildx-cache \
                             --push \
