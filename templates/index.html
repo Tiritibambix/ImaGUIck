@@ -22,8 +22,8 @@
             --spacing-medium: 20px;
             --spacing-large: 40px;
 
-            --input-width: 100%;
-            --input-max-width: 300px;
+            --input-width: 300px;
+            --input-height: 40px;
 
             --header-font-size: 1.8rem;
         }
@@ -60,6 +60,9 @@
             margin-bottom: var(--spacing-medium);
             border: none;
             padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         legend {
@@ -67,6 +70,7 @@
             font-weight: bold;
             color: var(--clr-primary-a40);
             margin-bottom: var(--spacing-small);
+            width: 100%;
         }
 
         form label {
@@ -74,6 +78,13 @@
             margin-top: var(--spacing-small);
             color: var(--clr-primary-a40);
             font-size: 0.9rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
         }
 
         input[type="file"],
@@ -84,7 +95,7 @@
             border: 1px solid var(--clr-surface-a30);
             border-radius: 4px;
             width: var(--input-width);
-            max-width: var(--input-max-width);
+            height: var(--input-height);
             background-color: var(--clr-surface-a20);
             color: var(--clr-primary-a50);
             box-sizing: border-box;
@@ -96,7 +107,6 @@
             color: var(--clr-surface-a0);
             cursor: pointer;
             font-size: 1rem;
-            width: var(--input-width);
             transition: background-color 0.3s ease;
         }
 
@@ -121,7 +131,6 @@
 
             button {
                 font-size: 1.1rem;
-                width: auto;
             }
         }
     </style>
@@ -131,15 +140,19 @@
         <form action="/upload" method="post" enctype="multipart/form-data">
             <fieldset>
                 <legend>Upload Images</legend>
-                <input type="file" name="file" multiple>
-                <button type="submit">Upload</button>
+                <div class="form-group">
+                    <input type="file" name="file" multiple>
+                    <button type="submit">Upload</button>
+                </div>
             </fieldset>
         </form>
         <form action="/upload_url" method="post">
             <fieldset>
                 <legend>Upload Image by URL</legend>
-                <input type="text" name="url" placeholder="Enter image URL" required>
-                <button type="submit">Download and Upload</button>
+                <div class="form-group">
+                    <input type="text" name="url" placeholder="Enter image URL" required>
+                    <button type="submit">Download and Upload</button>
+                </div>
             </fieldset>
         </form>
     </div>
