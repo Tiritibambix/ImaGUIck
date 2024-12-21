@@ -22,8 +22,8 @@
             --spacing-medium: 20px;
             --spacing-large: 40px;
 
-            --input-width: 100%;
-            --input-max-width: 300px;
+            --input-width: 300px;
+            --input-height: 40px;
 
             --header-font-size: 1.5rem;
         }
@@ -60,6 +60,9 @@
             margin-bottom: var(--spacing-medium);
             border: none;
             padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         legend {
@@ -67,6 +70,7 @@
             font-weight: bold;
             color: var(--clr-primary-a40);
             margin-bottom: var(--spacing-small);
+            width: 100%;
         }
 
         form label {
@@ -76,6 +80,13 @@
             font-size: 0.9rem;
         }
 
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
         input[type="text"],
         select {
             padding: var(--spacing-small);
@@ -83,7 +94,7 @@
             border: 1px solid var(--clr-surface-a30);
             border-radius: 4px;
             width: var(--input-width);
-            max-width: var(--input-max-width);
+            height: var(--input-height);
             background-color: var(--clr-surface-a20);
             color: var(--clr-primary-a50);
             box-sizing: border-box;
@@ -123,7 +134,6 @@
 
             button {
                 font-size: 1.1rem;
-                width: auto;
             }
         }
     </style>
@@ -134,36 +144,45 @@
         <form action="/resize/{{ filename }}" method="post">
             <fieldset>
                 <legend>Resize by Pixels</legend>
-                <label for="width">Width:</label>
-                <input type="text" name="width" id="width" placeholder="Enter width" data-original-width="{{ width }}" data-original-height="{{ height }}">
-
-                <label for="height">Height:</label>
-                <input type="text" name="height" id="height" placeholder="Enter height" data-original-width="{{ width }}" data-original-height="{{ height }}">
-
-                <label>
-                    <input type="checkbox" name="keep_ratio" id="keep_ratio"> Keep Aspect Ratio
-                </label>
+                <div class="form-group">
+                    <label for="width">Width:</label>
+                    <input type="text" name="width" id="width" placeholder="Enter width" data-original-width="{{ width }}" data-original-height="{{ height }}">
+                </div>
+                <div class="form-group">
+                    <label for="height">Height:</label>
+                    <input type="text" name="height" id="height" placeholder="Enter height" data-original-width="{{ width }}" data-original-height="{{ height }}">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="keep_ratio" id="keep_ratio"> Keep Aspect Ratio
+                    </label>
+                </div>
                 <small>Original dimensions: {{ width }} x {{ height }} pixels</small>
             </fieldset>
 
             <fieldset>
                 <legend>Resize by Percentage</legend>
-                <label for="percentage">Percentage:</label>
-                <input type="text" name="percentage" id="percentage" placeholder="Enter percentage (1-100)">
+                <div class="form-group">
+                    <label for="percentage">Percentage:</label>
+                    <input type="text" name="percentage" id="percentage" placeholder="Enter percentage (1-100)">
+                </div>
             </fieldset>
 
             <fieldset>
                 <legend>Additional Options</legend>
-                <label for="quality">Quality (1-100):</label>
-                <input type="text" name="quality" id="quality" value="100">
-
-                <label for="format">Convert to format:</label>
-                <select name="format" id="format">
-                    <option value="">Keep Original</option>
-                    {% for fmt in formats %}
-                        <option value="{{ fmt|lower }}">{{ fmt }}</option>
-                    {% endfor %}
-                </select>
+                <div class="form-group">
+                    <label for="quality">Quality (1-100):</label>
+                    <input type="text" name="quality" id="quality" value="100">
+                </div>
+                <div class="form-group">
+                    <label for="format">Convert to format:</label>
+                    <select name="format" id="format">
+                        <option value="">Keep Original</option>
+                        {% for fmt in formats %}
+                            <option value="{{ fmt|lower }}">{{ fmt }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </fieldset>
 
             <button type="submit">Resize</button>
