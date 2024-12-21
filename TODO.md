@@ -12,7 +12,7 @@
     
 - [x] How to handle images with a complex URL
     
-- [x] Rénale ImaGUIck
+- [x] Rename ImaGUIck
 
 - [x] Handle all formats in batch too
 
