@@ -6,6 +6,13 @@
     <title>ImaGUIck</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        .title-large {
+            font-size: 1.8em; /* Taille légèrement réduite */
+            font-weight: bold; /* Gras pour mettre en valeur */
+            text-align: center; /* Centré */
+            font-family: 'Poppins', sans-serif; /* Application de la police */
+        }
+
         :root {
             --clr-primary-a0: #808080;
             --clr-primary-a10: #8d8d8d;
@@ -49,12 +56,6 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
             text-align: center;
-        }
-
-        h1 {
-            color: var(--clr-primary-a30);
-            font-size: var(--header-font-size);
-            margin-bottom: var(--spacing-medium);
         }
 
         form fieldset {
@@ -112,7 +113,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
+            width: var(--input-width); /* Même largeur que les boutons */
             height: 100px;
             border: 2px dashed var(--clr-primary-a30);
             border-radius: 8px;
@@ -132,8 +133,8 @@
                 max-width: 600px;
             }
 
-            h1 {
-                font-size: 2.4rem;
+            .title-large {
+                font-size: 2rem; /* Taille légèrement augmentée pour les écrans larges */
             }
 
             button {
