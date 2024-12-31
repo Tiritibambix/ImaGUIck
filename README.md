@@ -113,16 +113,22 @@ networks: {}
 
 ```
 imaguick/
-├── Dockerfile         # Instructions to build the Docker image
-├── requirements.txt   # Python dependencies
-├── app.py             # The main Python application
-├── templates/         # HTML templates for the web interface
-│   ├── index.html     # Homepage
-│   ├── resize.html    # Resize options for individual images
-│   ├── resize_batch.html # Batch processing options
-├── README.md          # Documentation
-├── LICENSE            # License for ImageMagick
-└── .gitignore         # Excluded files for version control
+├── .github
+|     ├── workflows
+|     |     ├── docker-build-test.yml
+|     |     ├── docker-build.yml
+├── .gitignore                        # Excluded files for version control
+├── Dockerfile                        # Instructions to build the Docker image
+├── LICENSE                           # License for ImaGUIck and ImageMagick
+├── README.md                         # Documentation
+├── TODO.md
+├── app.py                            # The main Python application
+├── requirements.txt                  # Python dependencies
+├── templates                         # HTML templates for the web interface
+|     ├── index.html                  # Homepage
+|     ├── resize.html                 # Resize options for individual images
+|     ├── resize_batch.html           # Batch processing options
+
 ```
 
 ---
