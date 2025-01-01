@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - test
+    paths-ignore:
+      - 'LICENSE'
+      - 'README.md'
+      - 'TODO.md'
   pull_request:
     branches:
       - test
