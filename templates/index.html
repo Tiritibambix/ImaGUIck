@@ -3,8 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Upload</title>
+    <title>ImaGUIck</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        .title-large {
+            font-size: 1.8em; /* Taille légèrement réduite */
+            font-weight: bold; /* Gras pour mettre en valeur */
+            text-align: center; /* Centré */
+            font-family: 'Poppins', sans-serif; /* Application de la police */
+        }
+
         :root {
             --clr-primary-a0: #808080;
             --clr-primary-a10: #8d8d8d;
@@ -50,12 +58,6 @@
             text-align: center;
         }
 
-        h1 {
-            color: var(--clr-primary-a30);
-            font-size: var(--header-font-size);
-            margin-bottom: var(--spacing-medium);
-        }
-
         form fieldset {
             margin-bottom: var(--spacing-medium);
             border: none;
@@ -71,13 +73,6 @@
             color: var(--clr-primary-a40);
             margin-bottom: var(--spacing-small);
             width: 100%;
-        }
-
-        form label {
-            display: block;
-            margin-top: var(--spacing-small);
-            color: var(--clr-primary-a40);
-            font-size: 0.9rem;
         }
 
         .form-group {
@@ -114,10 +109,23 @@
             background-color: var(--clr-primary-a20);
         }
 
-        small {
-            display: block;
+        .drop-zone {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: var(--input-width); /* Même largeur que les boutons */
+            height: 100px;
+            border: 2px dashed var(--clr-primary-a30);
+            border-radius: 8px;
             color: var(--clr-primary-a40);
-            margin-top: var(--spacing-small);
+            margin-top: var(--spacing-medium);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .drop-zone.dragover {
+            background-color: var(--clr-surface-a20);
+            border-color: var(--clr-primary-a40);
         }
 
         @media (min-width: 768px) {
@@ -125,27 +133,13 @@
                 max-width: 600px;
             }
 
-            h1 {
-                font-size: 2.4rem;
+            .title-large {
+                font-size: 2rem; /* Taille légèrement augmentée pour les écrans larges */
             }
 
             button {
                 font-size: 1.1rem;
             }
-        }
-    </style>
-</head>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImaGUIck</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        .title-large {
-            font-size: 2em; /* Taille de police augmentée */
-            font-weight: bold; /* Gras pour mettre en valeur */
-            text-align: center; /* Centré (optionnel) */
-            font-family: 'Poppins', sans-serif; /* Application de la police */
         }
     </style>
 </head>
@@ -160,7 +154,11 @@
             <fieldset>
                 <legend>Upload Images</legend>
                 <div class="form-group">
-                    <input type="file" name="file" multiple>
+                    <!-- Drag and Drop Zone -->
+                    <div id="drop-zone" class="drop-zone">
+                        <p>Drag and drop files here, or click to select files.</p>
+                        <input type="file" id="file-input" name="file" multiple hidden>
+                    </div>
                     <button type="submit">Upload</button>
                 </div>
             </fieldset>
@@ -175,5 +173,30 @@
             </fieldset>
         </form>
     </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        dropZone.addEventListener('click', () => {
+            fileInput.click(); // Simule un clic pour ouvrir le sélecteur de fichiers
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Empêche le comportement par défaut (ouverture du fichier)
+            dropZone.classList.add('dragover'); // Ajoute un effet visuel
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover'); // Retire l'effet visuel
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files; // Récupère les fichiers déposés
+            fileInput.files = files; // Ajoute les fichiers au champ caché
+        });
+    </script>
 </body>
 </html>
