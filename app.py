@@ -104,6 +104,27 @@ def get_recommended_formats(image_type):
     recommended = []
     compatible = []
     
+    # Formats RAW connus
+    raw_formats = [
+        'ARW',    # Sony
+        'CR2',    # Canon
+        'CR3',    # Canon nouvelle génération
+        'NEF',    # Nikon
+        'NRW',    # Nikon
+        'ORF',    # Olympus
+        'RAF',    # Fujifilm
+        'RW2',    # Panasonic
+        'PEF',    # Pentax
+        'DNG',    # Format RAW universel
+        'IIQ',    # Phase One
+        'KDC',    # Kodak
+        '3FR',    # Hasselblad
+        'MEF',    # Mamiya
+        'MRW',    # Minolta
+        'SRF',    # Sony
+        'X3F'     # Sigma
+    ]
+    
     if image_type['has_transparency']:
         # Formats avec excellent support de la transparence
         recommended.extend(['PNG', 'WebP', 'AVIF', 'HEIC'])  # Meilleurs formats modernes
@@ -134,7 +155,7 @@ def get_recommended_formats(image_type):
             'HDR',      # Pour les images HDR
             'EXR',      # Format HDR professionnel
             'DPX',      # Format cinéma numérique
-        ])
+        ] + raw_formats)  # Ajout des formats RAW pour les photos
         
     else:  # Graphics, illustrations, etc.
         # Formats optimisés pour les graphiques
@@ -159,7 +180,11 @@ def get_recommended_formats(image_type):
     original_format = image_type.get('original_format')
     if original_format:
         original_format = original_format.upper()
-        if original_format not in recommended and original_format not in compatible:
+        # Si c'est un format RAW, on l'ajoute aux formats compatibles pour les photos
+        if original_format in raw_formats and image_type['is_photo']:
+            if original_format not in compatible:
+                compatible.append(original_format)
+        elif original_format not in recommended and original_format not in compatible:
             compatible.append(original_format)
     
     # Filtrer les formats en fonction de ce qui est réellement disponible
