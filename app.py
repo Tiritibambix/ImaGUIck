@@ -209,7 +209,8 @@ def upload_file():
     """Handle file uploads."""
     files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
-        return flash_error('No file selected.'), redirect(url_for('index'))
+        flash_error('No file selected.')
+        return redirect(url_for('index'))
 
     uploaded_files = []
     for file in files:
