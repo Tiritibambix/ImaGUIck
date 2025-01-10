@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libxt-dev \
     libmagickcore-dev \
     libmagickwand-dev \
+    darktable \
     zip unzip \
     && rm -rf /var/lib/apt/lists/*
 
