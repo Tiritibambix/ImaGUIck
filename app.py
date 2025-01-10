@@ -29,12 +29,34 @@ def allowed_file(filename):
     return '.' in filename
 
 def get_image_dimensions(filepath):
-    """Get image dimensions as (width, height)."""
+    """Get image dimensions using ImageMagick identify command."""
     try:
-        with Image.open(filepath) as img:
-            return img.size  # Returns (width, height)
+        # Pour les fichiers RAW, on ajoute les options spécifiques
+        if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng')):
+            cmd = [
+                'magick', 'identify',
+                '-define', 'dng:use-camera-wb=true',
+                '-define', 'dng:use-auto-wb=true',
+                '-define', 'dng:no-auto-bright=true',
+                filepath
+            ]
+        else:
+            cmd = ['magick', 'identify', filepath]
+            
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            # Le format de sortie est: chemin dimensions ...
+            parts = result.stdout.split()
+            if len(parts) >= 2:
+                dimensions = parts[2].split('x')
+                if len(dimensions) == 2:
+                    return int(dimensions[0]), int(dimensions[1])
+        
+        print(f"Erreur lors de l'identification de l'image : {result.stderr}")
+        return None
     except Exception as e:
-        flash_error(f"Error retrieving dimensions for {filepath}: {e}")
+        print(f"Exception lors de l'identification de l'image : {e}")
         return None
 
 def get_available_formats():
@@ -152,14 +174,27 @@ def flash_error(message):
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
     """Build ImageMagick command for resizing and formatting."""
-    command = ["/usr/local/bin/magick", filepath]
+    command = ['magick']
+    
+    # Ajout des options RAW si nécessaire
+    if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng')):
+        command.extend([
+            '-define', 'dng:use-camera-wb=true',
+            '-define', 'dng:use-auto-wb=true',
+            '-define', 'dng:no-auto-bright=true',
+        ])
+    
+    command.append(filepath)
+    
     if width.isdigit() and height.isdigit():
         resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
         command.extend(["-resize", resize_value])
     elif percentage.isdigit() and 0 < int(percentage) <= 100:
         command.extend(["-resize", f"{percentage}%"])
+        
     if quality.isdigit() and 1 <= int(quality) <= 100:
         command.extend(["-quality", quality])
+        
     command.append(output_path)
     return command
 
