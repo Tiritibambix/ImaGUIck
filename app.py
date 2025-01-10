@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash, Response
 import os
 import subprocess
@@ -75,6 +74,49 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     command.append(output_path)
     return command
 
+def analyze_image_type(filepath):
+    """Analyze image to determine its type and best suitable formats."""
+    try:
+        with Image.open(filepath) as img:
+            has_transparency = 'A' in img.getbands()
+            is_photo = True
+            
+            # Check if image is more like a photo or graphic
+            if img.mode in ('P', '1', 'L'):
+                is_photo = False
+            elif img.mode in ('RGB', 'RGBA'):
+                # Sample pixels to determine if it's likely a photo
+                pixels = list(img.getdata())
+                unique_colors = len(set(pixels[:1000]))  # Sample first 1000 pixels
+                is_photo = unique_colors > 100  # If many unique colors, likely a photo
+            
+            return {
+                'has_transparency': has_transparency,
+                'is_photo': is_photo,
+                'original_mode': img.mode
+            }
+    except Exception as e:
+        flash_error(f"Error analyzing image: {e}")
+        return None
+
+def get_recommended_formats(image_type):
+    """Get recommended formats based on image type."""
+    formats = []
+    
+    if image_type['has_transparency']:
+        formats.extend(['PNG', 'WebP', 'AVIF'])  # Formats with alpha support
+    elif image_type['is_photo']:
+        formats.extend(['JPEG', 'WebP', 'AVIF'])  # Formats good for photos
+    else:
+        formats.extend(['PNG', 'GIF', 'WebP'])  # Formats good for graphics
+        
+    # Add original format if not already in list
+    original_format = image_type.get('original_format')
+    if original_format and original_format.upper() not in formats:
+        formats.append(original_format.upper())
+        
+    return formats
+
 @app.route('/')
 def index():
     """Homepage with upload options."""
@@ -136,9 +178,15 @@ def resize_options(filename):
     if not dimensions:
         return redirect(url_for('index'))
 
-    formats = get_available_formats()
+    # Analyze image and get recommended formats
+    image_type = analyze_image_type(filepath)
+    if image_type:
+        formats = get_recommended_formats(image_type)
+    else:
+        formats = get_available_formats()  # Fallback to all formats
+
     width, height = dimensions
-    return render_template('resize.html', filename=filename, width=width, height=height, formats=formats)
+    return render_template('resize.html', filename=filename, width=width, height=height, formats=formats, image_type=image_type)
 
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
@@ -172,8 +220,45 @@ def resize_image(filename):
 def resize_batch_options(filenames):
     """Resize options page for batch processing."""
     files = filenames.split(',')
-    formats = get_available_formats()
-    return render_template('resize_batch.html', files=files, formats=formats)
+    
+    # Analyze each image and get common recommended formats
+    image_types = []
+    has_transparency = False
+    has_photos = False
+    has_graphics = False
+    
+    for filename in files:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        image_type = analyze_image_type(filepath)
+        if image_type:
+            image_types.append({'filename': filename, 'type': image_type})
+            has_transparency = has_transparency or image_type['has_transparency']
+            has_photos = has_photos or image_type['is_photo']
+            has_graphics = has_graphics or not image_type['is_photo']
+    
+    # Determine recommended formats based on all images
+    recommended_formats = set()
+    if has_transparency:
+        recommended_formats.update(['PNG', 'WebP', 'AVIF'])
+    if has_photos:
+        recommended_formats.update(['JPEG', 'WebP', 'AVIF'])
+    if has_graphics:
+        recommended_formats.update(['PNG', 'GIF', 'WebP'])
+    
+    # Get all available formats as fallback
+    formats = list(recommended_formats) if recommended_formats else get_available_formats()
+    
+    batch_info = {
+        'has_transparency': has_transparency,
+        'has_photos': has_photos,
+        'has_graphics': has_graphics
+    }
+    
+    return render_template('resize_batch.html', 
+                         files=files, 
+                         formats=formats, 
+                         image_types=image_types,
+                         batch_info=batch_info)
 
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():

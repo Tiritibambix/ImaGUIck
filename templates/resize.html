@@ -179,10 +179,32 @@
                     <select name="format" id="format">
                         <option value="">Keep Original</option>
                         {% for fmt in formats %}
-                            <option value="{{ fmt|lower }}">{{ fmt }}</option>
+                            <option value="{{ fmt|lower }}">{{ fmt }}{% if image_type %}
+                                {% if (image_type.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
+                                    (Recommended for transparency)
+                                {% elif (image_type.is_photo and fmt in ['JPEG', 'WebP', 'AVIF']) %}
+                                    (Recommended for photos)
+                                {% elif (not image_type.is_photo and fmt in ['PNG', 'GIF', 'WebP']) %}
+                                    (Recommended for graphics)
+                                {% endif %}
+                            {% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
+                {% if image_type %}
+                    <div class="format-info">
+                        <small>
+                            {% if image_type.has_transparency %}
+                                This image contains transparency.
+                            {% endif %}
+                            {% if image_type.is_photo %}
+                                This appears to be a photographic image.
+                            {% else %}
+                                This appears to be a graphic image.
+                            {% endif %}
+                        </small>
+                    </div>
+                {% endif %}
             </fieldset>
 
             <button type="submit">Resize</button>

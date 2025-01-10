@@ -171,18 +171,70 @@
             <fieldset>
                 <legend>Additional Options</legend>
                 <div class="form-group">
-                    <label for="batch_quality">Quality (1-100):</label>
-                    <input type="text" name="quality" id="batch_quality" value="100">
+                    <label for="quality">Quality (1-100):</label>
+                    <input type="text" name="quality" id="quality" value="100">
                 </div>
                 <div class="form-group">
-                    <label for="batch_format">Format:</label>
-                    <select name="format" id="batch_format">
-                        <option value="">Keep Original</option>
+                    <label for="format">Convert all to format:</label>
+                    <select name="format" id="format">
+                        <option value="">Keep Original Formats</option>
                         {% for fmt in formats %}
-                            <option value="{{ fmt|lower }}">{{ fmt }}</option>
+                            <option value="{{ fmt|lower }}">{{ fmt }}
+                                {% if batch_info %}
+                                    {% if (batch_info.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
+                                        (Supports transparency)
+                                    {% endif %}
+                                    {% if (batch_info.has_photos and fmt in ['JPEG', 'WebP', 'AVIF']) %}
+                                        (Good for photos)
+                                    {% endif %}
+                                    {% if (batch_info.has_graphics and fmt in ['PNG', 'GIF', 'WebP']) %}
+                                        (Good for graphics)
+                                    {% endif %}
+                                {% endif %}
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
+                {% if batch_info %}
+                    <div class="batch-info">
+                        <small>
+                            Your batch contains:
+                            <ul>
+                                {% if batch_info.has_transparency %}
+                                    <li>Images with transparency</li>
+                                {% endif %}
+                                {% if batch_info.has_photos %}
+                                    <li>Photographic images</li>
+                                {% endif %}
+                                {% if batch_info.has_graphics %}
+                                    <li>Graphic images</li>
+                                {% endif %}
+                            </ul>
+                        </small>
+                    </div>
+                {% endif %}
+                
+                {% if image_types %}
+                    <div class="images-info">
+                        <small>
+                            Details for each image:
+                            <ul>
+                                {% for img in image_types %}
+                                    <li>{{ img.filename }}: 
+                                        {% if img.type.has_transparency %}
+                                            Contains transparency,
+                                        {% endif %}
+                                        {% if img.type.is_photo %}
+                                            Photographic image
+                                        {% else %}
+                                            Graphic image
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </small>
+                    </div>
+                {% endif %}
             </fieldset>
 
             <button type="submit">Resize Batch</button>
