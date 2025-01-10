@@ -178,21 +178,42 @@
                     <label for="format">Convert all to format:</label>
                     <select name="format" id="format">
                         <option value="">Keep Original Formats</option>
-                        {% for fmt in formats %}
-                            <option value="{{ fmt|lower }}">{{ fmt }}
-                                {% if batch_info %}
-                                    {% if (batch_info.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
-                                        (Supports transparency)
-                                    {% endif %}
-                                    {% if (batch_info.has_photos and fmt in ['JPEG', 'WebP', 'AVIF']) %}
-                                        (Good for photos)
-                                    {% endif %}
-                                    {% if (batch_info.has_graphics and fmt in ['PNG', 'GIF', 'WebP']) %}
-                                        (Good for graphics)
-                                    {% endif %}
-                                {% endif %}
-                            </option>
-                        {% endfor %}
+                        {% if formats.recommended %}
+                            <optgroup label="Recommended Formats">
+                                {% for fmt in formats.recommended %}
+                                    <option value="{{ fmt|lower }}">{{ fmt }}
+                                        {% if batch_info %}
+                                            {% if (batch_info.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
+                                                (Best for transparency)
+                                            {% endif %}
+                                            {% if (batch_info.has_photos and fmt in ['JPEG', 'WebP', 'AVIF']) %}
+                                                (Best for photos)
+                                            {% endif %}
+                                            {% if (batch_info.has_graphics and fmt in ['PNG', 'GIF', 'WebP']) %}
+                                                (Best for graphics)
+                                            {% endif %}
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
+                        {% if formats.compatible %}
+                            <optgroup label="Other Compatible Formats">
+                                {% for fmt in formats.compatible %}
+                                    <option value="{{ fmt|lower }}">{{ fmt }}
+                                        {% if batch_info %}
+                                            {% if (batch_info.has_transparency and fmt == 'GIF') %}
+                                                (Limited transparency support)
+                                            {% elif batch_info.has_photos %}
+                                                (Less efficient for photos)
+                                            {% elif batch_info.has_graphics %}
+                                                (Basic support)
+                                            {% endif %}
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
                     </select>
                 </div>
                 {% if batch_info %}

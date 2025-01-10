@@ -178,17 +178,40 @@
                     <label for="format">Convert to format:</label>
                     <select name="format" id="format">
                         <option value="">Keep Original</option>
-                        {% for fmt in formats %}
-                            <option value="{{ fmt|lower }}">{{ fmt }}{% if image_type %}
-                                {% if (image_type.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
-                                    (Recommended for transparency)
-                                {% elif (image_type.is_photo and fmt in ['JPEG', 'WebP', 'AVIF']) %}
-                                    (Recommended for photos)
-                                {% elif (not image_type.is_photo and fmt in ['PNG', 'GIF', 'WebP']) %}
-                                    (Recommended for graphics)
-                                {% endif %}
-                            {% endif %}</option>
-                        {% endfor %}
+                        {% if formats.recommended %}
+                            <optgroup label="Recommended Formats">
+                                {% for fmt in formats.recommended %}
+                                    <option value="{{ fmt|lower }}">{{ fmt }}
+                                        {% if image_type %}
+                                            {% if (image_type.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
+                                                (Best for transparency)
+                                            {% elif (image_type.is_photo and fmt in ['JPEG', 'WebP', 'AVIF']) %}
+                                                (Best for photos)
+                                            {% elif (not image_type.is_photo and fmt in ['PNG', 'GIF', 'WebP']) %}
+                                                (Best for graphics)
+                                            {% endif %}
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
+                        {% if formats.compatible %}
+                            <optgroup label="Other Compatible Formats">
+                                {% for fmt in formats.compatible %}
+                                    <option value="{{ fmt|lower }}">{{ fmt }}
+                                        {% if image_type %}
+                                            {% if (image_type.has_transparency and fmt == 'GIF') %}
+                                                (Limited transparency)
+                                            {% elif (image_type.is_photo) %}
+                                                (Less efficient for photos)
+                                            {% else %}
+                                                (Basic support)
+                                            {% endif %}
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
                     </select>
                 </div>
                 {% if image_type %}

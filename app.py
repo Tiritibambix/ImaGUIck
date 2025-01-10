@@ -100,22 +100,77 @@ def analyze_image_type(filepath):
         return None
 
 def get_recommended_formats(image_type):
-    """Get recommended formats based on image type."""
-    formats = []
+    """Get recommended and compatible formats based on image type."""
+    recommended = []
+    compatible = []
     
     if image_type['has_transparency']:
-        formats.extend(['PNG', 'WebP', 'AVIF'])  # Formats with alpha support
+        # Formats avec excellent support de la transparence
+        recommended.extend(['PNG', 'WebP', 'AVIF', 'HEIC'])  # Meilleurs formats modernes
+        compatible.extend([
+            'GIF',      # Transparence basique
+            'TIFF',     # Bon support mais fichiers plus lourds
+            'ICO',      # Pour les icônes
+            'JXL',      # JPEG XL - nouveau format prometteur
+            'PSD',      # Format Photoshop
+            'SVG',      # Pour les graphiques vectoriels
+        ])
+        
     elif image_type['is_photo']:
-        formats.extend(['JPEG', 'WebP', 'AVIF'])  # Formats good for photos
-    else:
-        formats.extend(['PNG', 'GIF', 'WebP'])  # Formats good for graphics
+        # Formats optimisés pour les photos
+        recommended.extend([
+            'JPEG',     # Standard pour les photos
+            'WebP',     # Excellent compromis moderne
+            'AVIF',     # Très bonne compression
+            'HEIC',     # Format Apple haute efficacité
+            'JXL'       # JPEG XL - excellent pour les photos
+        ])
+        compatible.extend([
+            'PNG',      # Sans perte mais plus lourd
+            'TIFF',     # Format professionnel
+            'BMP',      # Format simple
+            'PPM',      # Format pour photos
+            'JP2',      # JPEG 2000
+            'HDR',      # Pour les images HDR
+            'EXR',      # Format HDR professionnel
+            'DPX',      # Format cinéma numérique
+        ])
         
-    # Add original format if not already in list
+    else:  # Graphics, illustrations, etc.
+        # Formats optimisés pour les graphiques
+        recommended.extend([
+            'PNG',      # Parfait pour les graphiques nets
+            'WebP',     # Bon compromis moderne
+            'GIF',      # Idéal pour les animations simples
+            'SVG'       # Pour les graphiques vectoriels
+        ])
+        compatible.extend([
+            'JPEG',     # OK mais peut créer des artefacts
+            'TIFF',     # Format professionnel
+            'BMP',      # Format simple
+            'PCX',      # Format historique
+            'TGA',      # Format pour graphiques
+            'ICO',      # Pour les icônes
+            'WBMP',     # Pour les appareils limités
+            'XPM',      # Pour les icônes X11
+        ])
+    
+    # Ajouter le format original s'il n'est pas déjà présent
     original_format = image_type.get('original_format')
-    if original_format and original_format.upper() not in formats:
-        formats.append(original_format.upper())
-        
-    return formats
+    if original_format:
+        original_format = original_format.upper()
+        if original_format not in recommended and original_format not in compatible:
+            compatible.append(original_format)
+    
+    # Filtrer les formats en fonction de ce qui est réellement disponible
+    available_formats = set(get_available_formats())
+    recommended = [fmt for fmt in recommended if fmt in available_formats]
+    compatible = [fmt for fmt in compatible if fmt in available_formats]
+    
+    return {
+        'recommended': recommended,
+        'compatible': compatible
+    }
 
 @app.route('/')
 def index():
@@ -181,12 +236,24 @@ def resize_options(filename):
     # Analyze image and get recommended formats
     image_type = analyze_image_type(filepath)
     if image_type:
-        formats = get_recommended_formats(image_type)
+        format_info = get_recommended_formats(image_type)
+        formats = {
+            'recommended': format_info['recommended'],
+            'compatible': format_info['compatible']
+        }
     else:
-        formats = get_available_formats()  # Fallback to all formats
+        formats = {
+            'recommended': [],
+            'compatible': get_available_formats()
+        }
 
     width, height = dimensions
-    return render_template('resize.html', filename=filename, width=width, height=height, formats=formats, image_type=image_type)
+    return render_template('resize.html', 
+                         filename=filename, 
+                         width=width, 
+                         height=height, 
+                         formats=formats, 
+                         image_type=image_type)
 
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
@@ -236,17 +303,15 @@ def resize_batch_options(filenames):
             has_photos = has_photos or image_type['is_photo']
             has_graphics = has_graphics or not image_type['is_photo']
     
-    # Determine recommended formats based on all images
-    recommended_formats = set()
-    if has_transparency:
-        recommended_formats.update(['PNG', 'WebP', 'AVIF'])
-    if has_photos:
-        recommended_formats.update(['JPEG', 'WebP', 'AVIF'])
-    if has_graphics:
-        recommended_formats.update(['PNG', 'GIF', 'WebP'])
+    # Create a combined image type for the batch
+    batch_type = {
+        'has_transparency': has_transparency,
+        'is_photo': has_photos,
+        'original_format': None  # Not relevant for batch
+    }
     
-    # Get all available formats as fallback
-    formats = list(recommended_formats) if recommended_formats else get_available_formats()
+    # Get format recommendations for the batch
+    format_info = get_recommended_formats(batch_type)
     
     batch_info = {
         'has_transparency': has_transparency,
@@ -256,7 +321,7 @@ def resize_batch_options(filenames):
     
     return render_template('resize_batch.html', 
                          files=files, 
-                         formats=formats, 
+                         formats=format_info, 
                          image_types=image_types,
                          batch_info=batch_info)
 
