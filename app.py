@@ -10,6 +10,7 @@ import requests
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
+MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB max
 DEFAULTS = {
     "quality": "100",
     "width": "",
@@ -22,6 +23,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 app.secret_key = 'supersecretkey'
 
 def allowed_file(filename):
@@ -411,6 +413,12 @@ def download(filename):
         response = Response(f.read(), mimetype='application/octet-stream')
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle file too large error."""
+    flash_error(f'Le fichier est trop volumineux. La taille maximale est de {MAX_CONTENT_LENGTH // (1024*1024)} MB.')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
