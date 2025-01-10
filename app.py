@@ -38,41 +38,87 @@ def get_image_dimensions(filepath):
         return None
 
 def get_available_formats():
-    """Get a list of supported formats from ImageMagick."""
+    """Get all formats supported by ImageMagick."""
     try:
-        result = subprocess.run(["/usr/local/bin/magick", "convert", "-list", "format"],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                text=True,
-                                check=True)
+        # Exécute la commande magick -list format pour obtenir tous les formats supportés
+        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
         formats = []
-        for line in result.stdout.splitlines():
-            parts = line.split()
-            if len(parts) > 1 and parts[1] in {"r", "rw", "rw+", "w"}:
-                format_name = parts[0].lower().rstrip('*')
-                formats.append(format_name)
+        
+        # Parse la sortie pour extraire les formats
+        for line in result.stdout.split('\n'):
+            # Ignore l'en-tête et les lignes vides
+            if line.strip() and not line.startswith('Format') and not line.startswith('--'):
+                # Le format est le premier mot de chaque ligne
+                format_name = line.split()[0].upper()
+                # Certains formats ont des suffixes comme * ou +, on les enlève
+                format_name = format_name.rstrip('*+')
+                if format_name not in formats:
+                    formats.append(format_name)
+        
         return formats
     except Exception as e:
-        flash_error(f"Error fetching formats: {e}")
-        return ["jpg", "png", "webp"]
+        print(f"Erreur lors de la récupération des formats : {e}")
+        # Liste de secours avec les formats les plus courants
+        return ['PNG', 'JPEG', 'GIF', 'TIFF', 'BMP', 'WEBP']
 
-def flash_error(message):
-    """Flash error message and log if needed."""
-    flash(message)
-    print(message)
+def get_format_categories():
+    """Categorize image formats by their typical usage."""
+    return {
+        'transparency': {
+            'recommended': ['PNG', 'WEBP', 'AVIF', 'HEIC', 'GIF'],
+            'compatible': ['TIFF', 'ICO', 'JXL', 'PSD', 'SVG', 'TGA']
+        },
+        'photo': {
+            'recommended': ['JPEG', 'WEBP', 'AVIF', 'HEIC', 'JXL', 'TIFF'],
+            'compatible': [
+                # Formats RAW
+                'ARW', 'CR2', 'CR3', 'NEF', 'NRW', 'ORF', 'RAF', 'RW2', 'PEF', 'DNG',
+                'IIQ', 'KDC', '3FR', 'MEF', 'MRW', 'SRF', 'X3F',
+                # Autres formats photo
+                'PNG', 'BMP', 'PPM', 'JP2', 'HDR', 'EXR', 'DPX', 'MIFF', 'MNG',
+                'PCD', 'RGBE', 'YCbCr', 'CALS'
+            ]
+        },
+        'graphic': {
+            'recommended': ['PNG', 'WEBP', 'GIF', 'SVG'],
+            'compatible': [
+                'JPEG', 'TIFF', 'BMP', 'PCX', 'TGA', 'ICO', 'WBMP', 'XPM',
+                'DIB', 'EMF', 'WMF', 'PICT', 'MacPICT', 'EPT', 'EPDF', 'EPI', 'EPS',
+                'EPSF', 'EPSI', 'EPT', 'PDF', 'PS', 'AI', 'MONO'
+            ]
+        }
+    }
 
-def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
-    """Build ImageMagick command for resizing and formatting."""
-    command = ["/usr/local/bin/magick", filepath]
-    if width.isdigit() and height.isdigit():
-        resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-        command.extend(["-resize", resize_value])
-    elif percentage.isdigit() and 0 < int(percentage) <= 100:
-        command.extend(["-resize", f"{percentage}%"])
-    if quality.isdigit() and 1 <= int(quality) <= 100:
-        command.extend(["-quality", quality])
-    command.append(output_path)
-    return command
+def get_recommended_formats(image_type):
+    """Get recommended and compatible formats based on image type."""
+    categories = get_format_categories()
+    available_formats = set(get_available_formats())
+    
+    if image_type['has_transparency']:
+        category = 'transparency'
+    elif image_type['is_photo']:
+        category = 'photo'
+    else:
+        category = 'graphic'
+        
+    # Récupère les formats recommandés et compatibles pour cette catégorie
+    recommended = [fmt for fmt in categories[category]['recommended'] 
+                  if fmt in available_formats]
+    compatible = [fmt for fmt in categories[category]['compatible'] 
+                 if fmt in available_formats]
+    
+    # Ajoute le format original s'il n'est pas déjà présent
+    original_format = image_type.get('original_format')
+    if original_format:
+        original_format = original_format.upper()
+        if original_format not in recommended and original_format not in compatible:
+            if original_format in available_formats:
+                compatible.append(original_format)
+    
+    return {
+        'recommended': recommended,
+        'compatible': compatible
+    }
 
 def analyze_image_type(filepath):
     """Analyze image to determine its type and best suitable formats."""
@@ -93,109 +139,29 @@ def analyze_image_type(filepath):
             return {
                 'has_transparency': has_transparency,
                 'is_photo': is_photo,
-                'original_mode': img.mode
+                'original_format': None  # Not relevant for batch
             }
     except Exception as e:
         flash_error(f"Error analyzing image: {e}")
         return None
 
-def get_recommended_formats(image_type):
-    """Get recommended and compatible formats based on image type."""
-    recommended = []
-    compatible = []
-    
-    # Formats RAW connus
-    raw_formats = [
-        'ARW',    # Sony
-        'CR2',    # Canon
-        'CR3',    # Canon nouvelle génération
-        'NEF',    # Nikon
-        'NRW',    # Nikon
-        'ORF',    # Olympus
-        'RAF',    # Fujifilm
-        'RW2',    # Panasonic
-        'PEF',    # Pentax
-        'DNG',    # Format RAW universel
-        'IIQ',    # Phase One
-        'KDC',    # Kodak
-        '3FR',    # Hasselblad
-        'MEF',    # Mamiya
-        'MRW',    # Minolta
-        'SRF',    # Sony
-        'X3F'     # Sigma
-    ]
-    
-    if image_type['has_transparency']:
-        # Formats avec excellent support de la transparence
-        recommended.extend(['PNG', 'WebP', 'AVIF', 'HEIC'])  # Meilleurs formats modernes
-        compatible.extend([
-            'GIF',      # Transparence basique
-            'TIFF',     # Bon support mais fichiers plus lourds
-            'ICO',      # Pour les icônes
-            'JXL',      # JPEG XL - nouveau format prometteur
-            'PSD',      # Format Photoshop
-            'SVG',      # Pour les graphiques vectoriels
-        ])
-        
-    elif image_type['is_photo']:
-        # Formats optimisés pour les photos
-        recommended.extend([
-            'JPEG',     # Standard pour les photos
-            'WebP',     # Excellent compromis moderne
-            'AVIF',     # Très bonne compression
-            'HEIC',     # Format Apple haute efficacité
-            'JXL'       # JPEG XL - excellent pour les photos
-        ])
-        compatible.extend([
-            'PNG',      # Sans perte mais plus lourd
-            'TIFF',     # Format professionnel
-            'BMP',      # Format simple
-            'PPM',      # Format pour photos
-            'JP2',      # JPEG 2000
-            'HDR',      # Pour les images HDR
-            'EXR',      # Format HDR professionnel
-            'DPX',      # Format cinéma numérique
-        ] + raw_formats)  # Ajout des formats RAW pour les photos
-        
-    else:  # Graphics, illustrations, etc.
-        # Formats optimisés pour les graphiques
-        recommended.extend([
-            'PNG',      # Parfait pour les graphiques nets
-            'WebP',     # Bon compromis moderne
-            'GIF',      # Idéal pour les animations simples
-            'SVG'       # Pour les graphiques vectoriels
-        ])
-        compatible.extend([
-            'JPEG',     # OK mais peut créer des artefacts
-            'TIFF',     # Format professionnel
-            'BMP',      # Format simple
-            'PCX',      # Format historique
-            'TGA',      # Format pour graphiques
-            'ICO',      # Pour les icônes
-            'WBMP',     # Pour les appareils limités
-            'XPM',      # Pour les icônes X11
-        ])
-    
-    # Ajouter le format original s'il n'est pas déjà présent
-    original_format = image_type.get('original_format')
-    if original_format:
-        original_format = original_format.upper()
-        # Si c'est un format RAW, on l'ajoute aux formats compatibles pour les photos
-        if original_format in raw_formats and image_type['is_photo']:
-            if original_format not in compatible:
-                compatible.append(original_format)
-        elif original_format not in recommended and original_format not in compatible:
-            compatible.append(original_format)
-    
-    # Filtrer les formats en fonction de ce qui est réellement disponible
-    available_formats = set(get_available_formats())
-    recommended = [fmt for fmt in recommended if fmt in available_formats]
-    compatible = [fmt for fmt in compatible if fmt in available_formats]
-    
-    return {
-        'recommended': recommended,
-        'compatible': compatible
-    }
+def flash_error(message):
+    """Flash error message and log if needed."""
+    flash(message)
+    print(message)
+
+def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
+    """Build ImageMagick command for resizing and formatting."""
+    command = ["/usr/local/bin/magick", filepath]
+    if width.isdigit() and height.isdigit():
+        resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
+        command.extend(["-resize", resize_value])
+    elif percentage.isdigit() and 0 < int(percentage) <= 100:
+        command.extend(["-resize", f"{percentage}%"])
+    if quality.isdigit() and 1 <= int(quality) <= 100:
+        command.extend(["-quality", quality])
+    command.append(output_path)
+    return command
 
 @app.route('/')
 def index():
