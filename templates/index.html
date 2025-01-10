@@ -148,22 +148,16 @@
         <form action="/upload" method="post" enctype="multipart/form-data">
             <fieldset>
                 <legend class="title-large">ImaGUIck</legend>
-                <div class="form-group">
-                    <label for="file">Sélectionnez une ou plusieurs images (max 100 MB par fichier)</label>
-                    <input type="file" id="file" name="file" multiple accept="image/*">
-                </div>
-                <button type="submit">Uploader</button>
             </fieldset>
             <fieldset>
                 <legend>Upload Images</legend>
                 <div class="form-group">
-                    <!-- Drag and Drop Zone -->
                     <div id="drop-zone" class="drop-zone">
-                        <p>Drag and drop files here, or click to select files.</p>
-                        <input type="file" id="file-input" name="file" multiple hidden>
+                        <p>Glissez-déposez vos images ici ou cliquez pour sélectionner (max 100 MB par fichier)</p>
+                        <input type="file" id="file" name="file" multiple accept="image/*" class="file-input">
                     </div>
-                    <button type="submit">Upload</button>
                 </div>
+                <button type="submit">Uploader</button>
             </fieldset>
         </form>
         <form action="/upload_url" method="post">
@@ -179,7 +173,7 @@
 
     <script>
         const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
+        const fileInput = document.getElementById('file');
 
         dropZone.addEventListener('click', () => {
             fileInput.click(); // Simule un clic pour ouvrir le sélecteur de fichiers

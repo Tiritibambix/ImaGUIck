@@ -6,11 +6,13 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 from PIL import Image
 import requests
+import logging
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
 MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB max
+MAX_BUFFER_SIZE = 16 * 1024 * 1024  # 16 MB buffer size
 DEFAULTS = {
     "quality": "100",
     "width": "",
@@ -24,7 +26,11 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+app.config['MAX_BUFFER_SIZE'] = MAX_BUFFER_SIZE
 app.secret_key = 'supersecretkey'
+
+# Configure logging
+app.logger.setLevel(logging.INFO)
 
 def allowed_file(filename):
     """Allow all file types supported by ImageMagick."""
@@ -55,10 +61,10 @@ def get_image_dimensions(filepath):
                 if len(dimensions) == 2:
                     return int(dimensions[0]), int(dimensions[1])
         
-        print(f"Erreur lors de l'identification de l'image : {result.stderr}")
+        app.logger.error(f"Erreur lors de l'identification de l'image : {result.stderr}")
         return None
     except Exception as e:
-        print(f"Exception lors de l'identification de l'image : {e}")
+        app.logger.error(f"Exception lors de l'identification de l'image : {e}")
         return None
 
 def get_available_formats():
@@ -81,7 +87,7 @@ def get_available_formats():
         
         return formats
     except Exception as e:
-        print(f"Erreur lors de la récupération des formats : {e}")
+        app.logger.error(f"Erreur lors de la récupération des formats : {e}")
         # Liste de secours avec les formats les plus courants
         return ['PNG', 'JPEG', 'GIF', 'TIFF', 'BMP', 'WEBP']
 
@@ -172,7 +178,7 @@ def analyze_image_type(filepath):
 def flash_error(message):
     """Flash error message and log if needed."""
     flash(message)
-    print(message)
+    app.logger.error(message)
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
     """Build ImageMagick command for resizing and formatting."""
@@ -209,18 +215,29 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Handle file uploads."""
+    app.logger.info("Starting file upload...")
     files = request.files.getlist('file')
+    app.logger.info(f"Received {len(files)} files")
+    
     if not files or all(file.filename == '' for file in files):
+        app.logger.warning("No files selected")
         flash_error('No file selected.')
         return redirect(url_for('index'))
 
     uploaded_files = []
     for file in files:
         if file and allowed_file(file.filename):
+            app.logger.info(f"Processing file: {file.filename}")
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
-            file.save(filepath)
-            uploaded_files.append(filepath)
+            try:
+                file.save(filepath)
+                app.logger.info(f"File saved successfully: {filepath}")
+                uploaded_files.append(filepath)
+            except Exception as e:
+                app.logger.error(f"Error saving file {file.filename}: {str(e)}")
+                flash_error(f"Error saving file {file.filename}")
         else:
+            app.logger.warning(f"Unsupported file format: {file.filename}")
             flash_error(f"Unsupported file format for {file.filename}.")
 
     if len(uploaded_files) == 1:
