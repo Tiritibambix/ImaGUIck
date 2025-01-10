@@ -2,5 +2,4 @@ requests
 Pillow
 Flask
 Wand
-rawpy>=0.17.0  # Pour le support des fichiers RAW
-dcraw>=9.28.0  # Pour le décodage des fichiers RAW
+rawpy>=0.17.0  # Pour le support des fichiers RAW en Python

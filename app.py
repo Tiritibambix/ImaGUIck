@@ -177,11 +177,12 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     command = ['magick']
     
     # Ajout des options RAW si nécessaire
-    if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng')):
+    if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
         command.extend([
             '-define', 'dng:use-camera-wb=true',
             '-define', 'dng:use-auto-wb=true',
             '-define', 'dng:no-auto-bright=true',
+            '-define', 'dng:output-color=sRGB'
         ])
     
     command.append(filepath)
