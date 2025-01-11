@@ -10,12 +10,21 @@
 <!ATTLIST delegate stealth CDATA #IMPLIED>
 ]>
 <delegatemap>
-  <delegate decode="arw:decode" command="dcraw -c -w -q 3 %i > %o"/>
-  <delegate decode="cr2:decode" command="dcraw -c -w -q 3 %i > %o"/>
-  <delegate decode="nef:decode" command="dcraw -c -w -q 3 %i > %o"/>
-  <delegate decode="dng:decode" command="dcraw -c -w -q 3 %i > %o"/>
-  <delegate decode="raw:decode" command="dcraw -c -w -q 3 %i > %o"/>
-  <delegate decode="rw2:decode" command="dcraw -c -w -q 3 %i > %o"/>
-  <delegate decode="orf:decode" command="dcraw -c -w -q 3 %i > %o"/>
-  <delegate decode="pef:decode" command="dcraw -c -w -q 3 %i > %o"/>
+  <delegate decode="dng:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="cr2:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="crw:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="nef:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="arw:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="srf:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="sr2:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="orf:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="mrw:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="raf:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="x3f:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="raw:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="rw2:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="pef:decode" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <!-- Force ARW to use dcraw -->
+  <delegate decode="arw" command="dcraw -c -w -q 3 '%i' > '%o'"/>
+  <delegate decode="*" decode="arw" command="dcraw -c -w -q 3 '%i' > '%o'"/>
 </delegatemap>
