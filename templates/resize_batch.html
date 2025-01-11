@@ -123,32 +123,6 @@
             margin-top: var(--spacing-small);
         }
 
-        .format-section {
-            margin: 10px 0;
-        }
-        .format-section h3 {
-            margin-bottom: 5px;
-        }
-        .format-options {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .format-option {
-            padding: 5px 10px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        .format-option:hover {
-            background-color: #f0f0f0;
-        }
-        .format-option.selected {
-            background-color: #007bff;
-            color: white;
-            border-color: #0056b3;
-        }
-
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
@@ -200,28 +174,47 @@
                     <label for="quality">Quality (1-100):</label>
                     <input type="text" name="quality" id="quality" value="100">
                 </div>
-                <div class="format-section">
-                    <h3>Recommended Formats</h3>
-                    <div class="format-options">
-                        {% for fmt in formats.recommended %}
-                        <div class="format-option">
-                            <input type="radio" id="format_{{ fmt }}" name="format" value="{{ fmt|lower }}"
-                                   {% if fmt == 'JPEG' %}checked{% endif %}>
-                            <label for="format_{{ fmt }}">{{ fmt }}</label>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="format-section">
-                    <h3>Other Compatible Formats</h3>
-                    <div class="format-options">
-                        {% for fmt in formats.compatible %}
-                        <div class="format-option">
-                            <input type="radio" id="format_{{ fmt }}" name="format" value="{{ fmt|lower }}">
-                            <label for="format_{{ fmt }}">{{ fmt }}</label>
-                        </div>
-                        {% endfor %}
-                    </div>
+                <div class="form-group">
+                    <label for="format">Convert all to format:</label>
+                    <select name="format" id="format">
+                        <option value="">Keep Original Formats</option>
+                        {% if formats.recommended %}
+                            <optgroup label="Recommended Formats">
+                                {% for fmt in formats.recommended %}
+                                    <option value="{{ fmt|lower }}">{{ fmt }}
+                                        {% if batch_info %}
+                                            {% if (batch_info.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
+                                                (Best for transparency)
+                                            {% endif %}
+                                            {% if (batch_info.has_photos and fmt in ['JPEG', 'WebP', 'AVIF']) %}
+                                                (Best for photos)
+                                            {% endif %}
+                                            {% if (batch_info.has_graphics and fmt in ['PNG', 'GIF', 'WebP']) %}
+                                                (Best for graphics)
+                                            {% endif %}
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
+                        {% if formats.compatible %}
+                            <optgroup label="Other Compatible Formats">
+                                {% for fmt in formats.compatible %}
+                                    <option value="{{ fmt|lower }}">{{ fmt }}
+                                        {% if batch_info %}
+                                            {% if (batch_info.has_transparency and fmt == 'GIF') %}
+                                                (Limited transparency support)
+                                            {% elif batch_info.has_photos %}
+                                                (Less efficient for photos)
+                                            {% elif batch_info.has_graphics %}
+                                                (Basic support)
+                                            {% endif %}
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endif %}
+                    </select>
                 </div>
                 {% if batch_info %}
                     <div class="batch-info">
