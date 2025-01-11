@@ -380,13 +380,30 @@ def resize_image(filename):
         
         if dcraw_cmd:  # Si c'est un fichier RAW
             app.logger.info(f"Running dcraw command: {' '.join(dcraw_cmd)}")
-            dcraw_process = subprocess.Popen(dcraw_cmd, stdout=subprocess.PIPE)
+            # Créer un fichier temporaire pour stocker la sortie de dcraw
+            temp_ppm = os.path.join(app.config['OUTPUT_FOLDER'], f"{os.path.splitext(filename)[0]}_temp.ppm")
+            
+            # Exécuter dcraw et sauvegarder en PPM
+            with open(temp_ppm, 'wb') as f:
+                dcraw_result = subprocess.run(dcraw_cmd, stdout=f)
+                if dcraw_result.returncode != 0:
+                    raise Exception(f"dcraw command failed with return code {dcraw_result.returncode}")
+            
+            # Modifier la commande ImageMagick pour lire depuis le fichier PPM
+            magick_cmd[1] = temp_ppm
+            
+            # Exécuter ImageMagick
             app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-            magick_process = subprocess.Popen(magick_cmd, stdin=dcraw_process.stdout)
-            dcraw_process.stdout.close()  # Permettre à dcraw de recevoir SIGPIPE si ImageMagick se termine
-            magick_process.communicate()
-            if magick_process.returncode != 0:
-                raise Exception(f"ImageMagick command failed with return code {magick_process.returncode}")
+            magick_result = subprocess.run(magick_cmd)
+            
+            # Nettoyer le fichier temporaire
+            try:
+                os.remove(temp_ppm)
+            except:
+                pass
+            
+            if magick_result.returncode != 0:
+                raise Exception(f"ImageMagick command failed with return code {magick_result.returncode}")
         else:  # Pour les autres formats
             app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
             result = subprocess.run(magick_cmd)
@@ -468,13 +485,30 @@ def resize_batch():
                     
                     if dcraw_cmd:  # Si c'est un fichier RAW
                         app.logger.info(f"Running dcraw command: {' '.join(dcraw_cmd)}")
-                        dcraw_process = subprocess.Popen(dcraw_cmd, stdout=subprocess.PIPE)
+                        # Créer un fichier temporaire pour stocker la sortie de dcraw
+                        temp_ppm = os.path.join(app.config['OUTPUT_FOLDER'], f"{os.path.splitext(filename)[0]}_temp.ppm")
+                        
+                        # Exécuter dcraw et sauvegarder en PPM
+                        with open(temp_ppm, 'wb') as f:
+                            dcraw_result = subprocess.run(dcraw_cmd, stdout=f)
+                            if dcraw_result.returncode != 0:
+                                raise Exception(f"dcraw command failed with return code {dcraw_result.returncode}")
+                        
+                        # Modifier la commande ImageMagick pour lire depuis le fichier PPM
+                        magick_cmd[1] = temp_ppm
+                        
+                        # Exécuter ImageMagick
                         app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-                        magick_process = subprocess.Popen(magick_cmd, stdin=dcraw_process.stdout)
-                        dcraw_process.stdout.close()
-                        magick_process.communicate()
-                        if magick_process.returncode != 0:
-                            raise Exception(f"ImageMagick command failed with return code {magick_process.returncode}")
+                        magick_result = subprocess.run(magick_cmd)
+                        
+                        # Nettoyer le fichier temporaire
+                        try:
+                            os.remove(temp_ppm)
+                        except:
+                            pass
+                        
+                        if magick_result.returncode != 0:
+                            raise Exception(f"ImageMagick command failed with return code {magick_result.returncode}")
                     else:  # Pour les autres formats
                         app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
                         result = subprocess.run(magick_cmd)
