@@ -236,35 +236,39 @@ def flash_error(message):
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
     """Build ImageMagick command for resizing and formatting."""
-    # Pour les fichiers RAW, on utilise dcraw pour convertir en PPM d'abord
+    # Pour les fichiers RAW, on utilise exiftool pour extraire le preview JPEG
     if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
-        # Convertir en PPM avec dcraw
-        app.logger.info(f"Converting RAW file to PPM with dcraw: {filepath}")
-        # Utiliser -w pour obtenir la balance des blancs de l'appareil photo
-        # -c pour sortir sur stdout
-        # -q 3 pour la meilleure qualité
-        dcraw_cmd = ['dcraw', '-c', '-w', '-q', '3', filepath]
-        app.logger.info(f"dcraw command: {' '.join(dcraw_cmd)}")
+        # Extraire le preview JPEG avec exiftool
+        app.logger.info(f"Extracting preview from RAW file: {filepath}")
+        preview_path = os.path.join(os.path.dirname(output_path), f"{os.path.splitext(os.path.basename(filepath))[0]}_preview.jpg")
         
-        # Le PPM sera lu depuis stdin par ImageMagick
-        command = ['magick', '-']
+        # -b: sortie binaire
+        # -PreviewImage: extrait l'image preview (souvent meilleure qualité que le thumbnail)
+        # -JpgFromRaw: alternative si PreviewImage n'existe pas
+        exiftool_cmd = ['exiftool', '-b', '-PreviewImage', '-JpgFromRaw', filepath]
+        app.logger.info(f"exiftool command: {' '.join(exiftool_cmd)}")
+        
+        return exiftool_cmd, ['magick', preview_path] + (
+            ["-resize", f"{width}x{height}{'!' if not keep_ratio else ''}"] if width.isdigit() and height.isdigit()
+            else ["-resize", f"{percentage}%"] if percentage.isdigit() and 0 < int(percentage) <= 100
+            else []
+        ) + (
+            ["-quality", quality] if quality.isdigit() and 1 <= int(quality) <= 100 else []
+        ) + [output_path]
     else:
         command = ['magick', filepath]
     
-    if width.isdigit() and height.isdigit():
-        resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-        command.extend(["-resize", resize_value])
-    elif percentage.isdigit() and 0 < int(percentage) <= 100:
-        command.extend(["-resize", f"{percentage}%"])
-        
-    if quality.isdigit() and 1 <= int(quality) <= 100:
-        command.extend(["-quality", quality])
-        
-    command.append(output_path)
-    
-    if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
-        return dcraw_cmd, command
-    return None, command
+        if width.isdigit() and height.isdigit():
+            resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
+            command.extend(["-resize", resize_value])
+        elif percentage.isdigit() and 0 < int(percentage) <= 100:
+            command.extend(["-resize", f"{percentage}%"])
+            
+        if quality.isdigit() and 1 <= int(quality) <= 100:
+            command.extend(["-quality", quality])
+            
+        command.append(output_path)
+        return None, command
 
 @app.route('/')
 def index():
@@ -376,29 +380,28 @@ def resize_image(filename):
         output_filename = f"{os.path.splitext(filename)[0]}_resized.{output_format or os.path.splitext(filename)[1][1:]}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         
-        dcraw_cmd, magick_cmd = build_imagemagick_command(input_path, output_path, width, height, percentage, quality, keep_ratio)
+        exiftool_cmd, magick_cmd = build_imagemagick_command(input_path, output_path, width, height, percentage, quality, keep_ratio)
         
-        if dcraw_cmd:  # Si c'est un fichier RAW
-            app.logger.info(f"Running dcraw command: {' '.join(dcraw_cmd)}")
-            # Créer un fichier temporaire pour stocker la sortie de dcraw
-            temp_ppm = os.path.join(app.config['OUTPUT_FOLDER'], f"{os.path.splitext(filename)[0]}_temp.ppm")
+        if exiftool_cmd:  # Si c'est un fichier RAW
+            # Extraire le preview JPEG
+            preview_path = os.path.join(app.config['OUTPUT_FOLDER'], f"{os.path.splitext(filename)[0]}_preview.jpg")
+            app.logger.info(f"Running exiftool command: {' '.join(exiftool_cmd)}")
             
-            # Exécuter dcraw et sauvegarder en PPM
-            with open(temp_ppm, 'wb') as f:
-                dcraw_result = subprocess.run(dcraw_cmd, stdout=f)
-                if dcraw_result.returncode != 0:
-                    raise Exception(f"dcraw command failed with return code {dcraw_result.returncode}")
+            with open(preview_path, 'wb') as f:
+                exiftool_result = subprocess.run(exiftool_cmd, stdout=f)
+                if exiftool_result.returncode != 0:
+                    raise Exception(f"exiftool command failed with return code {exiftool_result.returncode}")
             
-            # Modifier la commande ImageMagick pour lire depuis le fichier PPM
-            magick_cmd[1] = temp_ppm
+            if not os.path.exists(preview_path) or os.path.getsize(preview_path) == 0:
+                raise Exception("Failed to extract preview from RAW file")
             
-            # Exécuter ImageMagick
+            # Redimensionner avec ImageMagick
             app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
             magick_result = subprocess.run(magick_cmd)
             
-            # Nettoyer le fichier temporaire
+            # Nettoyer le preview
             try:
-                os.remove(temp_ppm)
+                os.remove(preview_path)
             except:
                 pass
             

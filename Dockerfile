@@ -44,6 +44,7 @@ RUN apt-get update && apt-get install -y \
     libpng16-16 \
     libtiff-dev \
     libgif7 \
+    exiftool \
     && rm -rf /var/lib/apt/lists/*
 
 # Add /usr/local/bin to PATH
