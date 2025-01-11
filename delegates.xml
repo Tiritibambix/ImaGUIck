@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE delegatemap [
+<!ELEMENT delegatemap (delegate)+>
+<!ELEMENT delegate (#PCDATA)>
+<!ATTLIST delegate decode CDATA #IMPLIED>
+<!ATTLIST delegate encode CDATA #IMPLIED>
+<!ATTLIST delegate mode CDATA #IMPLIED>
+<!ATTLIST delegate command CDATA #REQUIRED>
+<!ATTLIST delegate spawn CDATA #IMPLIED>
+<!ATTLIST delegate stealth CDATA #IMPLIED>
+]>
+<delegatemap>
+  <delegate decode="arw:decode" command="dcraw -c -w -q 3 %i > %o"/>
+  <delegate decode="cr2:decode" command="dcraw -c -w -q 3 %i > %o"/>
+  <delegate decode="nef:decode" command="dcraw -c -w -q 3 %i > %o"/>
+  <delegate decode="dng:decode" command="dcraw -c -w -q 3 %i > %o"/>
+  <delegate decode="raw:decode" command="dcraw -c -w -q 3 %i > %o"/>
+  <delegate decode="rw2:decode" command="dcraw -c -w -q 3 %i > %o"/>
+  <delegate decode="orf:decode" command="dcraw -c -w -q 3 %i > %o"/>
+  <delegate decode="pef:decode" command="dcraw -c -w -q 3 %i > %o"/>
+</delegatemap>

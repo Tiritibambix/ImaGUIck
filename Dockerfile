@@ -61,5 +61,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . /app
 
+# Copy ImageMagick delegates configuration
+COPY delegates.xml /etc/ImageMagick-6/delegates.xml
+
 EXPOSE 5000
 CMD ["python", "app.py"]

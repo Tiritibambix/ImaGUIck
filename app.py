@@ -236,39 +236,22 @@ def flash_error(message):
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
     """Build ImageMagick command for resizing and formatting."""
-    # Pour les fichiers RAW, on utilise exiftool pour extraire le preview JPEG
-    if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
-        # Extraire le preview JPEG avec exiftool
-        app.logger.info(f"Extracting preview from RAW file: {filepath}")
-        preview_path = os.path.join(os.path.dirname(output_path), f"{os.path.splitext(os.path.basename(filepath))[0]}_preview.jpg")
+    command = ['magick', filepath]
+
+    # Pour les fichiers RAW, on laisse ImageMagick utiliser dcraw via la délégation
+    # Les options sont configurées dans delegates.xml
+
+    if width.isdigit() and height.isdigit():
+        resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
+        command.extend(["-resize", resize_value])
+    elif percentage.isdigit() and 0 < int(percentage) <= 100:
+        command.extend(["-resize", f"{percentage}%"])
         
-        # -b: sortie binaire
-        # -PreviewImage: extrait l'image preview (souvent meilleure qualité que le thumbnail)
-        # -JpgFromRaw: alternative si PreviewImage n'existe pas
-        exiftool_cmd = ['exiftool', '-b', '-PreviewImage', '-JpgFromRaw', filepath]
-        app.logger.info(f"exiftool command: {' '.join(exiftool_cmd)}")
+    if quality.isdigit() and 1 <= int(quality) <= 100:
+        command.extend(["-quality", quality])
         
-        return exiftool_cmd, ['magick', preview_path] + (
-            ["-resize", f"{width}x{height}{'!' if not keep_ratio else ''}"] if width.isdigit() and height.isdigit()
-            else ["-resize", f"{percentage}%"] if percentage.isdigit() and 0 < int(percentage) <= 100
-            else []
-        ) + (
-            ["-quality", quality] if quality.isdigit() and 1 <= int(quality) <= 100 else []
-        ) + [output_path]
-    else:
-        command = ['magick', filepath]
-    
-        if width.isdigit() and height.isdigit():
-            resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-            command.extend(["-resize", resize_value])
-        elif percentage.isdigit() and 0 < int(percentage) <= 100:
-            command.extend(["-resize", f"{percentage}%"])
-            
-        if quality.isdigit() and 1 <= int(quality) <= 100:
-            command.extend(["-quality", quality])
-            
-        command.append(output_path)
-        return None, command
+    command.append(output_path)
+    return None, command  # Plus besoin de commande séparée pour les RAW
 
 @app.route('/')
 def index():
@@ -380,38 +363,12 @@ def resize_image(filename):
         output_filename = f"{os.path.splitext(filename)[0]}_resized.{output_format or os.path.splitext(filename)[1][1:]}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         
-        exiftool_cmd, magick_cmd = build_imagemagick_command(input_path, output_path, width, height, percentage, quality, keep_ratio)
+        _, magick_cmd = build_imagemagick_command(input_path, output_path, width, height, percentage, quality, keep_ratio)
         
-        if exiftool_cmd:  # Si c'est un fichier RAW
-            # Extraire le preview JPEG
-            preview_path = os.path.join(app.config['OUTPUT_FOLDER'], f"{os.path.splitext(filename)[0]}_preview.jpg")
-            app.logger.info(f"Running exiftool command: {' '.join(exiftool_cmd)}")
-            
-            with open(preview_path, 'wb') as f:
-                exiftool_result = subprocess.run(exiftool_cmd, stdout=f)
-                if exiftool_result.returncode != 0:
-                    raise Exception(f"exiftool command failed with return code {exiftool_result.returncode}")
-            
-            if not os.path.exists(preview_path) or os.path.getsize(preview_path) == 0:
-                raise Exception("Failed to extract preview from RAW file")
-            
-            # Redimensionner avec ImageMagick
-            app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-            magick_result = subprocess.run(magick_cmd)
-            
-            # Nettoyer le preview
-            try:
-                os.remove(preview_path)
-            except:
-                pass
-            
-            if magick_result.returncode != 0:
-                raise Exception(f"ImageMagick command failed with return code {magick_result.returncode}")
-        else:  # Pour les autres formats
-            app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-            result = subprocess.run(magick_cmd)
-            if result.returncode != 0:
-                raise Exception(f"ImageMagick command failed with return code {result.returncode}")
+        app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
+        result = subprocess.run(magick_cmd)
+        if result.returncode != 0:
+            raise Exception(f"ImageMagick command failed with return code {result.returncode}")
         
         return redirect(url_for('download', filename=output_filename))
     except Exception as e:
