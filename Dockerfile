@@ -61,11 +61,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . /app
 
-# Copy ImageMagick delegates configuration
-COPY delegates.xml /etc/ImageMagick-6/delegates.xml
-RUN mkdir -p /usr/local/etc/ImageMagick-6 && \
-    cp /etc/ImageMagick-6/delegates.xml /usr/local/etc/ImageMagick-6/delegates.xml
-
 # Add /usr/local/bin to PATH
 ENV PATH="/usr/local/bin:${PATH}"
 
