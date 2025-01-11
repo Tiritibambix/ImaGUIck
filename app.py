@@ -236,22 +236,39 @@ def flash_error(message):
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
     """Build ImageMagick command for resizing and formatting."""
-    command = ['magick', filepath]
-
-    # Pour les fichiers RAW, on laisse ImageMagick utiliser dcraw via la délégation
-    # Les options sont configurées dans delegates.xml
-
-    if width.isdigit() and height.isdigit():
-        resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-        command.extend(["-resize", resize_value])
-    elif percentage.isdigit() and 0 < int(percentage) <= 100:
-        command.extend(["-resize", f"{percentage}%"])
+    # Pour les fichiers RAW, on utilise dcraw pour convertir en PPM
+    if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
+        # On retourne la commande dcraw pour convertir en PPM
+        dcraw_cmd = ['dcraw', '-c', '-w', '-q', '3', filepath]
         
-    if quality.isdigit() and 1 <= int(quality) <= 100:
-        command.extend(["-quality", quality])
+        # La commande ImageMagick lira depuis stdin
+        magick_cmd = ['magick', '-']
         
-    command.append(output_path)
-    return None, command  # Plus besoin de commande séparée pour les RAW
+        if width.isdigit() and height.isdigit():
+            resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
+            magick_cmd.extend(["-resize", resize_value])
+        elif percentage.isdigit() and 0 < int(percentage) <= 100:
+            magick_cmd.extend(["-resize", f"{percentage}%"])
+            
+        if quality.isdigit() and 1 <= int(quality) <= 100:
+            magick_cmd.extend(["-quality", quality])
+            
+        magick_cmd.append(output_path)
+        return dcraw_cmd, magick_cmd
+    else:
+        command = ['magick', filepath]
+        
+        if width.isdigit() and height.isdigit():
+            resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
+            command.extend(["-resize", resize_value])
+        elif percentage.isdigit() and 0 < int(percentage) <= 100:
+            command.extend(["-resize", f"{percentage}%"])
+            
+        if quality.isdigit() and 1 <= int(quality) <= 100:
+            command.extend(["-quality", quality])
+            
+        command.append(output_path)
+        return None, command
 
 @app.route('/')
 def index():
@@ -363,12 +380,33 @@ def resize_image(filename):
         output_filename = f"{os.path.splitext(filename)[0]}_resized.{output_format or os.path.splitext(filename)[1][1:]}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         
-        _, magick_cmd = build_imagemagick_command(input_path, output_path, width, height, percentage, quality, keep_ratio)
+        dcraw_cmd, magick_cmd = build_imagemagick_command(input_path, output_path, width, height, percentage, quality, keep_ratio)
         
-        app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-        result = subprocess.run(magick_cmd)
-        if result.returncode != 0:
-            raise Exception(f"ImageMagick command failed with return code {result.returncode}")
+        if dcraw_cmd:  # Si c'est un fichier RAW
+            app.logger.info(f"Running dcraw command: {' '.join(dcraw_cmd)}")
+            dcraw_process = subprocess.Popen(dcraw_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            
+            app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
+            magick_process = subprocess.Popen(magick_cmd, stdin=dcraw_process.stdout, stderr=subprocess.PIPE)
+            
+            # Permettre à dcraw de recevoir SIGPIPE si ImageMagick se termine
+            dcraw_process.stdout.close()
+            
+            # Attendre que les deux processus se terminent
+            magick_stdout, magick_stderr = magick_process.communicate()
+            dcraw_process.wait()
+            
+            if dcraw_process.returncode != 0:
+                dcraw_stderr = dcraw_process.stderr.read().decode('utf-8', errors='ignore')
+                raise Exception(f"dcraw command failed with return code {dcraw_process.returncode}: {dcraw_stderr}")
+            
+            if magick_process.returncode != 0:
+                raise Exception(f"ImageMagick command failed with return code {magick_process.returncode}: {magick_stderr.decode('utf-8', errors='ignore')}")
+        else:  # Pour les autres formats
+            app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
+            result = subprocess.run(magick_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                raise Exception(f"ImageMagick command failed with return code {result.returncode}: {result.stderr}")
         
         return redirect(url_for('download', filename=output_filename))
     except Exception as e:
@@ -445,30 +483,24 @@ def resize_batch():
                     
                     if dcraw_cmd:  # Si c'est un fichier RAW
                         app.logger.info(f"Running dcraw command: {' '.join(dcraw_cmd)}")
-                        # Créer un fichier temporaire pour stocker la sortie de dcraw
-                        temp_ppm = os.path.join(app.config['OUTPUT_FOLDER'], f"{os.path.splitext(filename)[0]}_temp.ppm")
+                        dcraw_process = subprocess.Popen(dcraw_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         
-                        # Exécuter dcraw et sauvegarder en PPM
-                        with open(temp_ppm, 'wb') as f:
-                            dcraw_result = subprocess.run(dcraw_cmd, stdout=f)
-                            if dcraw_result.returncode != 0:
-                                raise Exception(f"dcraw command failed with return code {dcraw_result.returncode}")
-                        
-                        # Modifier la commande ImageMagick pour lire depuis le fichier PPM
-                        magick_cmd[1] = temp_ppm
-                        
-                        # Exécuter ImageMagick
                         app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-                        magick_result = subprocess.run(magick_cmd)
+                        magick_process = subprocess.Popen(magick_cmd, stdin=dcraw_process.stdout, stderr=subprocess.PIPE)
                         
-                        # Nettoyer le fichier temporaire
-                        try:
-                            os.remove(temp_ppm)
-                        except:
-                            pass
+                        # Permettre à dcraw de recevoir SIGPIPE si ImageMagick se termine
+                        dcraw_process.stdout.close()
                         
-                        if magick_result.returncode != 0:
-                            raise Exception(f"ImageMagick command failed with return code {magick_result.returncode}")
+                        # Attendre que les deux processus se terminent
+                        magick_stdout, magick_stderr = magick_process.communicate()
+                        dcraw_process.wait()
+                        
+                        if dcraw_process.returncode != 0:
+                            dcraw_stderr = dcraw_process.stderr.read().decode('utf-8', errors='ignore')
+                            raise Exception(f"dcraw command failed with return code {dcraw_process.returncode}: {dcraw_stderr}")
+                        
+                        if magick_process.returncode != 0:
+                            raise Exception(f"ImageMagick command failed with return code {magick_process.returncode}: {magick_stderr.decode('utf-8', errors='ignore')}")
                     else:  # Pour les autres formats
                         app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
                         result = subprocess.run(magick_cmd)
