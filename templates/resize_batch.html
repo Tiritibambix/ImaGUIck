@@ -214,6 +214,13 @@
                                 {% endfor %}
                             </optgroup>
                         {% endif %}
+                        {% if any(filename.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')) for filename in files) %}
+                            <optgroup label="Recommended formats for RAW files">
+                                <option value="jpeg">JPEG</option>
+                                <option value="jpg">JPG</option>
+                                <option value="tiff">TIFF</option>
+                            </optgroup>
+                        {% endif %}
                     </select>
                 </div>
                 {% if batch_info %}
