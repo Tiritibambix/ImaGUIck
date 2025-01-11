@@ -82,29 +82,41 @@ def get_image_dimensions(filepath):
         app.logger.error(f"Error getting image dimensions: {str(e)}")
         return None, None
 
-def get_available_formats():
-    """Get all formats supported by ImageMagick."""
+def get_available_formats(is_raw=False):
+    """Get all formats supported by ImageMagick, with special handling for RAW files."""
     try:
-        # Exécute la commande magick -list format pour obtenir tous les formats supportés
-        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
+        # Récupérer la liste des formats supportés par ImageMagick
+        result = subprocess.run(['convert', '-list', 'format'], capture_output=True, text=True)
         formats = []
-        
-        # Parse la sortie pour extraire les formats
         for line in result.stdout.split('\n'):
-            # Ignore l'en-tête et les lignes vides
-            if line.strip() and not line.startswith('Format') and not line.startswith('--'):
-                # Le format est le premier mot de chaque ligne
-                format_name = line.split()[0].upper()
-                # Certains formats ont des suffixes comme * ou +, on les enlève
-                format_name = format_name.rstrip('*+')
-                if format_name not in formats:
-                    formats.append(format_name)
-        
-        return formats
+            if line.strip() and not line.startswith('   '):
+                format_match = re.match(r'^([A-Z0-9]+)\*?\s+[A-Z]\w+\s+(.+)$', line)
+                if format_match:
+                    format_name = format_match.group(1).upper()
+                    format_desc = format_match.group(2)
+                    if 'write' in format_desc.lower():
+                        formats.append(format_name)
+        formats.sort()
+
+        if is_raw:
+            # Pour les fichiers RAW, on sépare en formats recommandés et compatibles
+            recommended_formats = ['JPEG', 'PNG', 'TIFF', 'WEBP']
+            other_formats = [f for f in formats if f not in recommended_formats]
+            return {
+                'recommended': recommended_formats,
+                'compatible': other_formats
+            }
+        else:
+            return formats
+            
     except Exception as e:
-        app.logger.error(f"Erreur lors de la récupération des formats : {e}")
-        # Liste de secours avec les formats les plus courants
-        return ['PNG', 'JPEG', 'GIF', 'TIFF', 'BMP', 'WEBP']
+        app.logger.error(f"Erreur lors de la récupération des formats : {str(e)}")
+        if is_raw:
+            return {
+                'recommended': ['JPEG', 'PNG', 'TIFF', 'WEBP'],
+                'compatible': ['GIF', 'BMP']
+            }
+        return ['JPEG', 'PNG', 'GIF', 'BMP', 'TIFF', 'WEBP']
 
 def get_format_categories():
     """Categorize image formats by their typical usage."""
@@ -325,33 +337,71 @@ def upload_url():
 
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
-    """Resize options page for a single image."""
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    dimensions = get_image_dimensions(filepath)
-    if not dimensions:
+    """Show resize options for a single file."""
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        # Vérifier si c'est un fichier RAW
+        is_raw = filename.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef'))
+        app.logger.info("RAW file detected" if is_raw else "Non-RAW file detected")
+        
+        # Obtenir les dimensions de l'image
+        width, height = get_image_dimensions(filepath)
+        if width is None or height is None:
+            width, height = 0, 0  # Valeurs par défaut si impossible d'obtenir les dimensions
+        
+        # Obtenir les formats disponibles
+        formats = get_available_formats(is_raw)
+        
+        # Pour les fichiers RAW, on ajoute des informations sur le type d'image
+        image_type = {
+            'is_photo': True,  # Les RAW sont toujours des photos
+            'has_transparency': False,  # Les RAW n'ont pas de transparence
+        } if is_raw else None
+        
+        return render_template('resize.html', 
+                             filename=filename,
+                             original_width=width,
+                             original_height=height,
+                             formats=formats,
+                             is_raw=is_raw,
+                             image_type=image_type,
+                             defaults=DEFAULTS)
+    except Exception as e:
+        app.logger.error(f"Error showing resize options: {str(e)}")
+        flash_error(f"Error showing resize options: {str(e)}")
         return redirect(url_for('index'))
 
-    # Analyze image and get recommended formats
-    image_type = analyze_image_type(filepath)
-    if image_type:
-        format_info = get_recommended_formats(image_type)
-        formats = {
-            'recommended': format_info['recommended'],
-            'compatible': format_info['compatible']
-        }
-    else:
-        formats = {
-            'recommended': [],
-            'compatible': get_available_formats()
-        }
-
-    width, height = dimensions
-    return render_template('resize.html', 
-                         filename=filename, 
-                         width=width, 
-                         height=height, 
-                         formats=formats, 
-                         image_type=image_type)
+@app.route('/resize_batch_options/<filenames>')
+def resize_batch_options(filenames):
+    """Show resize options for multiple files."""
+    try:
+        filelist = filenames.split(',')
+        
+        # Vérifier si au moins un fichier est RAW
+        has_raw = any(f.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')) 
+                     for f in filelist)
+        
+        # Obtenir les formats disponibles
+        formats = get_available_formats(has_raw)
+        
+        # Pour les fichiers RAW en batch, on ajoute des informations sur le type d'image
+        batch_info = {
+            'has_photos': True,  # Les RAW sont toujours des photos
+            'has_transparency': False,  # Les RAW n'ont pas de transparence
+            'has_graphics': False  # Les RAW ne sont pas des graphiques
+        } if has_raw else None
+        
+        return render_template('resize_batch.html', 
+                             filenames=filelist,
+                             formats=formats,
+                             is_raw=has_raw,
+                             batch_info=batch_info,
+                             defaults=DEFAULTS)
+    except Exception as e:
+        app.logger.error(f"Error showing batch resize options: {str(e)}")
+        flash_error(f"Error showing batch resize options: {str(e)}")
+        return redirect(url_for('index'))
 
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
@@ -380,48 +430,6 @@ def resize_image(filename):
         return redirect(url_for('download', filename=output_filename))
     except Exception as e:
         return flash_error(f"Error processing image: {e}"), redirect(url_for('resize_options', filename=filename))
-
-@app.route('/resize_batch_options/<filenames>')
-def resize_batch_options(filenames):
-    """Resize options page for batch processing."""
-    files = filenames.split(',')
-    
-    # Analyze each image and get common recommended formats
-    image_types = []
-    has_transparency = False
-    has_photos = False
-    has_graphics = False
-    
-    for filename in files:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        image_type = analyze_image_type(filepath)
-        if image_type:
-            image_types.append({'filename': filename, 'type': image_type})
-            has_transparency = has_transparency or image_type['has_transparency']
-            has_photos = has_photos or image_type['is_photo']
-            has_graphics = has_graphics or not image_type['is_photo']
-    
-    # Create a combined image type for the batch
-    batch_type = {
-        'has_transparency': has_transparency,
-        'is_photo': has_photos,
-        'original_format': None  # Not relevant for batch
-    }
-    
-    # Get format recommendations for the batch
-    format_info = get_recommended_formats(batch_type)
-    
-    batch_info = {
-        'has_transparency': has_transparency,
-        'has_photos': has_photos,
-        'has_graphics': has_graphics
-    }
-    
-    return render_template('resize_batch.html', 
-                         files=files, 
-                         formats=format_info, 
-                         image_types=image_types,
-                         batch_info=batch_info)
 
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():
