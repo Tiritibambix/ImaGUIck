@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libxt-dev \
     libmagickcore-dev \
     libmagickwand-dev \
+    exiftool \
     zip unzip \
     && rm -rf /var/lib/apt/lists/*
 
