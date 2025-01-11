@@ -51,21 +51,44 @@ def get_image_dimensions(filepath):
             if result.stderr:
                 app.logger.error(f"dcraw stderr: {result.stderr}")
             
-            if result.returncode == 0:
-                # Le format de sortie de dcraw est différent, on cherche les dimensions
-                for line in result.stdout.split('\n'):
-                    if 'File size' in line:
-                        continue
-                    if 'Image size' in line:
-                        # Format: "Image size: 6000 x 4000"
-                        parts = line.split(':')[1].strip().split('x')
-                        if len(parts) == 2:
-                            width = int(parts[0].strip())
-                            height = int(parts[1].strip())
+            # Chercher d'abord "Full size" dans la sortie
+            for line in result.stdout.split('\n'):
+                if 'Full size:' in line:
+                    parts = line.split(':')[1].strip().split('x')
+                    if len(parts) == 2:
+                        width = int(parts[0].strip())
+                        height = int(parts[1].strip())
+                        app.logger.info(f"Found dimensions from Full size: {width}x{height}")
+                        return width, height
+            
+            # Si "Full size" n'est pas trouvé, chercher "Image size"
+            for line in result.stdout.split('\n'):
+                if 'Image size' in line:
+                    parts = line.split(':')[1].strip().split('x')
+                    if len(parts) == 2:
+                        width = int(parts[0].strip())
+                        height = int(parts[1].strip())
+                        app.logger.info(f"Found dimensions from Image size: {width}x{height}")
+                        return width, height
+            
+            # Si on a trouvé la sortie mais pas les dimensions, utiliser ImageMagick comme fallback
+            if result.stdout and not result.stderr:
+                app.logger.info("Using ImageMagick as fallback for RAW file")
+                cmd = ['magick', 'identify', filepath]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    parts = result.stdout.split()
+                    if len(parts) >= 2:
+                        dimensions = parts[2].split('x')
+                        if len(dimensions) == 2:
+                            width = int(dimensions[0])
+                            height = int(dimensions[1])
+                            app.logger.info(f"Found dimensions using ImageMagick: {width}x{height}")
                             return width, height
             
-            app.logger.error(f"Erreur dcraw : {result.stderr}")
-            flash(f"Erreur lors du traitement du fichier RAW : {result.stderr}")
+            app.logger.error(f"Could not find dimensions in dcraw output")
+            flash("Impossible de lire les dimensions du fichier RAW")
             return None
         else:
             cmd = ['magick', 'identify', filepath]
@@ -73,7 +96,6 @@ def get_image_dimensions(filepath):
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
-            # Le format de sortie est: chemin dimensions ...
             parts = result.stdout.split()
             if len(parts) >= 2:
                 dimensions = parts[2].split('x')
