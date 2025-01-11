@@ -123,6 +123,32 @@
             margin-top: var(--spacing-small);
         }
 
+        .format-section {
+            margin: 10px 0;
+        }
+        .format-section h3 {
+            margin-bottom: 5px;
+        }
+        .format-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .format-option {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .format-option:hover {
+            background-color: #f0f0f0;
+        }
+        .format-option.selected {
+            background-color: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
@@ -174,75 +200,30 @@
                     <label for="quality">Quality (1-100):</label>
                     <input type="text" name="quality" id="quality" value="100">
                 </div>
-                <div class="form-group">
-                    <label for="format">Convert to format:</label>
-                    <select name="format" id="format">
-                        <option value="">Keep Original</option>
-                        {% if formats.recommended %}
-                            <optgroup label="Recommended Formats">
-                                {% for fmt in formats.recommended %}
-                                    <option value="{{ fmt|lower }}">{{ fmt }}
-                                        {% if image_type %}
-                                            {% if (image_type.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
-                                                (Best for transparency)
-                                            {% elif (image_type.is_photo and fmt in ['JPEG', 'WebP', 'AVIF']) %}
-                                                (Best for photos)
-                                            {% elif (not image_type.is_photo and fmt in ['PNG', 'GIF', 'WebP']) %}
-                                                (Best for graphics)
-                                            {% endif %}
-                                        {% endif %}
-                                    </option>
-                                {% endfor %}
-                            </optgroup>
-                        {% endif %}
-                        {% if formats.compatible %}
-                            <optgroup label="Other Compatible Formats">
-                                {% for fmt in formats.compatible %}
-                                    <option value="{{ fmt|lower }}">{{ fmt }}
-                                        {% if image_type %}
-                                            {% if (image_type.has_transparency and fmt == 'GIF') %}
-                                                (Limited transparency)
-                                            {% elif (image_type.is_photo) %}
-                                                (Less efficient for photos)
-                                            {% else %}
-                                                (Basic support)
-                                            {% endif %}
-                                        {% endif %}
-                                    </option>
-                                {% endfor %}
-                            </optgroup>
-                        {% endif %}
-                    </select>
-                </div>
-                {% if image_type %}
-                    <div class="format-info">
-                        <small>
-                            {% if image_type.has_transparency %}
-                                This image contains transparency.
-                            {% endif %}
-                            {% if image_type.is_photo %}
-                                This appears to be a photographic image.
-                            {% else %}
-                                This appears to be a graphic image.
-                            {% endif %}
-                        </small>
+                <div class="format-section">
+                    <h3>Recommended Formats</h3>
+                    <div class="format-options">
+                        {% for fmt in formats.recommended %}
+                        <div class="format-option">
+                            <input type="radio" id="format_{{ fmt }}" name="format" value="{{ fmt }}" 
+                                   {% if fmt == 'jpeg' %}checked{% endif %}>
+                            <label for="format_{{ fmt }}">{{ fmt.upper() }}</label>
+                        </div>
+                        {% endfor %}
                     </div>
-                {% endif %}
-            </fieldset>
-
-            {% if filename.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')) %}
-            <fieldset>
-                <legend>Recommended formats for RAW files:</legend>
-                <div class="form-group">
-                    <label for="format_raw">Format:</label>
-                    <select name="format_raw" id="format_raw">
-                        <option value="jpeg">JPEG</option>
-                        <option value="jpg">JPG</option>
-                        <option value="tiff">TIFF</option>
-                    </select>
+                </div>
+                <div class="format-section">
+                    <h3>Other Compatible Formats</h3>
+                    <div class="format-options">
+                        {% for fmt in formats.compatible %}
+                        <div class="format-option">
+                            <input type="radio" id="format_{{ fmt }}" name="format" value="{{ fmt }}">
+                            <label for="format_{{ fmt }}">{{ fmt.upper() }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </fieldset>
-            {% endif %}
 
             <button type="submit">Resize</button>
         </form>
