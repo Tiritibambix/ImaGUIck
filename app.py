@@ -109,33 +109,6 @@ def get_available_formats():
 def get_format_categories():
     """Categorize image formats by their typical usage."""
     return {
-        'raw': {
-            'recommended': [
-                'ARW',  # Sony
-                'CR2', 'CR3',  # Canon
-                'NEF', 'NRW',  # Nikon
-                'RAF',  # Fujifilm
-                'DNG',  # Adobe/Generic
-                'ORF',  # Olympus
-                'RW2',  # Panasonic
-                'PEF'   # Pentax
-            ],
-            'compatible': [
-                'IIQ',  # Phase One
-                'KDC',  # Kodak
-                '3FR',  # Hasselblad
-                'MEF',  # Mamiya
-                'MRW',  # Minolta
-                'SRF',  # Sony
-                'X3F',  # Sigma
-                'ERF',  # Epson
-                'CRW',  # Canon (ancien)
-                'BAY',  # Casio
-                'DCR',  # Kodak
-                'MOS',  # Leaf
-                'RWL'   # Leica
-            ]
-        },
         'transparency': {
             'recommended': ['PNG', 'WEBP', 'AVIF', 'HEIC', 'GIF'],
             'compatible': ['TIFF', 'ICO', 'JXL', 'PSD', 'SVG', 'TGA']
@@ -143,6 +116,10 @@ def get_format_categories():
         'photo': {
             'recommended': ['JPEG', 'WEBP', 'AVIF', 'HEIC', 'JXL', 'TIFF'],
             'compatible': [
+                # Formats RAW
+                'ARW', 'CR2', 'CR3', 'NEF', 'NRW', 'ORF', 'RAF', 'RW2', 'PEF', 'DNG',
+                'IIQ', 'KDC', '3FR', 'MEF', 'MRW', 'SRF', 'X3F',
+                # Autres formats photo
                 'PNG', 'BMP', 'PPM', 'JP2', 'HDR', 'EXR', 'DPX', 'MIFF', 'MNG',
                 'PCD', 'RGBE', 'YCbCr', 'CALS'
             ]
@@ -162,10 +139,7 @@ def get_recommended_formats(image_type):
     categories = get_format_categories()
     available_formats = set(get_available_formats())
     
-    # Détermine la catégorie principale
-    if image_type.get('is_raw'):
-        category = 'raw'
-    elif image_type['has_transparency']:
+    if image_type['has_transparency']:
         category = 'transparency'
     elif image_type['is_photo']:
         category = 'photo'
@@ -210,8 +184,7 @@ def analyze_image_type(filepath):
             return {
                 'has_transparency': has_transparency,
                 'is_photo': is_photo,
-                'original_format': None,  # Not relevant for batch
-                'is_raw': filepath.lower().endswith(('.arw', '.cr2', '.cr3', '.nef', '.nrw', '.raf', '.dng', '.orf', '.rw2', '.pef'))
+                'original_format': None  # Not relevant for batch
             }
     except Exception as e:
         app.logger.error(f"Error analyzing image: {e}")
