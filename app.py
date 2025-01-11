@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import requests
 import logging
+import re
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -62,7 +63,7 @@ def get_image_dimensions(filepath):
                 
                 if os.path.exists(thumb_path):
                     app.logger.info(f"Thumbnail extracted, getting dimensions with ImageMagick")
-                    cmd = ['magick', 'identify', thumb_path]
+                    cmd = ['convert', 'identify', thumb_path]
                     result = subprocess.run(cmd, capture_output=True, text=True)
                     
                     try:
@@ -87,7 +88,7 @@ def get_image_dimensions(filepath):
             return 7008, 4672  # Dimensions connues pour Sony A7 IV
 
         else:
-            cmd = ['magick', 'identify', filepath]
+            cmd = ['convert', 'identify', filepath]
             
         result = subprocess.run(cmd, capture_output=True, text=True)
         
@@ -109,8 +110,8 @@ def get_image_dimensions(filepath):
 def get_available_formats():
     """Get all formats supported by ImageMagick."""
     try:
-        # Exécute la commande magick -list format pour obtenir tous les formats supportés
-        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
+        # Exécute la commande convert -list format pour obtenir tous les formats supportés
+        result = subprocess.run(['convert', '-list', 'format'], capture_output=True, text=True)
         formats = []
         
         # Parse la sortie pour extraire les formats
@@ -248,7 +249,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         dcraw_cmd = ['dcraw', '-v', '-w', '-H', '2', '-q', '3', '-6', '-T', filepath]
         
         # La commande ImageMagick lira depuis stdin
-        magick_cmd = ['magick', '-']
+        magick_cmd = ['convert', '-']
         
         if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
@@ -262,7 +263,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         magick_cmd.append(output_path)
         return dcraw_cmd, magick_cmd
     else:
-        command = ['magick', filepath]
+        command = ['convert', filepath]
         
         if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"

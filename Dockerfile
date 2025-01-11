@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     libmagickcore-dev \
     libmagickwand-dev \
     dcraw \
+    imagemagick \
     zip \
     unzip \
     libjpeg62-turbo \
