@@ -42,8 +42,14 @@ def get_image_dimensions(filepath):
         # Pour les fichiers RAW, on utilise dcraw
         if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
             # Utiliser dcraw pour obtenir les dimensions
+            app.logger.info(f"Running dcraw command for: {filepath}")
             cmd = ['dcraw', '-i', '-v', filepath]
+            app.logger.info(f"Command: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            app.logger.info(f"dcraw stdout: {result.stdout}")
+            if result.stderr:
+                app.logger.error(f"dcraw stderr: {result.stderr}")
             
             if result.returncode == 0:
                 # Le format de sortie de dcraw est différent, on cherche les dimensions
@@ -59,6 +65,7 @@ def get_image_dimensions(filepath):
                             return width, height
             
             app.logger.error(f"Erreur dcraw : {result.stderr}")
+            flash(f"Erreur lors du traitement du fichier RAW : {result.stderr}")
             return None
         else:
             cmd = ['magick', 'identify', filepath]
@@ -74,9 +81,11 @@ def get_image_dimensions(filepath):
                     return int(dimensions[0]), int(dimensions[1])
         
         app.logger.error(f"Erreur lors de l'identification de l'image : {result.stderr}")
+        flash(f"Erreur lors de l'identification de l'image : {result.stderr}")
         return None
     except Exception as e:
         app.logger.error(f"Exception lors de l'identification de l'image : {e}")
+        flash(f"Exception lors de l'identification de l'image : {e}")
         return None
 
 def get_available_formats():
