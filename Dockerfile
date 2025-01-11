@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libjpeg62-turbo \
     libpng16-16 \
-    libtiff5 \
+    libtiff-dev \
     libgif7 \
     && rm -rf /var/lib/apt/lists/*
 
