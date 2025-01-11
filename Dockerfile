@@ -1,40 +1,46 @@
-# Build stage
-FROM python:3.9-slim as builder
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libmagickcore-dev \
-    libmagickwand-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Final stage
+# Choisir l'image de base
 FROM python:3.9-slim
 
-# Install runtime dependencies
+# Dépendances nécessaires pour compiler ImageMagick et autres utilitaires
 RUN apt-get update && apt-get install -y \
+    build-essential \
+    wget \
+    tar \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
+    libgif-dev \
+    libx11-dev \
+    libxt-dev \
     libmagickcore-dev \
     libmagickwand-dev \
-    dcraw \
-    imagemagick \
-    zip \
-    unzip \
-    libjpeg62-turbo \
-    libpng16-16 \
-    libtiff-dev \
-    libgif7 \
+    zip unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Add /usr/local/bin to PATH
+# Télécharger et installer ImageMagick 7.1.1-41
+RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz \
+    && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
+    && cd /tmp/ImageMagick-7.1.1-41 \
+    && ./configure --prefix=/usr/local --disable-shared --without-x \
+    && make -j4 \
+    && make install \
+    && rm -rf /tmp/*
+
+# Ajouter /usr/local/bin au PATH
 ENV PATH="/usr/local/bin:${PATH}"
 
-# Set up application
-WORKDIR /app
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+# Vérifier que ImageMagick est bien installé
+RUN magick -version
 
-# Copy application code
+# Copier l'application dans le conteneur
+WORKDIR /app
 COPY . /app
 
+# Installer les dépendances Python
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Exposer le port
 EXPOSE 5000
+
+# Commande pour démarrer l'application Flask
 CMD ["python", "app.py"]

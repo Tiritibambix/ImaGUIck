@@ -6,14 +6,10 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 from PIL import Image
 import requests
-import logging
-import re
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
-MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100 MB max
-MAX_BUFFER_SIZE = 16 * 1024 * 1024  # 16 MB buffer size
 DEFAULTS = {
     "quality": "100",
     "width": "",
@@ -26,92 +22,26 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-app.config['MAX_BUFFER_SIZE'] = MAX_BUFFER_SIZE
 app.secret_key = 'supersecretkey'
-
-# Configure logging
-app.logger.setLevel(logging.INFO)
 
 def allowed_file(filename):
     """Allow all file types supported by ImageMagick."""
     return '.' in filename
 
 def get_image_dimensions(filepath):
-    """Get image dimensions using ImageMagick identify command."""
+    """Get image dimensions as (width, height)."""
     try:
-        # Pour les fichiers RAW, on utilise dcraw
-        if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
-            # Essayer d'abord avec dcraw -i -v
-            app.logger.info(f"Running dcraw command for: {filepath}")
-            cmd = ['dcraw', '-i', '-v', filepath]
-            app.logger.info(f"Command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            app.logger.info(f"dcraw stdout: {result.stdout}")
-            if result.stderr:
-                app.logger.error(f"dcraw stderr: {result.stderr}")
-
-            # Si dcraw -i ne donne pas les dimensions, essayer avec dcraw -e
-            if not any('size' in line for line in result.stdout.split('\n')):
-                app.logger.info("Trying dcraw -e to extract thumbnail")
-                thumb_dir = os.path.dirname(filepath)
-                thumb_base = os.path.splitext(os.path.basename(filepath))[0]
-                thumb_path = os.path.join(thumb_dir, thumb_base + '.thumb.jpg')
-                
-                cmd = ['dcraw', '-e', filepath]
-                result = subprocess.run(cmd, capture_output=True, text=True, cwd=thumb_dir)
-                
-                if os.path.exists(thumb_path):
-                    app.logger.info(f"Thumbnail extracted, getting dimensions with ImageMagick")
-                    cmd = ['convert', 'identify', thumb_path]
-                    result = subprocess.run(cmd, capture_output=True, text=True)
-                    
-                    try:
-                        os.remove(thumb_path)  # Nettoyer le thumbnail
-                    except:
-                        pass
-                        
-                    if result.returncode == 0:
-                        parts = result.stdout.split()
-                        if len(parts) >= 2:
-                            dimensions = parts[2].split('x')
-                            if len(dimensions) == 2:
-                                # Les dimensions du thumbnail ne sont pas les bonnes,
-                                # mais on peut les utiliser comme ratio pour l'instant
-                                width = 7008  # Taille connue pour Sony A7 IV
-                                height = int((7008 * int(dimensions[1])) / int(dimensions[0]))
-                                app.logger.info(f"Estimated dimensions from thumbnail ratio: {width}x{height}")
-                                return width, height
-
-            # En dernier recours, utiliser les dimensions connues pour ce modèle
-            app.logger.info("Using known dimensions for Sony A7 IV")
-            return 7008, 4672  # Dimensions connues pour Sony A7 IV
-
-        else:
-            cmd = ['convert', 'identify', filepath]
-            
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode == 0:
-            parts = result.stdout.split()
-            if len(parts) >= 2:
-                dimensions = parts[2].split('x')
-                if len(dimensions) == 2:
-                    return int(dimensions[0]), int(dimensions[1])
-        
-        app.logger.error(f"Erreur lors de l'identification de l'image : {result.stderr}")
-        flash(f"Erreur lors de l'identification de l'image : {result.stderr}")
-        return None
+        with Image.open(filepath) as img:
+            return img.size  # Returns (width, height)
     except Exception as e:
-        app.logger.error(f"Exception lors de l'identification de l'image : {e}")
-        flash(f"Exception lors de l'identification de l'image : {e}")
+        flash_error(f"Error retrieving dimensions for {filepath}: {e}")
         return None
 
 def get_available_formats():
     """Get all formats supported by ImageMagick."""
     try:
-        # Exécute la commande convert -list format pour obtenir tous les formats supportés
-        result = subprocess.run(['convert', '-list', 'format'], capture_output=True, text=True)
+        # Exécute la commande magick -list format pour obtenir tous les formats supportés
+        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
         formats = []
         
         # Parse la sortie pour extraire les formats
@@ -127,7 +57,7 @@ def get_available_formats():
         
         return formats
     except Exception as e:
-        app.logger.error(f"Erreur lors de la récupération des formats : {e}")
+        print(f"Erreur lors de la récupération des formats : {e}")
         # Liste de secours avec les formats les plus courants
         return ['PNG', 'JPEG', 'GIF', 'TIFF', 'BMP', 'WEBP']
 
@@ -193,16 +123,6 @@ def get_recommended_formats(image_type):
 def analyze_image_type(filepath):
     """Analyze image to determine its type and best suitable formats."""
     try:
-        # Pour les fichiers RAW, on retourne directement les valeurs appropriées
-        if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
-            app.logger.info(f"RAW file detected, using default settings")
-            return {
-                'has_transparency': False,
-                'is_photo': True,
-                'original_format': os.path.splitext(filepath)[1][1:].upper()
-            }
-
-        # Pour les autres formats, on utilise PIL
         with Image.open(filepath) as img:
             has_transparency = 'A' in img.getbands()
             is_photo = True
@@ -219,63 +139,29 @@ def analyze_image_type(filepath):
             return {
                 'has_transparency': has_transparency,
                 'is_photo': is_photo,
-                'original_format': img.format
+                'original_format': None  # Not relevant for batch
             }
     except Exception as e:
-        app.logger.error(f"Error analyzing image: {e}")
-        # En cas d'erreur, on retourne des valeurs par défaut sécurisées
-        return {
-            'has_transparency': False,
-            'is_photo': True,
-            'original_format': os.path.splitext(filepath)[1][1:].upper()
-        }
+        flash_error(f"Error analyzing image: {e}")
+        return None
 
 def flash_error(message):
     """Flash error message and log if needed."""
     flash(message)
-    app.logger.error(message)
+    print(message)
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
     """Build ImageMagick command for resizing and formatting."""
-    # Pour tous les fichiers RAW, on utilise dcraw avec des paramètres optimisés
-    if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
-        # Options dcraw pour une meilleure qualité :
-        # -v : mode verbeux pour le debug
-        # -w : balance des blancs de l'appareil
-        # -H 2 : récupération des hautes lumières niveau 2
-        # -q 3 : interpolation de haute qualité
-        # -6 : sortie en 16 bits
-        # -T : sortie en TIFF pour préserver la qualité
-        dcraw_cmd = ['dcraw', '-v', '-w', '-H', '2', '-q', '3', '-6', '-T', filepath]
-        
-        # La commande ImageMagick lira depuis stdin
-        magick_cmd = ['convert', '-']
-        
-        if width.isdigit() and height.isdigit():
-            resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-            magick_cmd.extend(["-resize", resize_value])
-        elif percentage.isdigit() and 0 < int(percentage) <= 100:
-            magick_cmd.extend(["-resize", f"{percentage}%"])
-            
-        if quality.isdigit() and 1 <= int(quality) <= 100:
-            magick_cmd.extend(["-quality", quality])
-            
-        magick_cmd.append(output_path)
-        return dcraw_cmd, magick_cmd
-    else:
-        command = ['convert', filepath]
-        
-        if width.isdigit() and height.isdigit():
-            resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-            command.extend(["-resize", resize_value])
-        elif percentage.isdigit() and 0 < int(percentage) <= 100:
-            command.extend(["-resize", f"{percentage}%"])
-            
-        if quality.isdigit() and 1 <= int(quality) <= 100:
-            command.extend(["-quality", quality])
-            
-        command.append(output_path)
-        return None, command
+    command = ["/usr/local/bin/magick", filepath]
+    if width.isdigit() and height.isdigit():
+        resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
+        command.extend(["-resize", resize_value])
+    elif percentage.isdigit() and 0 < int(percentage) <= 100:
+        command.extend(["-resize", f"{percentage}%"])
+    if quality.isdigit() and 1 <= int(quality) <= 100:
+        command.extend(["-quality", quality])
+    command.append(output_path)
+    return command
 
 @app.route('/')
 def index():
@@ -285,29 +171,17 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Handle file uploads."""
-    app.logger.info("Starting file upload...")
     files = request.files.getlist('file')
-    app.logger.info(f"Received {len(files)} files")
-    
     if not files or all(file.filename == '' for file in files):
-        app.logger.warning("No files selected")
-        flash_error('No file selected.')
-        return redirect(url_for('index'))
+        return flash_error('No file selected.'), redirect(url_for('index'))
 
     uploaded_files = []
     for file in files:
         if file and allowed_file(file.filename):
-            app.logger.info(f"Processing file: {file.filename}")
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
-            try:
-                file.save(filepath)
-                app.logger.info(f"File saved successfully: {filepath}")
-                uploaded_files.append(filepath)
-            except Exception as e:
-                app.logger.error(f"Error saving file {file.filename}: {str(e)}")
-                flash_error(f"Error saving file {file.filename}")
+            file.save(filepath)
+            uploaded_files.append(filepath)
         else:
-            app.logger.warning(f"Unsupported file format: {file.filename}")
             flash_error(f"Unsupported file format for {file.filename}.")
 
     if len(uploaded_files) == 1:
@@ -375,51 +249,30 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    name, ext = os.path.splitext(filename)
+    output_filename = f"{name}_rsz{ext}"
+    format_conversion = request.form.get('format', None)
+    if format_conversion:
+        output_filename = f"{name}_rsz.{format_conversion.lower()}"
+    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+    command = build_imagemagick_command(
+        filepath=filepath,
+        output_path=output_path,
+        width=request.form.get('width', DEFAULTS["width"]),
+        height=request.form.get('height', DEFAULTS["height"]),
+        percentage=request.form.get('percentage', DEFAULTS["percentage"]),
+        quality=request.form.get('quality', DEFAULTS["quality"]),
+        keep_ratio='keep_ratio' in request.form
+    )
+
     try:
-        width = request.form.get('width', DEFAULTS["width"])
-        height = request.form.get('height', DEFAULTS["height"])
-        percentage = request.form.get('percentage', DEFAULTS["percentage"])
-        quality = request.form.get('quality', DEFAULTS["quality"])
-        keep_ratio = 'keep_ratio' in request.form
-        output_format = request.form.get('format', '').lower()
-        
-        input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        output_filename = f"{os.path.splitext(filename)[0]}_resized.{output_format or os.path.splitext(filename)[1][1:]}"
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-        
-        dcraw_cmd, magick_cmd = build_imagemagick_command(input_path, output_path, width, height, percentage, quality, keep_ratio)
-        
-        if dcraw_cmd:  # Si c'est un fichier RAW
-            app.logger.info(f"Running dcraw command: {' '.join(dcraw_cmd)}")
-            dcraw_process = subprocess.Popen(dcraw_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            
-            app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-            magick_process = subprocess.Popen(magick_cmd, stdin=dcraw_process.stdout, stderr=subprocess.PIPE)
-            
-            # Permettre à dcraw de recevoir SIGPIPE si ImageMagick se termine
-            dcraw_process.stdout.close()
-            
-            # Attendre que les deux processus se terminent
-            magick_stdout, magick_stderr = magick_process.communicate()
-            dcraw_process.wait()
-            
-            if dcraw_process.returncode != 0:
-                dcraw_stderr = dcraw_process.stderr.read().decode('utf-8', errors='ignore')
-                raise Exception(f"dcraw command failed with return code {dcraw_process.returncode}: {dcraw_stderr}")
-            
-            if magick_process.returncode != 0:
-                raise Exception(f"ImageMagick command failed with return code {magick_process.returncode}: {magick_stderr.decode('utf-8', errors='ignore')}")
-        else:  # Pour les autres formats
-            app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-            result = subprocess.run(magick_cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise Exception(f"ImageMagick command failed with return code {result.returncode}: {result.stderr}")
-        
+        subprocess.run(command, check=True)
+        flash(f'Image processed successfully: {output_filename}')
         return redirect(url_for('download', filename=output_filename))
     except Exception as e:
-        app.logger.error(f"Error processing image: {str(e)}")
-        flash_error(f"Error processing image: {str(e)}")
-        return redirect(url_for('index'))
+        return flash_error(f"Error processing image: {e}"), redirect(url_for('resize_options', filename=filename))
 
 @app.route('/resize_batch_options/<filenames>')
 def resize_batch_options(filenames):
@@ -466,67 +319,46 @@ def resize_batch_options(filenames):
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():
     """Resize multiple images and compress them into a ZIP."""
-    try:
-        width = request.form.get('width', DEFAULTS["width"])
-        height = request.form.get('height', DEFAULTS["height"])
-        percentage = request.form.get('percentage', DEFAULTS["percentage"])
-        quality = request.form.get('quality', DEFAULTS["quality"])
-        keep_ratio = 'keep_ratio' in request.form
-        output_format = request.form.get('format', '').lower()
-        
-        # Créer un nom unique pour le ZIP
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        zip_filename = f'batch_resized_{timestamp}.zip'
+    filenames = request.form.get('filenames').split(',')
+    output_files = []
+
+    for filename in filenames:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        name, ext = os.path.splitext(filename)
+        output_filename = f"{name}_rsz{ext}"
+        format_conversion = request.form.get('format', None)
+        if format_conversion:
+            output_filename = f"{name}_rsz.{format_conversion.lower()}"
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+        command = build_imagemagick_command(
+            filepath=filepath,
+            output_path=output_path,
+            width=request.form.get('width', DEFAULTS["width"]),
+            height=request.form.get('height', DEFAULTS["height"]),
+            percentage=request.form.get('percentage', DEFAULTS["percentage"]),
+            quality=request.form.get('quality', DEFAULTS["quality"]),
+            keep_ratio='keep_ratio' in request.form
+        )
+
+        try:
+            subprocess.run(command, check=True)
+            output_files.append(output_path)
+        except Exception as e:
+            flash_error(f"Error processing {filename}: {e}")
+
+    if len(output_files) > 1:
+        zip_suffix = datetime.now().strftime("%y%m%d-%H%M")
+        zip_filename = f"batch_output_{zip_suffix}.zip"
         zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
-        
-        with ZipFile(zip_path, 'w') as zip_file:
-            for filename in request.form.get('filenames').split(','):
-                try:
-                    input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    output_filename = f"{os.path.splitext(filename)[0]}_resized.{output_format or os.path.splitext(filename)[1][1:]}"
-                    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-                    
-                    dcraw_cmd, magick_cmd = build_imagemagick_command(input_path, output_path, width, height, percentage, quality, keep_ratio)
-                    
-                    if dcraw_cmd:  # Si c'est un fichier RAW
-                        app.logger.info(f"Running dcraw command: {' '.join(dcraw_cmd)}")
-                        dcraw_process = subprocess.Popen(dcraw_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        
-                        app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-                        magick_process = subprocess.Popen(magick_cmd, stdin=dcraw_process.stdout, stderr=subprocess.PIPE)
-                        
-                        # Permettre à dcraw de recevoir SIGPIPE si ImageMagick se termine
-                        dcraw_process.stdout.close()
-                        
-                        # Attendre que les deux processus se terminent
-                        magick_stdout, magick_stderr = magick_process.communicate()
-                        dcraw_process.wait()
-                        
-                        if dcraw_process.returncode != 0:
-                            dcraw_stderr = dcraw_process.stderr.read().decode('utf-8', errors='ignore')
-                            raise Exception(f"dcraw command failed with return code {dcraw_process.returncode}: {dcraw_stderr}")
-                        
-                        if magick_process.returncode != 0:
-                            raise Exception(f"ImageMagick command failed with return code {magick_process.returncode}: {magick_stderr.decode('utf-8', errors='ignore')}")
-                    else:  # Pour les autres formats
-                        app.logger.info(f"Running ImageMagick command: {' '.join(magick_cmd)}")
-                        result = subprocess.run(magick_cmd)
-                        if result.returncode != 0:
-                            raise Exception(f"ImageMagick command failed with return code {result.returncode}")
-                    
-                    # Ajouter l'image au ZIP
-                    zip_file.write(output_path, output_filename)
-                    # Supprimer le fichier temporaire
-                    os.remove(output_path)
-                except Exception as e:
-                    app.logger.error(f"Error processing {filename}: {str(e)}")
-                    flash_error(f"Error processing {filename}: {str(e)}")
-        
+        with ZipFile(zip_path, 'w') as zipf:
+            for file in output_files:
+                zipf.write(file, os.path.basename(file))
         return redirect(url_for('download_batch', filename=zip_filename))
-    except Exception as e:
-        app.logger.error(f"Error in batch processing: {str(e)}")
-        flash_error(f"Error in batch processing: {str(e)}")
-        return redirect(url_for('index'))
+    elif len(output_files) == 1:
+        return redirect(url_for('download', filename=os.path.basename(output_files[0])))
+    else:
+        return flash_error("No images processed."), redirect(url_for('index'))
 
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
@@ -542,12 +374,6 @@ def download(filename):
         response = Response(f.read(), mimetype='application/octet-stream')
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
-
-@app.errorhandler(413)
-def request_entity_too_large(error):
-    """Handle file too large error."""
-    flash_error(f'Le fichier est trop volumineux. La taille maximale est de {MAX_CONTENT_LENGTH // (1024*1024)} MB.')
-    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

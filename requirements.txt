@@ -2,4 +2,3 @@ requests
 Pillow
 Flask
 Wand
-rawpy>=0.17.0  # Pour le support des fichiers RAW en Python
