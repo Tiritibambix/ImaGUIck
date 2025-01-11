@@ -192,6 +192,16 @@ def get_recommended_formats(image_type):
 def analyze_image_type(filepath):
     """Analyze image to determine its type and best suitable formats."""
     try:
+        # Pour les fichiers RAW, on retourne directement les valeurs appropriées
+        if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
+            app.logger.info(f"RAW file detected, using default settings")
+            return {
+                'has_transparency': False,
+                'is_photo': True,
+                'original_format': os.path.splitext(filepath)[1][1:].upper()
+            }
+
+        # Pour les autres formats, on utilise PIL
         with Image.open(filepath) as img:
             has_transparency = 'A' in img.getbands()
             is_photo = True
@@ -208,11 +218,16 @@ def analyze_image_type(filepath):
             return {
                 'has_transparency': has_transparency,
                 'is_photo': is_photo,
-                'original_format': None  # Not relevant for batch
+                'original_format': img.format
             }
     except Exception as e:
-        flash_error(f"Error analyzing image: {e}")
-        return None
+        app.logger.error(f"Error analyzing image: {e}")
+        # En cas d'erreur, on retourne des valeurs par défaut sécurisées
+        return {
+            'has_transparency': False,
+            'is_photo': True,
+            'original_format': os.path.splitext(filepath)[1][1:].upper()
+        }
 
 def flash_error(message):
     """Flash error message and log if needed."""
@@ -225,7 +240,11 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     if filepath.lower().endswith(('.arw', '.cr2', '.nef', '.dng', '.raw', '.rw2', '.orf', '.pef')):
         # Convertir en PPM avec dcraw
         app.logger.info(f"Converting RAW file to PPM with dcraw: {filepath}")
-        dcraw_cmd = ['dcraw', '-c', '-w', filepath]
+        # Utiliser -w pour obtenir la balance des blancs de l'appareil photo
+        # -c pour sortir sur stdout
+        # -q 3 pour la meilleure qualité
+        dcraw_cmd = ['dcraw', '-c', '-w', '-q', '3', filepath]
+        app.logger.info(f"dcraw command: {' '.join(dcraw_cmd)}")
         
         # Le PPM sera lu depuis stdin par ImageMagick
         command = ['magick', '-']
