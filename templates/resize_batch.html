@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Batch Resize</title>
+    <title>Resize Batch</title>
     <style>
         :root {
             --clr-primary-a0: #808080;
@@ -140,8 +140,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>Batch Resize</h1>
-        <form action="{{ url_for('resize_batch') }}" method="post">
+        <h1>Resize Batch</h1>
+        <form action="/resize_batch" method="post">
             <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
             <fieldset>
                 <legend>Resize Options</legend>
@@ -200,7 +200,17 @@
                         {% if formats.compatible %}
                             <optgroup label="Other Compatible Formats">
                                 {% for fmt in formats.compatible %}
-                                    <option value="{{ fmt|lower }}">{{ fmt }}</option>
+                                    <option value="{{ fmt|lower }}">{{ fmt }}
+                                        {% if batch_info %}
+                                            {% if (batch_info.has_transparency and fmt == 'GIF') %}
+                                                (Limited transparency support)
+                                            {% elif batch_info.has_photos %}
+                                                (Less efficient for photos)
+                                            {% elif batch_info.has_graphics %}
+                                                (Basic support)
+                                            {% endif %}
+                                        {% endif %}
+                                    </option>
                                 {% endfor %}
                             </optgroup>
                         {% endif %}
@@ -224,6 +234,7 @@
                         </small>
                     </div>
                 {% endif %}
+                
                 {% if image_types %}
                     <div class="images-info">
                         <small>
@@ -247,7 +258,7 @@
                 {% endif %}
             </fieldset>
 
-            <button type="submit">Resize All</button>
+            <button type="submit">Resize Batch</button>
         </form>
     </div>
     <script>

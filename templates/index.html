@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImaGUIck - Image Processing Tool</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+SC&family=Noto+Sans+JP&display=swap" rel="stylesheet">
+    <title>ImaGUIck</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
         .title-large {
             font-size: 1.8em; /* Taille légèrement réduite */
             font-weight: bold; /* Gras pour mettre en valeur */
             text-align: center; /* Centré */
-            font-family: 'Noto Sans', 'Noto Sans SC', 'Noto Sans JP', sans-serif; /* Application de la police */
+            font-family: 'Poppins', sans-serif; /* Application de la police */
         }
 
         :root {
@@ -34,12 +34,10 @@
             --input-height: 40px;
 
             --header-font-size: 1.8rem;
-
-            --font-main: 'Noto Sans', 'Noto Sans SC', 'Noto Sans JP', sans-serif;
         }
 
         body {
-            font-family: var(--font-main);
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
@@ -173,40 +171,47 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>ImaGUIck</h1>
-            <p>Simple and powerful image processing tool</p>
-        </header>
-
-        <main>
-            <form id="uploadForm" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
-                <fieldset>
-                    <legend>Upload Images</legend>
-                    <div class="upload-container">
-                        <div class="drop-zone" id="dropZone">
-                            <input type="file" name="file" id="fileInput" multiple accept="image/*" style="display: none;">
-                            <p>Drag and drop files here, or click to select files</p>
-                        </div>
-                        <button type="submit">Upload</button>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <fieldset>
+                <legend class="title-large">ImaGUIck</legend>
+                <div class="form-group">
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Upload Images</legend>
+                <div class="form-group">
+                    <!-- Drag and Drop Zone -->
+                    <div id="drop-zone" class="drop-zone">
+                        <p>Drag and drop files here, or click to select files.</p>
+                        <input type="file" id="file-input" name="file" multiple hidden>
                     </div>
-                </fieldset>
-            </form>
-
-            <form id="urlForm" action="{{ url_for('upload_url') }}" method="post">
-                <fieldset>
-                    <legend>Upload Image by URL</legend>
-                    <div class="url-container">
-                        <input type="text" name="url" placeholder="Enter image URL" required>
-                        <button type="submit">Download and Upload</button>
-                    </div>
-                </fieldset>
-            </form>
-        </main>
+                    <button type="submit">Upload</button>
+                </div>
+            </fieldset>
+        </form>
+        <form action="/upload_url" method="post">
+            <fieldset>
+                <legend>Upload Image by URL</legend>
+                <div class="form-group">
+                    <input type="text" name="url" placeholder="Enter image URL" required>
+                    <button type="submit">Download and Upload</button>
+                </div>
+            </fieldset>
+        </form>
     </div>
 
     <script>
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
 
         dropZone.addEventListener('click', () => {
             fileInput.click(); // Simule un clic pour ouvrir le sélecteur de fichiers

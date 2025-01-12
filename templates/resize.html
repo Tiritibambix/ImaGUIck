@@ -141,7 +141,7 @@
 <body>
     <div class="container">
         <h4>Resize Image: {{ filename }}</h4>
-        <form action="{{ url_for('resize_image', filename=filename) }}" method="post">
+        <form action="/resize/{{ filename }}" method="post">
             <fieldset>
                 <legend>Resize by Pixels</legend>
                 <div class="form-group">
@@ -177,9 +177,9 @@
                 <div class="form-group">
                     <label for="format">Convert to format:</label>
                     <select name="format" id="format">
-                        <option value="">Keep original format</option>
+                        <option value="">Keep Original</option>
                         {% if formats.recommended %}
-                            <optgroup label="Recommended formats">
+                            <optgroup label="Recommended Formats">
                                 {% for fmt in formats.recommended %}
                                     <option value="{{ fmt|lower }}">{{ fmt }}
                                         {% if image_type %}
@@ -196,16 +196,26 @@
                             </optgroup>
                         {% endif %}
                         {% if formats.compatible %}
-                            <optgroup label="Other compatible formats">
+                            <optgroup label="Other Compatible Formats">
                                 {% for fmt in formats.compatible %}
-                                    <option value="{{ fmt|lower }}">{{ fmt }}</option>
+                                    <option value="{{ fmt|lower }}">{{ fmt }}
+                                        {% if image_type %}
+                                            {% if (image_type.has_transparency and fmt == 'GIF') %}
+                                                (Limited transparency)
+                                            {% elif (image_type.is_photo) %}
+                                                (Less efficient for photos)
+                                            {% else %}
+                                                (Basic support)
+                                            {% endif %}
+                                        {% endif %}
+                                    </option>
                                 {% endfor %}
                             </optgroup>
                         {% endif %}
                     </select>
                 </div>
                 {% if image_type %}
-                    <div class="image-info">
+                    <div class="format-info">
                         <small>
                             {% if image_type.has_transparency %}
                                 This image contains transparency.
@@ -230,14 +240,14 @@
             const keepRatioCheckbox = document.getElementById('keep_ratio');
 
             function syncDimensions(changedInput, otherInput, originalWidth, originalHeight) {
-                if (keepRatioCheckbox.checked && changedInput.value) {
-                    const ratio = originalHeight / originalWidth;
-                    const newValue = Math.round(
-                        changedInput === widthInput
-                            ? changedInput.value * ratio
-                            : changedInput.value / ratio
-                    );
-                    otherInput.value = newValue;
+                if (!keepRatioCheckbox.checked) return;
+
+                const value = parseInt(changedInput.value, 10);
+                if (!isNaN(value)) {
+                    const ratio = (changedInput.id === 'width')
+                        ? originalHeight / originalWidth
+                        : originalWidth / originalHeight;
+                    otherInput.value = Math.round(value * ratio);
                 }
             }
 
@@ -245,13 +255,15 @@
                 input.addEventListener('input', () => {
                     const originalWidth = parseInt(widthInput.dataset.originalWidth, 10);
                     const originalHeight = parseInt(heightInput.dataset.originalHeight, 10);
-                    
-                    if (input === widthInput) {
-                        syncDimensions(widthInput, heightInput, originalWidth, originalHeight);
-                    } else {
-                        syncDimensions(heightInput, widthInput, originalWidth, originalHeight);
-                    }
+                    syncDimensions(input, input === widthInput ? heightInput : widthInput, originalWidth, originalHeight);
                 });
+            });
+
+            keepRatioCheckbox.addEventListener('change', () => {
+                if (!keepRatioCheckbox.checked) {
+                    widthInput.value = '';
+                    heightInput.value = '';
+                }
             });
         });
     </script>
