@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-12 16:55+0100\n"
+"POT-Creation-Date: 2025-01-12 17:10+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -109,6 +109,9 @@ msgstr ""
 msgid "Convert to format:"
 msgstr ""
 
+msgid "Convert all to format:"
+msgstr ""
+
 msgid "Best for transparency"
 msgstr ""
 
@@ -128,6 +131,48 @@ msgid "This appears to be a graphic image."
 msgstr ""
 
 msgid "Resize"
+msgstr ""
+
+msgid "Batch Resize"
+msgstr ""
+
+msgid "Resize All"
+msgstr ""
+
+msgid "Resize Options"
+msgstr ""
+
+msgid "Keep Original Formats"
+msgstr ""
+
+msgid "Recommended Formats"
+msgstr ""
+
+msgid "Other Compatible Formats"
+msgstr ""
+
+msgid "Your batch contains:"
+msgstr ""
+
+msgid "Images with transparency"
+msgstr ""
+
+msgid "Photographic images"
+msgstr ""
+
+msgid "Graphic images"
+msgstr ""
+
+msgid "Details for each image:"
+msgstr ""
+
+msgid "Contains transparency"
+msgstr ""
+
+msgid "Photographic image"
+msgstr ""
+
+msgid "Graphic image"
 msgstr ""
 
 msgid "Image processed successfully: %(filename)s"

@@ -5,8 +5,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-12 16:55+0100\n"
-"PO-Revision-Date: 2025-01-12 16:55+0100\n"
+"POT-Creation-Date: 2025-01-12 17:10+0100\n"
+"PO-Revision-Date: 2025-01-12 17:10+0100\n"
 "Last-Translator: ImaGUIck Team\n"
 "Language: fr\n"
 "Language-Team: French\n"
@@ -50,15 +50,6 @@ msgstr "Formats recommandés"
 
 msgid "Other compatible formats"
 msgstr "Autres formats compatibles"
-
-msgid "Best for transparency"
-msgstr "Idéal pour la transparence"
-
-msgid "Best for photos"
-msgstr "Idéal pour les photos"
-
-msgid "Best for graphics"
-msgstr "Idéal pour les graphiques"
 
 msgid "Language"
 msgstr "Langue"
@@ -120,6 +111,18 @@ msgstr "Qualité (1-100) :"
 msgid "Convert to format:"
 msgstr "Convertir au format :"
 
+msgid "Convert all to format:"
+msgstr "Convertir tous au format :"
+
+msgid "Best for transparency"
+msgstr "Idéal pour la transparence"
+
+msgid "Best for photos"
+msgstr "Idéal pour les photos"
+
+msgid "Best for graphics"
+msgstr "Idéal pour les graphiques"
+
 msgid "This image contains transparency."
 msgstr "Cette image contient de la transparence."
 
@@ -131,6 +134,48 @@ msgstr "Cette image semble être un graphique."
 
 msgid "Resize"
 msgstr "Redimensionner"
+
+msgid "Batch Resize"
+msgstr "Redimensionnement par lot"
+
+msgid "Resize All"
+msgstr "Tout redimensionner"
+
+msgid "Resize Options"
+msgstr "Options de redimensionnement"
+
+msgid "Keep Original Formats"
+msgstr "Conserver les formats d'origine"
+
+msgid "Recommended Formats"
+msgstr "Formats recommandés"
+
+msgid "Other Compatible Formats"
+msgstr "Autres formats compatibles"
+
+msgid "Your batch contains:"
+msgstr "Votre lot contient :"
+
+msgid "Images with transparency"
+msgstr "Images avec transparence"
+
+msgid "Photographic images"
+msgstr "Images photographiques"
+
+msgid "Graphic images"
+msgstr "Images graphiques"
+
+msgid "Details for each image:"
+msgstr "Détails pour chaque image :"
+
+msgid "Contains transparency"
+msgstr "Contient de la transparence"
+
+msgid "Photographic image"
+msgstr "Image photographique"
+
+msgid "Graphic image"
+msgstr "Image graphique"
 
 msgid "Image processed successfully: %(filename)s"
 msgstr "Image traitée avec succès : %(filename)s"
