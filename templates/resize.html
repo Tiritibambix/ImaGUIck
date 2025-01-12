@@ -177,18 +177,18 @@
                 <div class="form-group">
                     <label for="format">Convert to format:</label>
                     <select name="format" id="format">
-                        <option value="">{{ translate('keep_original') }}</option>
+                        <option value="">{{ _('Keep original format') }}</option>
                         {% if formats.recommended %}
-                            <optgroup label="{{ translate('recommended_formats') }}">
+                            <optgroup label="{{ _('Recommended formats') }}">
                                 {% for fmt in formats.recommended %}
                                     <option value="{{ fmt|lower }}">{{ fmt }}
                                         {% if image_type %}
                                             {% if (image_type.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
-                                                (Best for transparency)
+                                                ({{ _('Best for transparency') }})
                                             {% elif (image_type.is_photo and fmt in ['JPEG', 'WebP', 'AVIF']) %}
-                                                (Best for photos)
+                                                ({{ _('Best for photos') }})
                                             {% elif (not image_type.is_photo and fmt in ['PNG', 'GIF', 'WebP']) %}
-                                                (Best for graphics)
+                                                ({{ _('Best for graphics') }})
                                             {% endif %}
                                         {% endif %}
                                     </option>
@@ -196,7 +196,7 @@
                             </optgroup>
                         {% endif %}
                         {% if formats.compatible %}
-                            <optgroup label="{{ translate('compatible_formats') }}">
+                            <optgroup label="{{ _('Other compatible formats') }}">
                                 {% for fmt in formats.compatible %}
                                     <option value="{{ fmt|lower }}">{{ fmt }}</option>
                                 {% endfor %}

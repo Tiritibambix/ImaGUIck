@@ -8,7 +8,7 @@ from PIL import Image
 import requests
 import logging
 import re
-from translations import TRANSLATIONS
+from flask_babel import Babel, gettext as _
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -25,10 +25,26 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
+babel = Babel(app)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
+app.config['BABEL_DEFAULT_LOCALE'] = 'en'
+app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
+
+@babel.localeselector
+def get_locale():
+    # Essaie d'obtenir la langue depuis le paramètre 'lang' de l'URL
+    lang = request.args.get('lang')
+    if lang and lang in LANGUAGES:
+        session['lang'] = lang
+        return lang
+    # Essaie d'obtenir la langue depuis la session
+    if 'lang' in session and session['lang'] in LANGUAGES:
+        return session['lang']
+    # Sinon, utilise la langue du navigateur
+    return request.accept_languages.best_match(LANGUAGES)
 
 def allowed_file(filename):
     """Allow all file types supported by ImageMagick."""
@@ -168,29 +184,6 @@ def get_recommended_formats(image_type):
         'compatible': compatible
     }
 
-def get_user_language():
-    """Get user's preferred language."""
-    # Essaie d'obtenir la langue depuis le paramètre 'lang' de l'URL
-    lang = request.args.get('lang')
-    if lang in LANGUAGES:
-        session['lang'] = lang
-        return lang
-    # Essaie d'obtenir la langue depuis la session
-    if 'lang' in session and session['lang'] in LANGUAGES:
-        return session['lang']
-    # Par défaut, utilise l'anglais
-    return 'en'
-
-def translate(key):
-    """Translate a key into the current language."""
-    lang = get_user_language()
-    return TRANSLATIONS[lang].get(key, key)
-
-@app.context_processor
-def utility_processor():
-    """Make translation function available in templates."""
-    return {'translate': translate}
-
 def analyze_image_type(filepath):
     """Analyze image to determine its type and best suitable formats."""
     try:
@@ -320,12 +313,12 @@ def index():
 def upload_file():
     """Handle file uploads."""
     if 'file' not in request.files:
-        flash(translate('no_file_selected'), 'error')
+        flash(_('No file selected'), 'error')
         return redirect(url_for('index'))
         
     files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
-        flash(translate('select_at_least_one_file'), 'error')
+        flash(_('Please select at least one file'), 'error')
         return redirect(url_for('index'))
         
     uploaded_files = []

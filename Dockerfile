@@ -38,7 +38,11 @@ WORKDIR /app
 COPY . /app
 
 # Installer les dépendances Python
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt \
+    && pip install --no-cache-dir Flask-Babel
+
+# Compiler les fichiers de traduction
+RUN pybabel compile -d translations
 
 # Exposer le port
 EXPOSE 5000

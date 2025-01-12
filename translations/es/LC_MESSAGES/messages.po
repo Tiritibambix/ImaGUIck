@@ -1,0 +1,58 @@
+# Spanish translations for ImaGUIck.
+# Copyright (C) 2025 ImaGUIck
+# This file is distributed under the same license as the ImaGUIck project.
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-12 14:22+0100\n"
+"PO-Revision-Date: 2025-01-12 14:22+0100\n"
+"Last-Translator: ImaGUIck Team\n"
+"Language: es\n"
+"Language-Team: Spanish\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "No file selected"
+msgstr "Ningún archivo seleccionado"
+
+msgid "Please select at least one file"
+msgstr "Por favor, seleccione al menos un archivo"
+
+msgid "Upload Images"
+msgstr "Subir imágenes"
+
+msgid "Drag and drop files here, or click to select files"
+msgstr "Arrastre y suelte archivos aquí, o haga clic para seleccionar"
+
+msgid "Upload"
+msgstr "Subir"
+
+msgid "Upload Image by URL"
+msgstr "Subir imagen por URL"
+
+msgid "Enter image URL"
+msgstr "Ingrese la URL de la imagen"
+
+msgid "Download and Upload"
+msgstr "Descargar y subir"
+
+msgid "Keep original format"
+msgstr "Mantener formato original"
+
+msgid "Recommended formats"
+msgstr "Formatos recomendados"
+
+msgid "Other compatible formats"
+msgstr "Otros formatos compatibles"
+
+msgid "Best for transparency"
+msgstr "Mejor para transparencia"
+
+msgid "Best for photos"
+msgstr "Mejor para fotos"
+
+msgid "Best for graphics"
+msgstr "Mejor para gráficos"

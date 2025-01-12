@@ -1,0 +1,47 @@
+# Translations template for ImaGUIck.
+# Copyright (C) 2025 ImaGUIck
+# This file is distributed under the same license as the ImaGUIck project.
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-12 14:20+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "No file selected"
+msgstr ""
+
+msgid "Please select at least one file"
+msgstr ""
+
+msgid "Upload Images"
+msgstr ""
+
+msgid "Drag and drop files here, or click to select files"
+msgstr ""
+
+msgid "Upload"
+msgstr ""
+
+msgid "Upload Image by URL"
+msgstr ""
+
+msgid "Enter image URL"
+msgstr ""
+
+msgid "Download and Upload"
+msgstr ""
+
+msgid "Keep original format"
+msgstr ""
+
+msgid "Recommended formats"
+msgstr ""
+
+msgid "Other compatible formats"
+msgstr ""

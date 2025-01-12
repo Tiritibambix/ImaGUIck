@@ -225,23 +225,23 @@
                 </div>
             </fieldset>
             <fieldset>
-                <legend>{{ translate('upload_images') }}</legend>
+                <legend>{{ _('Upload Images') }}</legend>
                 <div class="form-group">
                     <!-- Drag and Drop Zone -->
                     <div id="drop-zone" class="drop-zone">
-                        <p>{{ translate('drag_and_drop') }}</p>
+                        <p>{{ _('Drag and drop files here, or click to select files') }}</p>
                         <input type="file" id="file-input" name="file" multiple hidden>
                     </div>
-                    <button type="submit">{{ translate('upload') }}</button>
+                    <button type="submit">{{ _('Upload') }}</button>
                 </div>
             </fieldset>
         </form>
         <form action="/upload_url" method="post">
             <fieldset>
-                <legend>{{ translate('upload_by_url') }}</legend>
+                <legend>{{ _('Upload Image by URL') }}</legend>
                 <div class="form-group">
-                    <input type="text" name="url" placeholder="{{ translate('enter_url') }}" required>
-                    <button type="submit">{{ translate('download_and_upload') }}</button>
+                    <input type="text" name="url" placeholder="{{ _('Enter image URL') }}" required>
+                    <button type="submit">{{ _('Download and Upload') }}</button>
                 </div>
             </fieldset>
         </form>
