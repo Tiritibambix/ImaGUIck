@@ -140,42 +140,42 @@
 </head>
 <body>
     <div class="container">
-        <h4>Resize Image: {{ filename }}</h4>
-        <form action="/resize/{{ filename }}" method="post">
+        <h4>{{ _('Resize Image: %(filename)s', filename=filename) }}</h4>
+        <form action="{{ url_for_with_lang('resize', filename=filename) }}" method="post">
             <fieldset>
-                <legend>Resize by Pixels</legend>
+                <legend>{{ _('Resize by Pixels') }}</legend>
                 <div class="form-group">
-                    <label for="width">Width:</label>
-                    <input type="text" name="width" id="width" placeholder="Enter width" data-original-width="{{ width }}" data-original-height="{{ height }}">
+                    <label for="width">{{ _('Width:') }}</label>
+                    <input type="text" name="width" id="width" placeholder="{{ _('Enter width') }}" data-original-width="{{ width }}" data-original-height="{{ height }}">
                 </div>
                 <div class="form-group">
-                    <label for="height">Height:</label>
-                    <input type="text" name="height" id="height" placeholder="Enter height" data-original-width="{{ width }}" data-original-height="{{ height }}">
+                    <label for="height">{{ _('Height:') }}</label>
+                    <input type="text" name="height" id="height" placeholder="{{ _('Enter height') }}" data-original-width="{{ width }}" data-original-height="{{ height }}">
                 </div>
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" name="keep_ratio" id="keep_ratio"> Keep Aspect Ratio
+                        <input type="checkbox" name="keep_ratio" id="keep_ratio"> {{ _('Keep Aspect Ratio') }}
                     </label>
                 </div>
-                <small>Original dimensions: {{ width }} x {{ height }} pixels</small>
+                <small>{{ _('Original dimensions: %(width)s x %(height)s pixels', width=width, height=height) }}</small>
             </fieldset>
 
             <fieldset>
-                <legend>Resize by Percentage</legend>
+                <legend>{{ _('Resize by Percentage') }}</legend>
                 <div class="form-group">
-                    <label for="percentage">Percentage:</label>
-                    <input type="text" name="percentage" id="percentage" placeholder="Enter percentage (1-100)">
+                    <label for="percentage">{{ _('Percentage:') }}</label>
+                    <input type="text" name="percentage" id="percentage" placeholder="{{ _('Enter percentage (1-100)') }}">
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>Additional Options</legend>
+                <legend>{{ _('Additional Options') }}</legend>
                 <div class="form-group">
-                    <label for="quality">Quality (1-100):</label>
+                    <label for="quality">{{ _('Quality (1-100):') }}</label>
                     <input type="text" name="quality" id="quality" value="100">
                 </div>
                 <div class="form-group">
-                    <label for="format">Convert to format:</label>
+                    <label for="format">{{ _('Convert to format:') }}</label>
                     <select name="format" id="format">
                         <option value="">{{ _('Keep original format') }}</option>
                         {% if formats.recommended %}
@@ -208,19 +208,19 @@
                     <div class="format-info">
                         <small>
                             {% if image_type.has_transparency %}
-                                This image contains transparency.
+                                {{ _('This image contains transparency.') }}
                             {% endif %}
                             {% if image_type.is_photo %}
-                                This appears to be a photographic image.
+                                {{ _('This appears to be a photographic image.') }}
                             {% else %}
-                                This appears to be a graphic image.
+                                {{ _('This appears to be a graphic image.') }}
                             {% endif %}
                         </small>
                     </div>
                 {% endif %}
             </fieldset>
 
-            <button type="submit">Resize</button>
+            <button type="submit">{{ _('Resize') }}</button>
         </form>
     </div>
     <script>

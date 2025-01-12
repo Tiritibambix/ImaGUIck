@@ -225,7 +225,7 @@
             </div>
             {% endif %}
         {% endwith %}
-        <form action="/upload" method="post" enctype="multipart/form-data">
+        <form action="{{ url_for_with_lang('upload_file') }}" method="post" enctype="multipart/form-data">
             <fieldset>
                 <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
@@ -243,7 +243,7 @@
                 </div>
             </fieldset>
         </form>
-        <form action="/upload_url" method="post">
+        <form action="{{ url_for_with_lang('upload_url') }}" method="post">
             <fieldset>
                 <legend>{{ _('Upload Image by URL') }}</legend>
                 <div class="form-group">

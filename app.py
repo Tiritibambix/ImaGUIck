@@ -9,6 +9,7 @@ import requests
 import logging
 import re
 from flask_babel import Babel, gettext as _
+from urllib.parse import urlparse, urlencode, parse_qs
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -45,6 +46,41 @@ def get_locale():
     return request.accept_languages.best_match(LANGUAGES)
 
 babel = Babel(app, locale_selector=get_locale)
+
+@app.template_global()
+def url_for_with_lang(*args, **kwargs):
+    """Wrapper autour de url_for qui ajoute automatiquement le paramètre de langue."""
+    if 'lang' not in kwargs and 'lang' in session:
+        kwargs['lang'] = session['lang']
+    return url_for(*args, **kwargs)
+
+@app.context_processor
+def inject_template_globals():
+    """Injecte des variables globales dans tous les templates."""
+    return {
+        'url_for_with_lang': url_for_with_lang,
+        'current_lang': session.get('lang', request.accept_languages.best_match(LANGUAGES))
+    }
+
+def modify_redirect_url(url):
+    """Ajoute le paramètre de langue à une URL de redirection."""
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    
+    # Ajoute ou met à jour le paramètre de langue
+    if 'lang' in session:
+        query['lang'] = [session['lang']]
+    
+    # Reconstruit l'URL avec le nouveau paramètre
+    new_query = urlencode(query, doseq=True)
+    parts = list(parsed)
+    parts[4] = new_query
+    return type(url)(''.join(str(x) for x in parts))
+
+# Modifie la fonction redirect pour inclure automatiquement le paramètre de langue
+def redirect_with_lang(url):
+    """Wrapper autour de redirect qui ajoute automatiquement le paramètre de langue."""
+    return redirect(modify_redirect_url(url))
 
 def allowed_file(filename):
     """Allow all file types supported by ImageMagick."""
@@ -314,27 +350,28 @@ def upload_file():
     """Handle file uploads."""
     if 'file' not in request.files:
         flash(_('No file selected'), 'error')
-        return redirect(url_for('index'))
+        return redirect_with_lang(url_for('index'))
         
     files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
         flash(_('Please select at least one file'), 'error')
-        return redirect(url_for('index'))
+        return redirect_with_lang(url_for('index'))
         
     uploaded_files = []
     for file in files:
         if file and allowed_file(file.filename):
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
-            uploaded_files.append(filepath)
-        else:
-            flash_error(f"Unsupported file format for {file.filename}.")
-
+            uploaded_files.append(filename)
+            
     if len(uploaded_files) == 1:
-        return redirect(url_for('resize_options', filename=os.path.basename(uploaded_files[0])))
-    if len(uploaded_files) > 1:
-        return redirect(url_for('resize_batch_options', filenames=','.join(map(os.path.basename, uploaded_files))))
-    return redirect(url_for('index'))
+        return redirect_with_lang(url_for('resize_options', filename=uploaded_files[0]))
+    elif len(uploaded_files) > 1:
+        return redirect_with_lang(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
+    else:
+        flash(_('No valid files were uploaded'), 'error')
+        return redirect_with_lang(url_for('index'))
 
 @app.route('/upload_url', methods=['POST'])
 def upload_url():
@@ -358,7 +395,7 @@ def upload_url():
                 f.write(chunk)
 
         flash(f"Image downloaded successfully: {filename}")
-        return redirect(url_for('resize_options', filename=filename))
+        return redirect_with_lang(url_for('resize_options', filename=filename))
     except requests.exceptions.RequestException as e:
         return flash_error(f"Error downloading image: {e}"), redirect(url_for('index'))
 
@@ -416,7 +453,7 @@ def resize_image(filename):
     try:
         subprocess.run(command[1], check=True)
         flash(f'Image processed successfully: {output_filename}')
-        return redirect(url_for('download', filename=output_filename))
+        return redirect_with_lang(url_for('download', filename=output_filename))
     except Exception as e:
         return flash_error(f"Error processing image: {e}"), redirect(url_for('resize_options', filename=filename))
 
@@ -500,9 +537,9 @@ def resize_batch():
         with ZipFile(zip_path, 'w') as zipf:
             for file in output_files:
                 zipf.write(file, os.path.basename(file))
-        return redirect(url_for('download_batch', filename=zip_filename))
+        return redirect_with_lang(url_for('download_batch', filename=zip_filename))
     elif len(output_files) == 1:
-        return redirect(url_for('download', filename=os.path.basename(output_files[0])))
+        return redirect_with_lang(url_for('download', filename=os.path.basename(output_files[0])))
     else:
         return flash_error("No images processed."), redirect(url_for('index'))
 
