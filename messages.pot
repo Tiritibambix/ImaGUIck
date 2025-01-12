@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-12 14:20+0100\n"
+"POT-Creation-Date: 2025-01-12 16:55+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,9 @@ msgid "No file selected"
 msgstr ""
 
 msgid "Please select at least one file"
+msgstr ""
+
+msgid "No valid files were uploaded"
 msgstr ""
 
 msgid "Upload Images"
@@ -62,4 +65,85 @@ msgid "Japanese"
 msgstr ""
 
 msgid "Chinese (Simplified)"
+msgstr ""
+
+msgid "Resize Image: %(filename)s"
+msgstr ""
+
+msgid "Resize by Pixels"
+msgstr ""
+
+msgid "Width:"
+msgstr ""
+
+msgid "Enter width"
+msgstr ""
+
+msgid "Height:"
+msgstr ""
+
+msgid "Enter height"
+msgstr ""
+
+msgid "Keep Aspect Ratio"
+msgstr ""
+
+msgid "Original dimensions: %(width)s x %(height)s pixels"
+msgstr ""
+
+msgid "Resize by Percentage"
+msgstr ""
+
+msgid "Percentage:"
+msgstr ""
+
+msgid "Enter percentage (1-100)"
+msgstr ""
+
+msgid "Additional Options"
+msgstr ""
+
+msgid "Quality (1-100):"
+msgstr ""
+
+msgid "Convert to format:"
+msgstr ""
+
+msgid "Best for transparency"
+msgstr ""
+
+msgid "Best for photos"
+msgstr ""
+
+msgid "Best for graphics"
+msgstr ""
+
+msgid "This image contains transparency."
+msgstr ""
+
+msgid "This appears to be a photographic image."
+msgstr ""
+
+msgid "This appears to be a graphic image."
+msgstr ""
+
+msgid "Resize"
+msgstr ""
+
+msgid "Image processed successfully: %(filename)s"
+msgstr ""
+
+msgid "Error processing image: %(error)s"
+msgstr ""
+
+msgid "Error downloading image: %(error)s"
+msgstr ""
+
+msgid "Image downloaded successfully: %(filename)s"
+msgstr ""
+
+msgid "Error getting image dimensions: %(error)s"
+msgstr ""
+
+msgid "Could not parse dimensions from output: %(output)s"
 msgstr ""

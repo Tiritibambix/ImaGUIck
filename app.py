@@ -360,28 +360,33 @@ def upload_file():
 @app.route('/upload_url', methods=['POST'])
 def upload_url():
     """Handle image upload from a URL."""
-    url = request.form.get('url')
+    url = request.form.get('url', '').strip()
     if not url:
-        return flash_error("No URL provided."), redirect(url_for('index'))
+        flash(_('No file selected'), 'error')
+        return redirect_with_lang(url_for('index'))
 
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, stream=True, headers=headers)
+        response = requests.get(url, stream=True)
         response.raise_for_status()
-
-        filename = url.split("/")[-1].split("?")[0]
+        
+        content_type = response.headers.get('content-type', '').lower()
+        if not any(mime in content_type for mime in ['image/', 'application/octet-stream']):
+            raise ValueError('URL does not point to an image')
+            
+        filename = secure_filename(os.path.basename(url))
         if not filename:
-            return flash_error("Unable to determine a valid filename from the URL."), redirect(url_for('index'))
-
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+            filename = 'image.jpg'
+            
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         with open(filepath, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-        flash(f"Image downloaded successfully: {filename}")
+        flash(_('Image downloaded successfully: %(filename)s', filename=filename))
         return redirect_with_lang(url_for('resize_options', filename=filename))
     except requests.exceptions.RequestException as e:
-        return flash_error(f"Error downloading image: {e}"), redirect(url_for('index'))
+        flash(_('Error downloading image: %(error)s', error=str(e)), 'error')
+        return redirect_with_lang(url_for('index'))
 
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
@@ -436,10 +441,11 @@ def resize_image(filename):
 
     try:
         subprocess.run(command[1], check=True)
-        flash(f'Image processed successfully: {output_filename}')
+        flash(_('Image processed successfully: %(filename)s', filename=output_filename))
         return redirect_with_lang(url_for('download', filename=output_filename))
     except Exception as e:
-        return flash_error(f"Error processing image: {e}"), redirect(url_for('resize_options', filename=filename))
+        flash(_('Error processing image: %(error)s', error=str(e)), 'error')
+        return redirect_with_lang(url_for('resize_options', filename=filename))
 
 @app.route('/resize_batch_options/<filenames>')
 def resize_batch_options(filenames):
@@ -512,7 +518,7 @@ def resize_batch():
             subprocess.run(command[1], check=True)
             output_files.append(output_path)
         except Exception as e:
-            flash_error(f"Error processing {filename}: {e}")
+            flash(_('Error processing %(filename)s: %(error)s', filename=filename, error=str(e)), 'error')
 
     if len(output_files) > 1:
         zip_suffix = datetime.now().strftime("%y%m%d-%H%M")
@@ -525,7 +531,8 @@ def resize_batch():
     elif len(output_files) == 1:
         return redirect_with_lang(url_for('download', filename=os.path.basename(output_files[0])))
     else:
-        return flash_error("No images processed."), redirect(url_for('index'))
+        flash(_('No images processed.'), 'error')
+        return redirect(url_for('index'))
 
 @app.route('/download_batch/<filename>')
 def download_batch(filename):

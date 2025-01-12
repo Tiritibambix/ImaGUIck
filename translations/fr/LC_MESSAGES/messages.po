@@ -5,8 +5,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-12 14:20+0100\n"
-"PO-Revision-Date: 2025-01-12 14:20+0100\n"
+"POT-Creation-Date: 2025-01-12 16:55+0100\n"
+"PO-Revision-Date: 2025-01-12 16:55+0100\n"
 "Last-Translator: ImaGUIck Team\n"
 "Language: fr\n"
 "Language-Team: French\n"
@@ -20,6 +20,9 @@ msgstr "Aucun fichier sélectionné"
 
 msgid "Please select at least one file"
 msgstr "Veuillez sélectionner au moins un fichier"
+
+msgid "No valid files were uploaded"
+msgstr "Aucun fichier valide n'a été téléchargé"
 
 msgid "Upload Images"
 msgstr "Importer des images"
@@ -74,3 +77,75 @@ msgstr "Japonais"
 
 msgid "Chinese (Simplified)"
 msgstr "Chinois (Simplifié)"
+
+msgid "Resize Image: %(filename)s"
+msgstr "Redimensionner l'image : %(filename)s"
+
+msgid "Resize by Pixels"
+msgstr "Redimensionner en pixels"
+
+msgid "Width:"
+msgstr "Largeur :"
+
+msgid "Enter width"
+msgstr "Entrez la largeur"
+
+msgid "Height:"
+msgstr "Hauteur :"
+
+msgid "Enter height"
+msgstr "Entrez la hauteur"
+
+msgid "Keep Aspect Ratio"
+msgstr "Conserver les proportions"
+
+msgid "Original dimensions: %(width)s x %(height)s pixels"
+msgstr "Dimensions originales : %(width)s x %(height)s pixels"
+
+msgid "Resize by Percentage"
+msgstr "Redimensionner en pourcentage"
+
+msgid "Percentage:"
+msgstr "Pourcentage :"
+
+msgid "Enter percentage (1-100)"
+msgstr "Entrez le pourcentage (1-100)"
+
+msgid "Additional Options"
+msgstr "Options supplémentaires"
+
+msgid "Quality (1-100):"
+msgstr "Qualité (1-100) :"
+
+msgid "Convert to format:"
+msgstr "Convertir au format :"
+
+msgid "This image contains transparency."
+msgstr "Cette image contient de la transparence."
+
+msgid "This appears to be a photographic image."
+msgstr "Cette image semble être une photographie."
+
+msgid "This appears to be a graphic image."
+msgstr "Cette image semble être un graphique."
+
+msgid "Resize"
+msgstr "Redimensionner"
+
+msgid "Image processed successfully: %(filename)s"
+msgstr "Image traitée avec succès : %(filename)s"
+
+msgid "Error processing image: %(error)s"
+msgstr "Erreur lors du traitement de l'image : %(error)s"
+
+msgid "Error downloading image: %(error)s"
+msgstr "Erreur lors du téléchargement de l'image : %(error)s"
+
+msgid "Image downloaded successfully: %(filename)s"
+msgstr "Image téléchargée avec succès : %(filename)s"
+
+msgid "Error getting image dimensions: %(error)s"
+msgstr "Erreur lors de la récupération des dimensions de l'image : %(error)s"
+
+msgid "Could not parse dimensions from output: %(output)s"
+msgstr "Impossible d'analyser les dimensions de la sortie : %(output)s"
