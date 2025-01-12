@@ -168,6 +168,16 @@ def get_recommended_formats(image_type):
 def analyze_image_type(filepath):
     """Analyze image to determine its type and best suitable formats."""
     try:
+        # Vérifier si c'est un fichier RAW
+        if filepath.lower().endswith('.arw'):
+            app.logger.info(f"Analyzing RAW file: {filepath}")
+            return {
+                'has_transparency': False,
+                'is_photo': True,
+                'original_format': 'ARW'
+            }
+            
+        # Pour les autres formats, utiliser PIL
         with Image.open(filepath) as img:
             has_transparency = 'A' in img.getbands()
             is_photo = True
@@ -184,11 +194,16 @@ def analyze_image_type(filepath):
             return {
                 'has_transparency': has_transparency,
                 'is_photo': is_photo,
-                'original_format': None  # Not relevant for batch
+                'original_format': img.format
             }
     except Exception as e:
         app.logger.error(f"Error analyzing image: {e}")
-        return None
+        # En cas d'erreur, supposer que c'est une photo sans transparence
+        return {
+            'has_transparency': False,
+            'is_photo': True,
+            'original_format': None
+        }
 
 def flash_error(message):
     """Flash error message and log if needed."""
