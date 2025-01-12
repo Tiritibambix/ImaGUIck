@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ session.get('lang', 'en') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resize Options</title>
+    <title>{{ _('Resize Options') }}</title>
     <style>
         :root {
             --clr-primary-a0: #808080;
@@ -205,7 +205,7 @@
                     </select>
                 </div>
                 {% if image_type %}
-                    <div class="format-info">
+                    <div class="image-info">
                         <small>
                             {% if image_type.has_transparency %}
                                 {{ _('This image contains transparency.') }}
@@ -230,14 +230,14 @@
             const keepRatioCheckbox = document.getElementById('keep_ratio');
 
             function syncDimensions(changedInput, otherInput, originalWidth, originalHeight) {
-                if (!keepRatioCheckbox.checked) return;
-
-                const value = parseInt(changedInput.value, 10);
-                if (!isNaN(value)) {
-                    const ratio = (changedInput.id === 'width')
-                        ? originalHeight / originalWidth
-                        : originalWidth / originalHeight;
-                    otherInput.value = Math.round(value * ratio);
+                if (keepRatioCheckbox.checked && changedInput.value) {
+                    const ratio = originalHeight / originalWidth;
+                    const newValue = Math.round(
+                        changedInput === widthInput
+                            ? changedInput.value * ratio
+                            : changedInput.value / ratio
+                    );
+                    otherInput.value = newValue;
                 }
             }
 
@@ -245,15 +245,13 @@
                 input.addEventListener('input', () => {
                     const originalWidth = parseInt(widthInput.dataset.originalWidth, 10);
                     const originalHeight = parseInt(heightInput.dataset.originalHeight, 10);
-                    syncDimensions(input, input === widthInput ? heightInput : widthInput, originalWidth, originalHeight);
+                    
+                    if (input === widthInput) {
+                        syncDimensions(widthInput, heightInput, originalWidth, originalHeight);
+                    } else {
+                        syncDimensions(heightInput, widthInput, originalWidth, originalHeight);
+                    }
                 });
-            });
-
-            keepRatioCheckbox.addEventListener('change', () => {
-                if (!keepRatioCheckbox.checked) {
-                    widthInput.value = '';
-                    heightInput.value = '';
-                }
             });
         });
     </script>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ session.get('lang', 'en') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -141,7 +141,7 @@
 <body>
     <div class="container">
         <h1>{{ _('Batch Resize') }}</h1>
-        <form action="/resize_batch" method="post">
+        <form action="{{ url_for_with_lang('resize_batch') }}" method="post">
             <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
             <fieldset>
                 <legend>{{ _('Resize Options') }}</legend>
@@ -224,7 +224,6 @@
                         </small>
                     </div>
                 {% endif %}
-                
                 {% if image_types %}
                     <div class="images-info">
                         <small>
