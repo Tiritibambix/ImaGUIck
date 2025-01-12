@@ -47,7 +47,7 @@ ImaGUIck is a simple and intuitive web application for batch image processing, p
    python app.py
    ```
 
-### Installation with Docker
+### Installation with Docker (supports amd64 and arm64)
 
 ```bash
 docker run -it --rm \
