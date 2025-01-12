@@ -25,7 +25,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
-babel = Babel(app)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['BABEL_DEFAULT_LOCALE'] = 'en'
@@ -33,7 +32,6 @@ app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
 
-@babel.localeselector
 def get_locale():
     # Essaie d'obtenir la langue depuis le paramètre 'lang' de l'URL
     lang = request.args.get('lang')
@@ -45,6 +43,8 @@ def get_locale():
         return session['lang']
     # Sinon, utilise la langue du navigateur
     return request.accept_languages.best_match(LANGUAGES)
+
+babel = Babel(app, locale_selector=get_locale)
 
 def allowed_file(filename):
     """Allow all file types supported by ImageMagick."""
