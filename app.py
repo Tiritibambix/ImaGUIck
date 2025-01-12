@@ -293,10 +293,15 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Handle file uploads."""
+    if 'file' not in request.files:
+        flash('Aucun fichier sélectionné', 'error')
+        return redirect(url_for('index'))
+        
     files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
-        return flash_error('No file selected.'), redirect(url_for('index'))
-
+        flash('Veuillez sélectionner au moins un fichier', 'error')
+        return redirect(url_for('index'))
+        
     uploaded_files = []
     for file in files:
         if file and allowed_file(file.filename):

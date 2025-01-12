@@ -128,6 +128,32 @@
             border-color: var(--clr-primary-a40);
         }
 
+        .flash-messages {
+            margin-bottom: var(--spacing-medium);
+            padding: var(--spacing-small);
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .flash-message {
+            padding: var(--spacing-small);
+            margin-bottom: var(--spacing-small);
+            border-radius: 4px;
+            background-color: var(--clr-surface-a20);
+            color: var(--clr-primary-a50);
+        }
+
+        .flash-message.error {
+            background-color: #ff4444;
+            color: white;
+        }
+
+        .flash-message.success {
+            background-color: #00C851;
+            color: white;
+        }
+
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
@@ -145,6 +171,15 @@
 </head>
 <body>
     <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
         <form action="/upload" method="post" enctype="multipart/form-data">
             <fieldset>
                 <legend class="title-large">ImaGUIck</legend>
