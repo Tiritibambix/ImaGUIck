@@ -56,7 +56,7 @@ jobs:
         tags: tiritibambix/imaguick:latest
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache
-        platforms: linux/amd64 #,linux/arm64
+        platforms: linux/amd64,linux/arm64
 
     # Logout from Docker Hub
     - name: Logout from Docker Hub
