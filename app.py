@@ -75,7 +75,16 @@ def modify_redirect_url(url):
     new_query = urlencode(query, doseq=True)
     parts = list(parsed)
     parts[4] = new_query
-    return type(url)(''.join(str(x) for x in parts))
+    
+    # Si nous avons des paramètres et qu'il n'y a pas déjà un '?' dans l'URL
+    result = ''.join(str(x) for x in parts)
+    if new_query and '?' not in result:
+        # Trouve la position après le chemin mais avant les paramètres
+        path_end = result.find(new_query)
+        if path_end != -1:
+            result = result[:path_end] + '?' + result[path_end:]
+    
+    return type(url)(result)
 
 # Modifie la fonction redirect pour inclure automatiquement le paramètre de langue
 def redirect_with_lang(url):
