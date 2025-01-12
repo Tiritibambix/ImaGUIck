@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="{{ session.get('lang', 'en') }}">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ _('Batch Resize') }}</title>
+    <title>Batch Resize</title>
     <style>
         :root {
             --clr-primary-a0: #808080;
@@ -140,57 +140,57 @@
 </head>
 <body>
     <div class="container">
-        <h1>{{ _('Batch Resize') }}</h1>
-        <form action="{{ url_for_with_lang('resize_batch') }}" method="post">
+        <h1>Batch Resize</h1>
+        <form action="{{ url_for('resize_batch') }}" method="post">
             <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
             <fieldset>
-                <legend>{{ _('Resize Options') }}</legend>
+                <legend>Resize Options</legend>
                 <div class="form-group">
-                    <label for="batch_width">{{ _('Width:') }}</label>
-                    <input type="text" name="width" id="batch_width" placeholder="{{ _('Enter width') }}">
+                    <label for="batch_width">Width:</label>
+                    <input type="text" name="width" id="batch_width" placeholder="Enter width">
                 </div>
                 <div class="form-group">
-                    <label for="batch_height">{{ _('Height:') }}</label>
-                    <input type="text" name="height" id="batch_height" placeholder="{{ _('Enter height') }}">
+                    <label for="batch_height">Height:</label>
+                    <input type="text" name="height" id="batch_height" placeholder="Enter height">
                 </div>
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" name="keep_ratio" id="batch_keep_ratio"> {{ _('Keep Aspect Ratio') }}
+                        <input type="checkbox" name="keep_ratio" id="batch_keep_ratio"> Keep Aspect Ratio
                     </label>
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>{{ _('Resize by Percentage') }}</legend>
+                <legend>Resize by Percentage</legend>
                 <div class="form-group">
-                    <label for="batch_percentage">{{ _('Percentage:') }}</label>
-                    <input type="text" name="percentage" id="batch_percentage" placeholder="{{ _('Enter percentage (1-100)') }}">
+                    <label for="batch_percentage">Percentage:</label>
+                    <input type="text" name="percentage" id="batch_percentage" placeholder="Enter percentage (1-100)">
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>{{ _('Additional Options') }}</legend>
+                <legend>Additional Options</legend>
                 <div class="form-group">
-                    <label for="quality">{{ _('Quality (1-100):') }}</label>
+                    <label for="quality">Quality (1-100):</label>
                     <input type="text" name="quality" id="quality" value="100">
                 </div>
                 <div class="form-group">
-                    <label for="format">{{ _('Convert all to format:') }}</label>
+                    <label for="format">Convert all to format:</label>
                     <select name="format" id="format">
-                        <option value="">{{ _('Keep Original Formats') }}</option>
+                        <option value="">Keep Original Formats</option>
                         {% if formats.recommended %}
-                            <optgroup label="{{ _('Recommended Formats') }}">
+                            <optgroup label="Recommended Formats">
                                 {% for fmt in formats.recommended %}
                                     <option value="{{ fmt|lower }}">{{ fmt }}
                                         {% if batch_info %}
                                             {% if (batch_info.has_transparency and fmt in ['PNG', 'WebP', 'AVIF']) %}
-                                                ({{ _('Best for transparency') }})
+                                                (Best for transparency)
                                             {% endif %}
                                             {% if (batch_info.has_photos and fmt in ['JPEG', 'WebP', 'AVIF']) %}
-                                                ({{ _('Best for photos') }})
+                                                (Best for photos)
                                             {% endif %}
                                             {% if (batch_info.has_graphics and fmt in ['PNG', 'GIF', 'WebP']) %}
-                                                ({{ _('Best for graphics') }})
+                                                (Best for graphics)
                                             {% endif %}
                                         {% endif %}
                                     </option>
@@ -198,7 +198,7 @@
                             </optgroup>
                         {% endif %}
                         {% if formats.compatible %}
-                            <optgroup label="{{ _('Other Compatible Formats') }}">
+                            <optgroup label="Other Compatible Formats">
                                 {% for fmt in formats.compatible %}
                                     <option value="{{ fmt|lower }}">{{ fmt }}</option>
                                 {% endfor %}
@@ -209,16 +209,16 @@
                 {% if batch_info %}
                     <div class="batch-info">
                         <small>
-                            {{ _('Your batch contains:') }}
+                            Your batch contains:
                             <ul>
                                 {% if batch_info.has_transparency %}
-                                    <li>{{ _('Images with transparency') }}</li>
+                                    <li>Images with transparency</li>
                                 {% endif %}
                                 {% if batch_info.has_photos %}
-                                    <li>{{ _('Photographic images') }}</li>
+                                    <li>Photographic images</li>
                                 {% endif %}
                                 {% if batch_info.has_graphics %}
-                                    <li>{{ _('Graphic images') }}</li>
+                                    <li>Graphic images</li>
                                 {% endif %}
                             </ul>
                         </small>
@@ -227,17 +227,17 @@
                 {% if image_types %}
                     <div class="images-info">
                         <small>
-                            {{ _('Details for each image:') }}
+                            Details for each image:
                             <ul>
                                 {% for img in image_types %}
                                     <li>{{ img.filename }}: 
                                         {% if img.type.has_transparency %}
-                                            {{ _('Contains transparency') }},
+                                            Contains transparency,
                                         {% endif %}
                                         {% if img.type.is_photo %}
-                                            {{ _('Photographic image') }}
+                                            Photographic image
                                         {% else %}
-                                            {{ _('Graphic image') }}
+                                            Graphic image
                                         {% endif %}
                                     </li>
                                 {% endfor %}
@@ -247,7 +247,7 @@
                 {% endif %}
             </fieldset>
 
-            <button type="submit">{{ _('Resize All') }}</button>
+            <button type="submit">Resize All</button>
         </form>
     </div>
     <script>

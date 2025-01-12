@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash, Response, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 import os
 import subprocess
 from zipfile import ZipFile
@@ -8,7 +8,6 @@ from PIL import Image
 import requests
 import logging
 import re
-from flask_babel import Babel, gettext as _
 from urllib.parse import urlparse, urlencode, parse_qs
 
 # Configuration
@@ -20,7 +19,7 @@ DEFAULTS = {
     "height": "",
     "percentage": "",
 }
-LANGUAGES = ['en', 'fr', 'es', 'zh', 'ja']
+LANGUAGES = ['en']
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -28,82 +27,24 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
-app.config['BABEL_DEFAULT_LOCALE'] = 'en'
-app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
 
-def get_locale():
-    # Essaie d'obtenir la langue depuis le paramètre 'lang' de l'URL
-    lang = request.args.get('lang')
-    if lang and lang in LANGUAGES:
-        session['lang'] = lang
-        return lang
-    # Essaie d'obtenir la langue depuis la session
-    if 'lang' in session and session['lang'] in LANGUAGES:
-        return session['lang']
-    # Sinon, utilise la langue du navigateur
-    return request.accept_languages.best_match(LANGUAGES)
-
-babel = Babel(app, locale_selector=get_locale)
-
-@app.template_global()
 def url_for_with_lang(*args, **kwargs):
-    """Wrapper autour de url_for qui ajoute automatiquement le paramètre de langue."""
-    if 'lang' not in kwargs and 'lang' in session:
-        kwargs['lang'] = session['lang']
     return url_for(*args, **kwargs)
 
-@app.context_processor
-def inject_template_globals():
-    """Injecte des variables globales dans tous les templates."""
-    return {
-        'url_for_with_lang': url_for_with_lang,
-        'current_lang': session.get('lang', request.accept_languages.best_match(LANGUAGES))
-    }
-
-def modify_redirect_url(url):
-    """Ajoute le paramètre de langue à une URL de redirection."""
-    parsed = urlparse(url)
-    query = parse_qs(parsed.query)
-    
-    # Ajoute ou met à jour le paramètre de langue
-    if 'lang' in session:
-        query['lang'] = [session['lang']]
-    
-    # Reconstruit l'URL avec le nouveau paramètre
-    new_query = urlencode(query, doseq=True)
-    parts = list(parsed)
-    parts[4] = new_query
-    
-    # Si nous avons des paramètres et qu'il n'y a pas déjà un '?' dans l'URL
-    result = ''.join(str(x) for x in parts)
-    if new_query and '?' not in result:
-        # Trouve la position après le chemin mais avant les paramètres
-        path_end = result.find(new_query)
-        if path_end != -1:
-            result = result[:path_end] + '?' + result[path_end:]
-    
-    return type(url)(result)
-
-# Modifie la fonction redirect pour inclure automatiquement le paramètre de langue
-def redirect_with_lang(url):
-    """Wrapper autour de redirect qui ajoute automatiquement le paramètre de langue."""
-    return redirect(modify_redirect_url(url))
+app.jinja_env.globals.update(url_for_with_lang=url_for_with_lang)
 
 def allowed_file(filename):
-    """Allow all file types supported by ImageMagick."""
     return '.' in filename
 
 def get_image_dimensions(filepath):
-    """Get image dimensions using ImageMagick."""
     try:
         app.logger.info(f"Getting dimensions for non-ARW file: {filepath}")
         command = ['magick', 'identify', filepath]
         app.logger.info(f"Running ImageMagick command: {' '.join(command)}")
         result = subprocess.run(command, capture_output=True, text=True, check=True)
         
-        # Parse dimensions from output
         output = result.stdout.strip()
         match = re.search(r'\s(\d+)x(\d+)\s', output)
         if match:
@@ -122,19 +63,13 @@ def get_image_dimensions(filepath):
         raise ValueError(error_msg)
 
 def get_available_formats():
-    """Get all formats supported by ImageMagick."""
     try:
-        # Exécute la commande magick -list format pour obtenir tous les formats supportés
         result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
         formats = []
         
-        # Parse la sortie pour extraire les formats
         for line in result.stdout.split('\n'):
-            # Ignore l'en-tête et les lignes vides
             if line.strip() and not line.startswith('Format') and not line.startswith('--'):
-                # Le format est le premier mot de chaque ligne
                 format_name = line.split()[0].upper()
-                # Certains formats ont des suffixes comme * ou +, on les enlève
                 format_name = format_name.rstrip('*+')
                 if format_name not in formats:
                     formats.append(format_name)
@@ -142,11 +77,9 @@ def get_available_formats():
         return formats
     except Exception as e:
         app.logger.error(f"Erreur lors de la récupération des formats : {e}")
-        # Liste de secours avec les formats les plus courants
         return ['PNG', 'JPEG', 'GIF', 'TIFF', 'BMP', 'WEBP']
 
 def get_format_categories():
-    """Categorize image formats by their typical usage."""
     return {
         'transparency': {
             'recommended': ['PNG', 'WEBP', 'AVIF', 'HEIC', 'GIF'],
@@ -155,10 +88,8 @@ def get_format_categories():
         'photo': {
             'recommended': ['JPEG', 'WEBP', 'AVIF', 'HEIC', 'JXL', 'TIFF'],
             'compatible': [
-                # Formats RAW
                 'ARW', 'CR2', 'CR3', 'NEF', 'NRW', 'ORF', 'RAF', 'RW2', 'PEF', 'DNG',
                 'IIQ', 'KDC', '3FR', 'MEF', 'MRW', 'SRF', 'X3F',
-                # Autres formats photo
                 'PNG', 'BMP', 'PPM', 'JP2', 'HDR', 'EXR', 'DPX', 'MIFF', 'MNG',
                 'PCD', 'RGBE', 'YCbCr', 'CALS'
             ]
@@ -174,7 +105,6 @@ def get_format_categories():
     }
 
 def get_recommended_formats(image_type):
-    """Get recommended and compatible formats based on image type."""
     categories = get_format_categories()
     available_formats = set(get_available_formats())
     
@@ -185,13 +115,11 @@ def get_recommended_formats(image_type):
     else:
         category = 'graphic'
         
-    # Récupère les formats recommandés et compatibles pour cette catégorie
     recommended = [fmt for fmt in categories[category]['recommended'] 
                   if fmt in available_formats]
     compatible = [fmt for fmt in categories[category]['compatible'] 
                  if fmt in available_formats]
     
-    # Ajoute le format original s'il n'est pas déjà présent
     original_format = image_type.get('original_format')
     if original_format:
         original_format = original_format.upper()
@@ -205,9 +133,7 @@ def get_recommended_formats(image_type):
     }
 
 def analyze_image_type(filepath):
-    """Analyze image to determine its type and best suitable formats."""
     try:
-        # Vérifier si c'est un fichier RAW
         if filepath.lower().endswith('.arw'):
             app.logger.info(f"Analyzing RAW file: {filepath}")
             return {
@@ -216,19 +142,16 @@ def analyze_image_type(filepath):
                 'original_format': 'ARW'
             }
             
-        # Pour les autres formats, utiliser PIL
         with Image.open(filepath) as img:
             has_transparency = 'A' in img.getbands()
             is_photo = True
             
-            # Check if image is more like a photo or graphic
             if img.mode in ('P', '1', 'L'):
                 is_photo = False
             elif img.mode in ('RGB', 'RGBA'):
-                # Sample pixels to determine if it's likely a photo
                 pixels = list(img.getdata())
-                unique_colors = len(set(pixels[:1000]))  # Sample first 1000 pixels
-                is_photo = unique_colors > 100  # If many unique colors, likely a photo
+                unique_colors = len(set(pixels[:1000]))  
+                is_photo = unique_colors > 100  
             
             return {
                 'has_transparency': has_transparency,
@@ -237,7 +160,6 @@ def analyze_image_type(filepath):
             }
     except Exception as e:
         app.logger.error(f"Error analyzing image: {e}")
-        # En cas d'erreur, supposer que c'est une photo sans transparence
         return {
             'has_transparency': False,
             'is_photo': True,
@@ -245,34 +167,26 @@ def analyze_image_type(filepath):
         }
 
 def flash_error(message):
-    """Flash error message and log if needed."""
     flash(message)
     app.logger.error(message)
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
-    """Build ImageMagick command for resizing and formatting."""
-    # Pour les fichiers RAW Sony ARW, on extrait le JPEG intégré
     if filepath.lower().endswith('.arw'):
         app.logger.info(f"Processing ARW file: {filepath}")
-        # Créer un nom temporaire pour le fichier JPEG extrait
         temp_jpeg = os.path.join(os.path.dirname(output_path), f"{os.path.splitext(os.path.basename(filepath))[0]}_preview.jpg")
         app.logger.info(f"Temporary JPEG will be saved as: {temp_jpeg}")
         
-        # Essayer d'abord JpgFromRaw (meilleure qualité)
-        app.logger.info("Attempting to extract JpgFromRaw...")
         exif_cmd = ['exiftool', '-b', '-JpgFromRaw', filepath]
         app.logger.info(f"Running exiftool command: {' '.join(exif_cmd)}")
         result = subprocess.run(exif_cmd, capture_output=True)
         
         if result.returncode == 0 and result.stdout.strip():
             app.logger.info("Successfully extracted JpgFromRaw")
-            # Sauvegarder le JPEG extrait
             with open(temp_jpeg, 'wb') as f:
                 f.write(result.stdout)
             app.logger.info(f"Saved JpgFromRaw to: {temp_jpeg}")
         else:
             app.logger.info("No JpgFromRaw found, trying PreviewImage...")
-            # Si pas de JpgFromRaw, essayer PreviewImage
             exif_cmd = ['exiftool', '-b', '-PreviewImage', filepath]
             app.logger.info(f"Running exiftool command: {' '.join(exif_cmd)}")
             result = subprocess.run(exif_cmd, capture_output=True)
@@ -285,7 +199,6 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
                 app.logger.error(f"Exiftool error: {result.stderr.decode('utf-8', errors='ignore')}")
                 raise Exception("No preview image found in RAW file")
         
-        # Commande ImageMagick pour redimensionner le JPEG extrait
         magick_cmd = ['magick', temp_jpeg]
         
         if width.isdigit() and height.isdigit():
@@ -305,7 +218,6 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         return None, magick_cmd, temp_jpeg
     else:
         app.logger.info(f"Processing non-ARW file: {filepath}")
-        # Pour les autres formats, utiliser directement ImageMagick
         command = ['magick', filepath]
         
         if width.isdigit() and height.isdigit():
@@ -326,20 +238,18 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
 
 @app.route('/')
 def index():
-    """Homepage with upload options."""
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handle file uploads."""
     if 'file' not in request.files:
         flash(_('No file selected'), 'error')
-        return redirect_with_lang(url_for('index'))
+        return redirect(url_for('index'))
         
     files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
         flash(_('Please select at least one file'), 'error')
-        return redirect_with_lang(url_for('index'))
+        return redirect(url_for('index'))
         
     uploaded_files = []
     for file in files:
@@ -350,20 +260,19 @@ def upload_file():
             uploaded_files.append(filename)
             
     if len(uploaded_files) == 1:
-        return redirect_with_lang(url_for('resize_options', filename=uploaded_files[0]))
+        return redirect(url_for('resize_options', filename=uploaded_files[0]))
     elif len(uploaded_files) > 1:
-        return redirect_with_lang(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
+        return redirect(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
     else:
         flash(_('No valid files were uploaded'), 'error')
-        return redirect_with_lang(url_for('index'))
+        return redirect(url_for('index'))
 
 @app.route('/upload_url', methods=['POST'])
 def upload_url():
-    """Handle image upload from a URL."""
     url = request.form.get('url', '').strip()
     if not url:
         flash(_('No file selected'), 'error')
-        return redirect_with_lang(url_for('index'))
+        return redirect(url_for('index'))
 
     try:
         response = requests.get(url, stream=True)
@@ -383,20 +292,18 @@ def upload_url():
                 f.write(chunk)
 
         flash(_('Image downloaded successfully: %(filename)s', filename=filename))
-        return redirect_with_lang(url_for('resize_options', filename=filename))
+        return redirect(url_for('resize_options', filename=filename))
     except requests.exceptions.RequestException as e:
         flash(_('Error downloading image: %(error)s', error=str(e)), 'error')
-        return redirect_with_lang(url_for('index'))
+        return redirect(url_for('index'))
 
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
-    """Resize options page for a single image."""
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     dimensions = get_image_dimensions(filepath)
     if not dimensions:
         return redirect(url_for('index'))
 
-    # Analyze image and get recommended formats
     image_type = analyze_image_type(filepath)
     if image_type:
         format_info = get_recommended_formats(image_type)
@@ -420,7 +327,6 @@ def resize_options(filename):
 
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
-    """Handle resizing or format conversion for a single image."""
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     name, ext = os.path.splitext(filename)
     output_filename = f"{name}_rsz{ext}"
@@ -442,17 +348,15 @@ def resize_image(filename):
     try:
         subprocess.run(command[1], check=True)
         flash(_('Image processed successfully: %(filename)s', filename=output_filename))
-        return redirect_with_lang(url_for('download', filename=output_filename))
+        return redirect(url_for('download', filename=output_filename))
     except Exception as e:
         flash(_('Error processing image: %(error)s', error=str(e)), 'error')
-        return redirect_with_lang(url_for('resize_options', filename=filename))
+        return redirect(url_for('resize_options', filename=filename))
 
 @app.route('/resize_batch_options/<filenames>')
 def resize_batch_options(filenames):
-    """Resize options page for batch processing."""
     files = filenames.split(',')
     
-    # Analyze each image and get common recommended formats
     image_types = []
     has_transparency = False
     has_photos = False
@@ -467,14 +371,12 @@ def resize_batch_options(filenames):
             has_photos = has_photos or image_type['is_photo']
             has_graphics = has_graphics or not image_type['is_photo']
     
-    # Create a combined image type for the batch
     batch_type = {
         'has_transparency': has_transparency,
         'is_photo': has_photos,
-        'original_format': None  # Not relevant for batch
+        'original_format': None  
     }
     
-    # Get format recommendations for the batch
     format_info = get_recommended_formats(batch_type)
     
     batch_info = {
@@ -491,7 +393,6 @@ def resize_batch_options(filenames):
 
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():
-    """Resize multiple images and compress them into a ZIP."""
     filenames = request.form.get('filenames').split(',')
     output_files = []
 
@@ -527,22 +428,20 @@ def resize_batch():
         with ZipFile(zip_path, 'w') as zipf:
             for file in output_files:
                 zipf.write(file, os.path.basename(file))
-        return redirect_with_lang(url_for('download_batch', filename=zip_filename))
+        return redirect(url_for('download_batch', filename=zip_filename))
     elif len(output_files) == 1:
-        return redirect_with_lang(url_for('download', filename=os.path.basename(output_files[0])))
+        return redirect(url_for('download', filename=os.path.basename(output_files[0])))
     else:
         flash(_('No images processed.'), 'error')
         return redirect(url_for('index'))
 
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
-    """Serve the ZIP file for download."""
     zip_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
     return send_file(zip_path, as_attachment=True)
 
 @app.route('/download/<filename>')
 def download(filename):
-    """Serve a single file for download."""
     filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
     with open(filepath, 'rb') as f:
         response = Response(f.read(), mimetype='application/octet-stream')
