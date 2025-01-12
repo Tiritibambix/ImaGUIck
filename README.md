@@ -1,4 +1,6 @@
-# ImaGUIck 🖼️
+<p align="center">
+  <img src="https://i.postimg.cc/rFRD78SG/Ima-GUIck-logo-NOWM-50.png" width="400" />
+</p>
 
 ImaGUIck is a powerful and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
 
@@ -24,7 +26,7 @@ ImaGUIck is a powerful and intuitive web application for batch image processing,
 
 - Python 3.9+
 - Docker (optional)
-- ImageMagick 7.1.1-41
+- [`ImageMagick 7.1.1-41`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.1-41)
 - ExifTool
 
 ### Local Installation
@@ -47,15 +49,29 @@ ImaGUIck is a powerful and intuitive web application for batch image processing,
 
 ### Installation with Docker
 
-1. Build the image:
-   ```bash
-   docker build -t imaguick .
-   ```
+```bash
+docker run -it --rm \
+    -v $(pwd)/uploads:/app/uploads \
+    -v $(pwd)/output:/app/output \
+    -p 5000:5000 \
+    imaguick
+```
+ 
+Alternatively, you can use docker-compose to run the application:
 
-2. Run the container:
-   ```bash
-   docker run -p 5000:5000 imaguick
-   ```
+```yaml
+services:
+  imaguick:
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./uploads:/app/uploads
+      - ./output:/app/output
+    ports:
+      - 5000:5000
+    image: tiritibambix/imaguick:latest
+networks: {}
+```
 
 ## 🖥️ Usage
 
@@ -87,16 +103,23 @@ ImaGUIck is a powerful and intuitive web application for batch image processing,
 ### Project Structure
 
 ```
-ImaGUIck/
-├── app.py              # Main Flask application
-├── Dockerfile          # Docker configuration
-├── requirements.txt    # Python dependencies
-├── templates/          # HTML templates
-│   ├── index.html
-│   ├── resize.html
-│   └── resize_batch.html
-├── uploads/           # Temporary upload folder
-└── output/           # Output folder for processed images
+imaguick/
+├── .github
+|     ├── workflows
+|     |     ├── docker-build-test.yml
+|     |     ├── docker-build.yml
+├── .gitignore                        # Excluded files for version control
+├── Dockerfile                        # Instructions to build the Docker image
+├── LICENSE                           # License for ImaGUIck and ImageMagick
+├── README.md                         # Documentation
+├── TODO.md
+├── app.py                            # The main Python application
+├── requirements.txt                  # Python dependencies
+├── templates                         # HTML templates for the web interface
+|     ├── index.html                  # Homepage
+|     ├── resize.html                 # Resize options for individual images
+|     ├── resize_batch.html           # Batch processing options
+
 ```
 
 ## 🤝 Contribution
@@ -112,14 +135,8 @@ Contributions are welcome! To contribute:
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**ImageMagick's** license can be found [HERE](https://github.com/tiritibambix/ImaGUIck/blob/main/LICENSE).
 
-## 🔧 Advanced Configuration
-
-### Environment Variables
-
-- `UPLOAD_FOLDER`: Folder for uploads (default: 'uploads')
-- `OUTPUT_FOLDER`: Folder for processed files (default: 'output')
-- `FLASK_ENV`: Flask environment ('development' or 'production')
 
 ### Customization
 

@@ -17,6 +17,10 @@
 - [x] Handle all formats in batch too
 
 - [x] Build **arm64**
+
+- [x] Work on only displaying eloquent formats (jpg > dng / mp4 > mov)
+
+- [x] Work on .ARW format
     
 - [ ] Handle specific download or image processing errors without stopping the entire process.
     
@@ -26,7 +30,3 @@
       Likewise, display a list of selected files               
     
 - [ ] Back to `index` and empty fields after successful download
-
-- [ ] Work on only displaying eloquent formats (jpg > dng / mp4 > mov)
-
-- [ ] Work on .ARW format
