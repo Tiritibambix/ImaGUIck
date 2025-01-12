@@ -49,20 +49,20 @@ ImaGUIck is a simple and intuitive web application for batch image processing, p
 
 ### Installation with Docker (supports amd64 and arm64)
 
-##### 1. **Clone the repository**
+1. Clone the repository
 
 ```bash
 git clone https://github.com/tiritibambix/ImaGUIck.git
 cd ImaGUIck
 ```
 
-##### 2. **Build the Docker image**
+2. Build the Docker image
 
 ```bash
 docker build -t imaguick .
 ```
 
-##### 3. **Run the application**
+3. Run the application
 
 ```bash
 docker run -it --rm \
@@ -72,7 +72,7 @@ docker run -it --rm \
     imaguick
 ```
  
-##### Alternatively, you can use docker-compose to run the application:
+#### Alternatively, you can use docker-compose to run the application:
 
 ```yaml
 services:
