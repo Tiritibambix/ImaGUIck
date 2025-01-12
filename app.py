@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, send_file, flash, Response, session
 import os
 import subprocess
 from zipfile import ZipFile
@@ -8,6 +8,7 @@ from PIL import Image
 import requests
 import logging
 import re
+from translations import TRANSLATIONS
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -18,6 +19,8 @@ DEFAULTS = {
     "height": "",
     "percentage": "",
 }
+LANGUAGES = ['en', 'fr', 'es', 'zh', 'ja']
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -165,6 +168,29 @@ def get_recommended_formats(image_type):
         'compatible': compatible
     }
 
+def get_user_language():
+    """Get user's preferred language."""
+    # Essaie d'obtenir la langue depuis le paramètre 'lang' de l'URL
+    lang = request.args.get('lang')
+    if lang in LANGUAGES:
+        session['lang'] = lang
+        return lang
+    # Essaie d'obtenir la langue depuis la session
+    if 'lang' in session and session['lang'] in LANGUAGES:
+        return session['lang']
+    # Par défaut, utilise l'anglais
+    return 'en'
+
+def translate(key):
+    """Translate a key into the current language."""
+    lang = get_user_language()
+    return TRANSLATIONS[lang].get(key, key)
+
+@app.context_processor
+def utility_processor():
+    """Make translation function available in templates."""
+    return {'translate': translate}
+
 def analyze_image_type(filepath):
     """Analyze image to determine its type and best suitable formats."""
     try:
@@ -294,12 +320,12 @@ def index():
 def upload_file():
     """Handle file uploads."""
     if 'file' not in request.files:
-        flash('Aucun fichier sélectionné', 'error')
+        flash(translate('no_file_selected'), 'error')
         return redirect(url_for('index'))
         
     files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
-        flash('Veuillez sélectionner au moins un fichier', 'error')
+        flash(translate('select_at_least_one_file'), 'error')
         return redirect(url_for('index'))
         
     uploaded_files = []

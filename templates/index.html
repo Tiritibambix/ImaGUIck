@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ImaGUIck</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+SC&family=Noto+Sans+JP&display=swap" rel="stylesheet">
     <style>
         .title-large {
             font-size: 1.8em; /* Taille légèrement réduite */
             font-weight: bold; /* Gras pour mettre en valeur */
             text-align: center; /* Centré */
-            font-family: 'Poppins', sans-serif; /* Application de la police */
+            font-family: 'Noto Sans', 'Noto Sans SC', 'Noto Sans JP', sans-serif; /* Application de la police */
         }
 
         :root {
@@ -34,10 +34,12 @@
             --input-height: 40px;
 
             --header-font-size: 1.8rem;
+
+            --font-main: 'Noto Sans', 'Noto Sans SC', 'Noto Sans JP', sans-serif;
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: var(--font-main);
             margin: 0;
             padding: 0;
             display: flex;
@@ -154,6 +156,31 @@
             color: white;
         }
 
+        .language-selector {
+            margin-bottom: 20px;
+            text-align: right;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .lang-link {
+            color: var(--clr-primary-a50);
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .lang-link:hover {
+            background-color: var(--clr-surface-a20);
+        }
+
+        .lang-divider {
+            color: var(--clr-primary-a30);
+        }
+
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
@@ -171,6 +198,17 @@
 </head>
 <body>
     <div class="container">
+        <div class="language-selector">
+            <a href="?lang=en" class="lang-link">English</a>
+            <span class="lang-divider">|</span>
+            <a href="?lang=fr" class="lang-link">Français</a>
+            <span class="lang-divider">|</span>
+            <a href="?lang=es" class="lang-link">Español</a>
+            <span class="lang-divider">|</span>
+            <a href="?lang=zh" class="lang-link">中文</a>
+            <span class="lang-divider">|</span>
+            <a href="?lang=ja" class="lang-link">日本語</a>
+        </div>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             <div class="flash-messages">
@@ -187,23 +225,23 @@
                 </div>
             </fieldset>
             <fieldset>
-                <legend>Upload Images</legend>
+                <legend>{{ translate('upload_images') }}</legend>
                 <div class="form-group">
                     <!-- Drag and Drop Zone -->
                     <div id="drop-zone" class="drop-zone">
-                        <p>Drag and drop files here, or click to select files.</p>
+                        <p>{{ translate('drag_and_drop') }}</p>
                         <input type="file" id="file-input" name="file" multiple hidden>
                     </div>
-                    <button type="submit">Upload</button>
+                    <button type="submit">{{ translate('upload') }}</button>
                 </div>
             </fieldset>
         </form>
         <form action="/upload_url" method="post">
             <fieldset>
-                <legend>Upload Image by URL</legend>
+                <legend>{{ translate('upload_by_url') }}</legend>
                 <div class="form-group">
-                    <input type="text" name="url" placeholder="Enter image URL" required>
-                    <button type="submit">Download and Upload</button>
+                    <input type="text" name="url" placeholder="{{ translate('enter_url') }}" required>
+                    <button type="submit">{{ translate('download_and_upload') }}</button>
                 </div>
             </fieldset>
         </form>

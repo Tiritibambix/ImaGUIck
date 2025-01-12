@@ -177,9 +177,9 @@
                 <div class="form-group">
                     <label for="format">Convert to format:</label>
                     <select name="format" id="format">
-                        <option value="">Keep Original</option>
+                        <option value="">{{ translate('keep_original') }}</option>
                         {% if formats.recommended %}
-                            <optgroup label="Recommended Formats">
+                            <optgroup label="{{ translate('recommended_formats') }}">
                                 {% for fmt in formats.recommended %}
                                     <option value="{{ fmt|lower }}">{{ fmt }}
                                         {% if image_type %}
@@ -196,19 +196,9 @@
                             </optgroup>
                         {% endif %}
                         {% if formats.compatible %}
-                            <optgroup label="Other Compatible Formats">
+                            <optgroup label="{{ translate('compatible_formats') }}">
                                 {% for fmt in formats.compatible %}
-                                    <option value="{{ fmt|lower }}">{{ fmt }}
-                                        {% if image_type %}
-                                            {% if (image_type.has_transparency and fmt == 'GIF') %}
-                                                (Limited transparency)
-                                            {% elif (image_type.is_photo) %}
-                                                (Less efficient for photos)
-                                            {% else %}
-                                                (Basic support)
-                                            {% endif %}
-                                        {% endif %}
-                                    </option>
+                                    <option value="{{ fmt|lower }}">{{ fmt }}</option>
                                 {% endfor %}
                             </optgroup>
                         {% endif %}
