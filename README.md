@@ -2,7 +2,7 @@
   <img src="https://i.postimg.cc/rFRD78SG/Ima-GUIck-logo-NOWM-50.png" width="400" />
 </p>
 
-ImaGUIck is a powerful and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
+ImaGUIck is a simple and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
 
 ## ✨ Features
 
