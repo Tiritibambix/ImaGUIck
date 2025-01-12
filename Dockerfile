@@ -1,8 +1,11 @@
 # Choisir l'image de base
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Dépendances nécessaires pour compiler ImageMagick et autres utilitaires
 RUN apt-get update && apt-get install -y \
+    imagemagick \
+    libmagickwand-dev \
+    exiftool \
     build-essential \
     wget \
     tar \
@@ -12,9 +15,6 @@ RUN apt-get update && apt-get install -y \
     libgif-dev \
     libx11-dev \
     libxt-dev \
-    libmagickcore-dev \
-    libmagickwand-dev \
-    exiftool \
     zip unzip \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,25 +27,33 @@ RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.t
     && make install \
     && rm -rf /tmp/*
 
+# Configure ImageMagick policy to allow PDF operations
+COPY policy.xml /etc/ImageMagick-6/policy.xml
+
 # Ajouter /usr/local/bin au PATH
 ENV PATH="/usr/local/bin:${PATH}"
 
 # Vérifier que ImageMagick est bien installé
 RUN magick -version
 
-# Copier l'application dans le conteneur
+# Set up app directory
 WORKDIR /app
+
+# Copier l'application dans le conteneur
 COPY . /app
 
 # Installer les dépendances Python
-RUN pip install --no-cache-dir -r /app/requirements.txt \
-    && pip install --no-cache-dir Flask-Babel
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Compiler les fichiers de traduction
-RUN pybabel compile -d translations
+# Create upload and output directories
+RUN mkdir -p uploads outputs
+
+# Set environment variables
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
 
 # Exposer le port
 EXPOSE 5000
 
 # Commande pour démarrer l'application Flask
-CMD ["python", "app.py"]
+CMD ["flask", "run", "--host=0.0.0.0"]

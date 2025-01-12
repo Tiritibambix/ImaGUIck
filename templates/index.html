@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImaGUIck</title>
+    <title>ImaGUIck - Image Processing Tool</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=Noto+Sans+SC&family=Noto+Sans+JP&display=swap" rel="stylesheet">
     <style>
         .title-large {
@@ -156,40 +156,6 @@
             color: white;
         }
 
-        .language-selector {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-
-        .language-selector select {
-            padding: 8px 30px 8px 10px;
-            font-size: 14px;
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: 4px;
-            background-color: var(--clr-surface-a20);
-            color: var(--clr-primary-a50);
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23ffffff' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 8px center;
-            cursor: pointer;
-            min-width: 150px;
-        }
-
-        .language-selector select:hover {
-            border-color: var(--clr-primary-a30);
-        }
-
-        .language-selector select:focus {
-            outline: none;
-            border-color: var(--clr-primary-a40);
-            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
-        }
-
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
@@ -206,57 +172,41 @@
     </style>
 </head>
 <body>
-    <div class="language-selector">
-        <select id="language-select" onchange="changeLanguage(this.value)">
-            <option value="en" {% if session.get('lang', 'en') == 'en' %}selected{% endif %}>{{ _('English') }}</option>
-            <option value="fr" {% if session.get('lang') == 'fr' %}selected{% endif %}>{{ _('French') }}</option>
-            <option value="es" {% if session.get('lang') == 'es' %}selected{% endif %}>{{ _('Spanish') }}</option>
-            <option value="ja" {% if session.get('lang') == 'ja' %}selected{% endif %}>{{ _('Japanese') }}</option>
-            <option value="zh" {% if session.get('lang') == 'zh' %}selected{% endif %}>{{ _('Chinese (Simplified)') }}</option>
-        </select>
-    </div>
     <div class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-            <div class="flash-messages">
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        {% endwith %}
-        <form action="{{ url_for_with_lang('upload_file') }}" method="post" enctype="multipart/form-data">
-            <fieldset>
-                <legend class="title-large">ImaGUIck</legend>
-                <div class="form-group">
-                </div>
-            </fieldset>
-            <fieldset>
-                <legend>{{ _('Upload Images') }}</legend>
-                <div class="form-group">
-                    <!-- Drag and Drop Zone -->
-                    <div id="drop-zone" class="drop-zone">
-                        <p>{{ _('Drag and drop files here, or click to select files') }}</p>
-                        <input type="file" id="file-input" name="file" multiple hidden>
+        <header>
+            <h1>ImaGUIck</h1>
+            <p>Simple and powerful image processing tool</p>
+        </header>
+
+        <main>
+            <form id="uploadForm" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+                <fieldset>
+                    <legend>Upload Images</legend>
+                    <div class="upload-container">
+                        <div class="drop-zone" id="dropZone">
+                            <input type="file" name="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                            <p>Drag and drop files here, or click to select files</p>
+                        </div>
+                        <button type="submit">Upload</button>
                     </div>
-                    <button type="submit">{{ _('Upload') }}</button>
-                </div>
-            </fieldset>
-        </form>
-        <form action="{{ url_for_with_lang('upload_url') }}" method="post">
-            <fieldset>
-                <legend>{{ _('Upload Image by URL') }}</legend>
-                <div class="form-group">
-                    <input type="text" name="url" placeholder="{{ _('Enter image URL') }}" required>
-                    <button type="submit">{{ _('Download and Upload') }}</button>
-                </div>
-            </fieldset>
-        </form>
+                </fieldset>
+            </form>
+
+            <form id="urlForm" action="{{ url_for('upload_url') }}" method="post">
+                <fieldset>
+                    <legend>Upload Image by URL</legend>
+                    <div class="url-container">
+                        <input type="text" name="url" placeholder="Enter image URL" required>
+                        <button type="submit">Download and Upload</button>
+                    </div>
+                </fieldset>
+            </form>
+        </main>
     </div>
 
     <script>
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
 
         dropZone.addEventListener('click', () => {
             fileInput.click(); // Simule un clic pour ouvrir le sélecteur de fichiers
@@ -277,12 +227,6 @@
             const files = e.dataTransfer.files; // Récupère les fichiers déposés
             fileInput.files = files; // Ajoute les fichiers au champ caché
         });
-
-        function changeLanguage(lang) {
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('lang', lang);
-            window.location.href = currentUrl.toString();
-        }
     </script>
 </body>
 </html>

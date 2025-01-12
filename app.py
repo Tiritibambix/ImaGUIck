@@ -30,11 +30,6 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
 
-def url_for_with_lang(*args, **kwargs):
-    return url_for(*args, **kwargs)
-
-app.jinja_env.globals.update(url_for_with_lang=url_for_with_lang)
-
 def allowed_file(filename):
     return '.' in filename
 
@@ -243,20 +238,19 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        flash(_('No file selected'), 'error')
+        flash('No file selected', 'error')
         return redirect(url_for('index'))
         
     files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
-        flash(_('Please select at least one file'), 'error')
+        flash('Please select at least one file', 'error')
         return redirect(url_for('index'))
         
     uploaded_files = []
     for file in files:
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             uploaded_files.append(filename)
             
     if len(uploaded_files) == 1:
@@ -264,14 +258,14 @@ def upload_file():
     elif len(uploaded_files) > 1:
         return redirect(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
     else:
-        flash(_('No valid files were uploaded'), 'error')
+        flash('No valid files were uploaded', 'error')
         return redirect(url_for('index'))
 
 @app.route('/upload_url', methods=['POST'])
 def upload_url():
     url = request.form.get('url', '').strip()
     if not url:
-        flash(_('No file selected'), 'error')
+        flash('No file selected', 'error')
         return redirect(url_for('index'))
 
     try:
@@ -282,19 +276,19 @@ def upload_url():
         if not any(mime in content_type for mime in ['image/', 'application/octet-stream']):
             raise ValueError('URL does not point to an image')
             
-        filename = secure_filename(os.path.basename(url))
+        filename = secure_filename(os.path.basename(urlparse(url).path))
         if not filename:
-            filename = 'image.jpg'
+            filename = 'image.' + content_type.split('/')[-1]
             
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         with open(filepath, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-        flash(_('Image downloaded successfully: %(filename)s', filename=filename))
+        flash('Image downloaded successfully: ' + filename)
         return redirect(url_for('resize_options', filename=filename))
     except requests.exceptions.RequestException as e:
-        flash(_('Error downloading image: %(error)s', error=str(e)), 'error')
+        flash('Error downloading image: ' + str(e), 'error')
         return redirect(url_for('index'))
 
 @app.route('/resize_options/<filename>')
@@ -330,27 +324,25 @@ def resize_image(filename):
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     name, ext = os.path.splitext(filename)
     output_filename = f"{name}_rsz{ext}"
-    format_conversion = request.form.get('format', None)
-    if format_conversion:
-        output_filename = f"{name}_rsz.{format_conversion.lower()}"
     output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
-    command = build_imagemagick_command(
-        filepath=filepath,
-        output_path=output_path,
-        width=request.form.get('width', DEFAULTS["width"]),
-        height=request.form.get('height', DEFAULTS["height"]),
-        percentage=request.form.get('percentage', DEFAULTS["percentage"]),
-        quality=request.form.get('quality', DEFAULTS["quality"]),
-        keep_ratio='keep_ratio' in request.form
-    )
+    width = request.form.get('width', '')
+    height = request.form.get('height', '')
+    percentage = request.form.get('percentage', '')
+    quality = request.form.get('quality', '100')
+    output_format = request.form.get('format', '')
 
+    temp_file = None
     try:
+        temp_file, command, temp_jpeg = build_imagemagick_command(filepath, output_path, width, height, percentage, quality, 'keep_ratio' in request.form)
+        if temp_file:
+            os.remove(temp_file)
+        
         subprocess.run(command[1], check=True)
-        flash(_('Image processed successfully: %(filename)s', filename=output_filename))
+        flash('Image processed successfully: ' + output_filename)
         return redirect(url_for('download', filename=output_filename))
     except Exception as e:
-        flash(_('Error processing image: %(error)s', error=str(e)), 'error')
+        flash('Error processing image: ' + str(e), 'error')
         return redirect(url_for('resize_options', filename=filename))
 
 @app.route('/resize_batch_options/<filenames>')
@@ -396,34 +388,35 @@ def resize_batch():
     filenames = request.form.get('filenames').split(',')
     output_files = []
 
+    width = request.form.get('width', '')
+    height = request.form.get('height', '')
+    percentage = request.form.get('percentage', '')
+    quality = request.form.get('quality', '100')
+    output_format = request.form.get('format', '')
+
     for filename in filenames:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         name, ext = os.path.splitext(filename)
-        output_filename = f"{name}_rsz{ext}"
-        format_conversion = request.form.get('format', None)
-        if format_conversion:
-            output_filename = f"{name}_rsz.{format_conversion.lower()}"
+        if output_format:
+            output_filename = f"{name}_rsz.{output_format.lower()}"
+        else:
+            output_filename = f"{name}_rsz{ext}"
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
-        command = build_imagemagick_command(
-            filepath=filepath,
-            output_path=output_path,
-            width=request.form.get('width', DEFAULTS["width"]),
-            height=request.form.get('height', DEFAULTS["height"]),
-            percentage=request.form.get('percentage', DEFAULTS["percentage"]),
-            quality=request.form.get('quality', DEFAULTS["quality"]),
-            keep_ratio='keep_ratio' in request.form
-        )
-
+        temp_file = None
         try:
+            temp_file, command, temp_jpeg = build_imagemagick_command(filepath, output_path, width, height, percentage, quality, 'keep_ratio' in request.form)
+            if temp_file:
+                os.remove(temp_file)
+            
             subprocess.run(command[1], check=True)
             output_files.append(output_path)
         except Exception as e:
-            flash(_('Error processing %(filename)s: %(error)s', filename=filename, error=str(e)), 'error')
+            flash('Error processing ' + filename + ': ' + str(e), 'error')
+            continue
 
     if len(output_files) > 1:
-        zip_suffix = datetime.now().strftime("%y%m%d-%H%M")
-        zip_filename = f"batch_output_{zip_suffix}.zip"
+        zip_filename = 'resized_images.zip'
         zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
         with ZipFile(zip_path, 'w') as zipf:
             for file in output_files:
@@ -432,7 +425,7 @@ def resize_batch():
     elif len(output_files) == 1:
         return redirect(url_for('download', filename=os.path.basename(output_files[0])))
     else:
-        flash(_('No images processed.'), 'error')
+        flash('No images processed.', 'error')
         return redirect(url_for('index'))
 
 @app.route('/download_batch/<filename>')
@@ -444,7 +437,7 @@ def download_batch(filename):
 def download(filename):
     filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
     with open(filepath, 'rb') as f:
-        response = Response(f.read(), mimetype='application/octet-stream')
+        response = send_file(f, mimetype='application/octet-stream')
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
