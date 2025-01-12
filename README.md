@@ -134,7 +134,7 @@ Contributions are welcome! To contribute:
 
 ## 📝 License
 
-This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License.  
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License - see the [LICENSE](LICENSE) file for details.   
 **ImageMagick's** license can be found [HERE](https://github.com/tiritibambix/ImaGUIck/blob/main/LICENSE).
 
 
