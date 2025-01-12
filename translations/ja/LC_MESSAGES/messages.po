@@ -56,3 +56,21 @@ msgstr "写真に最適"
 
 msgid "Best for graphics"
 msgstr "グラフィックに最適"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "English"
+msgstr "英語"
+
+msgid "French"
+msgstr "フランス語"
+
+msgid "Spanish"
+msgstr "スペイン語"
+
+msgid "Japanese"
+msgstr "日本語"
+
+msgid "Chinese (Simplified)"
+msgstr "中国語（簡体字）"

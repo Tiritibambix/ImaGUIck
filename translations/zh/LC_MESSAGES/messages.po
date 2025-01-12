@@ -56,3 +56,21 @@ msgstr "最适合照片"
 
 msgid "Best for graphics"
 msgstr "最适合图形"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "English"
+msgstr "英语"
+
+msgid "French"
+msgstr "法语"
+
+msgid "Spanish"
+msgstr "西班牙语"
+
+msgid "Japanese"
+msgstr "日语"
+
+msgid "Chinese (Simplified)"
+msgstr "中文（简体）"

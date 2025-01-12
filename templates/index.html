@@ -157,28 +157,37 @@
         }
 
         .language-selector {
-            margin-bottom: 20px;
-            text-align: right;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .lang-link {
-            color: var(--clr-primary-a50);
-            text-decoration: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            transition: background-color 0.3s ease;
-        }
-        
-        .lang-link:hover {
-            background-color: var(--clr-surface-a20);
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
         }
 
-        .lang-divider {
-            color: var(--clr-primary-a30);
+        .language-selector select {
+            padding: 8px 30px 8px 10px;
+            font-size: 14px;
+            border: 1px solid var(--clr-surface-a30);
+            border-radius: 4px;
+            background-color: var(--clr-surface-a20);
+            color: var(--clr-primary-a50);
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23ffffff' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            cursor: pointer;
+            min-width: 150px;
+        }
+
+        .language-selector select:hover {
+            border-color: var(--clr-primary-a30);
+        }
+
+        .language-selector select:focus {
+            outline: none;
+            border-color: var(--clr-primary-a40);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
         }
 
         @media (min-width: 768px) {
@@ -197,18 +206,16 @@
     </style>
 </head>
 <body>
+    <div class="language-selector">
+        <select id="language-select" onchange="changeLanguage(this.value)">
+            <option value="en" {% if session.get('lang', 'en') == 'en' %}selected{% endif %}>{{ _('English') }}</option>
+            <option value="fr" {% if session.get('lang') == 'fr' %}selected{% endif %}>{{ _('French') }}</option>
+            <option value="es" {% if session.get('lang') == 'es' %}selected{% endif %}>{{ _('Spanish') }}</option>
+            <option value="ja" {% if session.get('lang') == 'ja' %}selected{% endif %}>{{ _('Japanese') }}</option>
+            <option value="zh" {% if session.get('lang') == 'zh' %}selected{% endif %}>{{ _('Chinese (Simplified)') }}</option>
+        </select>
+    </div>
     <div class="container">
-        <div class="language-selector">
-            <a href="?lang=en" class="lang-link">English</a>
-            <span class="lang-divider">|</span>
-            <a href="?lang=fr" class="lang-link">Français</a>
-            <span class="lang-divider">|</span>
-            <a href="?lang=es" class="lang-link">Español</a>
-            <span class="lang-divider">|</span>
-            <a href="?lang=zh" class="lang-link">中文</a>
-            <span class="lang-divider">|</span>
-            <a href="?lang=ja" class="lang-link">日本語</a>
-        </div>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             <div class="flash-messages">
@@ -270,6 +277,12 @@
             const files = e.dataTransfer.files; // Récupère les fichiers déposés
             fileInput.files = files; // Ajoute les fichiers au champ caché
         });
+
+        function changeLanguage(lang) {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('lang', lang);
+            window.location.href = currentUrl.toString();
+        }
     </script>
 </body>
 </html>

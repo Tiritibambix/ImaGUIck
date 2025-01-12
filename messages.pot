@@ -45,3 +45,21 @@ msgstr ""
 
 msgid "Other compatible formats"
 msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "English"
+msgstr ""
+
+msgid "French"
+msgstr ""
+
+msgid "Spanish"
+msgstr ""
+
+msgid "Japanese"
+msgstr ""
+
+msgid "Chinese (Simplified)"
+msgstr ""
