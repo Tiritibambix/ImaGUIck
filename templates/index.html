@@ -34,6 +34,12 @@
             --input-height: 40px;
 
             --header-font-size: 1.8rem;
+
+            --border-radius-sm: 4px;
+            --border-radius-md: 8px;
+            --border-radius-lg: 12px;
+            --transition-speed: 0.2s;
+            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         body {
@@ -50,16 +56,16 @@
 
         .container {
             width: 90%;
-            max-width: 400px;
+            max-width: 500px;
             background-color: var(--clr-surface-a10);
-            padding: var(--spacing-medium);
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            padding: var(--spacing-large);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--box-shadow);
             text-align: center;
         }
 
         form fieldset {
-            margin-bottom: var(--spacing-medium);
+            margin-bottom: var(--spacing-large);
             border: none;
             padding: 0;
             display: flex;
@@ -71,8 +77,10 @@
             text-align: center;
             font-weight: bold;
             color: var(--clr-primary-a40);
-            margin-bottom: var(--spacing-small);
+            margin-bottom: var(--spacing-medium);
             width: 100%;
+            font-size: 1.2rem;
+            padding: 0 var(--spacing-small);
         }
 
         .form-group {
@@ -111,21 +119,29 @@
 
         .drop-zone {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: var(--input-width); /* Même largeur que les boutons */
-            height: 100px;
+            width: 100%;
+            height: 120px;
             border: 2px dashed var(--clr-primary-a30);
-            border-radius: 8px;
+            border-radius: var(--border-radius-md);
             color: var(--clr-primary-a40);
-            margin-top: var(--spacing-medium);
+            margin: var(--spacing-medium) 0;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: all var(--transition-speed) ease;
+            background-color: var(--clr-surface-a20);
+        }
+
+        .drop-zone:hover {
+            border-color: var(--clr-primary-a40);
+            background-color: var(--clr-surface-a30);
         }
 
         .drop-zone.dragover {
-            background-color: var(--clr-surface-a20);
-            border-color: var(--clr-primary-a40);
+            border-color: var(--clr-primary-a50);
+            background-color: var(--clr-surface-a30);
+            transform: scale(1.02);
         }
 
         .flash-messages {
@@ -154,9 +170,82 @@
             color: white;
         }
 
+        #file-list {
+            background-color: var(--clr-surface-a20);
+            border-radius: var(--border-radius-md);
+            padding: var(--spacing-small);
+            margin: var(--spacing-medium) 0;
+            max-height: 200px;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        .file-item {
+            padding: var(--spacing-small);
+            margin-bottom: var(--spacing-small);
+            background-color: var(--clr-surface-a30);
+            border-radius: var(--border-radius-sm);
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        .file-item:hover {
+            background-color: var(--clr-surface-a20);
+        }
+
+        .remove-button {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: var(--clr-primary-a30);
+            border: none;
+            color: var(--clr-surface-a0);
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .remove-button:hover {
+            background-color: #ff4444;
+            transform: scale(1.1);
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            margin-top: var(--spacing-medium);
+            height: 48px;
+            border-radius: var(--border-radius-md);
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: all var(--transition-speed) ease;
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--box-shadow);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            height: 48px;
+            border-radius: var(--border-radius-md);
+            padding: 0 var(--spacing-medium);
+            transition: all var(--transition-speed) ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--clr-primary-a40);
+            box-shadow: 0 0 0 2px var(--clr-primary-a30);
+        }
+
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
+                padding: var(--spacing-large);
             }
 
             .title-large {
