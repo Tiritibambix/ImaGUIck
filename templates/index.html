@@ -185,6 +185,7 @@
                 <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
                 </div>
+                <div id="file-list" class="form-group"></div>
             </fieldset>
             <fieldset>
                 <legend>Upload Images</legend>
@@ -197,41 +198,67 @@
                     <button type="submit">Upload</button>
                 </div>
             </fieldset>
-        </form>
-        <form action="/upload_url" method="post">
-            <fieldset>
-                <legend>Upload Image by URL</legend>
-                <div class="form-group">
-                    <input type="text" name="url" placeholder="Enter image URL" required>
-                    <button type="submit">Download and Upload</button>
-                </div>
-            </fieldset>
-        </form>
-    </div>
+            <button type="submit">Upload</button>
+        </div>
+    </fieldset>
+</form>
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
 
-    <script>
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
+    dropZone.addEventListener('click', () => {
+        fileInput.click(); // Simule un clic pour ouvrir le sélecteur de fichiers
+    });
 
-        dropZone.addEventListener('click', () => {
-            fileInput.click(); // Simule un clic pour ouvrir le sélecteur de fichiers
-        });
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault(); // Empêche le comportement par défaut (ouverture du fichier)
+        dropZone.classList.add('dragover'); // Ajoute un effet visuel
+    });
 
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault(); // Empêche le comportement par défaut (ouverture du fichier)
-            dropZone.classList.add('dragover'); // Ajoute un effet visuel
-        });
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover'); // Retire l'effet visuel
+    });
 
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover'); // Retire l'effet visuel
-        });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files; // Récupère les fichiers déposés
+        fileInput.files = files; // Ajoute les fichiers au champ caché
+        updateFileList(); // Met à jour la liste des fichiers
+    });
 
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            const files = e.dataTransfer.files; // Récupère les fichiers déposés
-            fileInput.files = files; // Ajoute les fichiers au champ caché
-        });
-    </script>
+    fileInput.addEventListener('change', updateFileList);
+
+    function updateFileList() {
+        fileList.innerHTML = ''; // Réinitialise la liste des fichiers
+        for (const file of fileInput.files) {
+            const listItem = document.createElement('div');
+            listItem.className = 'file-item';
+            listItem.textContent = file.name;
+
+            const removeButton = document.createElement('button');
+            removeButton.textContent = '✖';
+            removeButton.className = 'remove-button';
+            removeButton.addEventListener('click', () => {
+                removeFile(file);
+            });
+
+            listItem.appendChild(removeButton);
+            fileList.appendChild(listItem);
+        }
+    }
+
+    function removeFile(fileToRemove) {
+        const dataTransfer = new DataTransfer();
+        for (const file of fileInput.files) {
+            if (file !== fileToRemove) {
+                dataTransfer.items.add(file);
+            }
+        }
+        fileInput.files = dataTransfer.files;
+        updateFileList();
+    }
+</script>
 </body>
 </html>
