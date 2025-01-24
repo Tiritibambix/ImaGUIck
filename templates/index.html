@@ -173,43 +173,68 @@
         #file-list {
             background-color: var(--clr-surface-a20);
             border-radius: var(--border-radius-md);
-            padding: var(--spacing-small);
+            padding: var(--spacing-medium);
             margin: var(--spacing-medium) 0;
-            max-height: 200px;
+            max-height: 300px;
             overflow-y: auto;
             width: 100%;
+            scrollbar-width: thin;
+            scrollbar-color: var(--clr-primary-a30) var(--clr-surface-a20);
         }
 
         .file-item {
-            padding: var(--spacing-small);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-medium);
             margin-bottom: var(--spacing-small);
             background-color: var(--clr-surface-a30);
             border-radius: var(--border-radius-sm);
-            transition: background-color var(--transition-speed) ease;
+            transition: all var(--transition-speed) ease;
         }
 
-        .file-item:hover {
-            background-color: var(--clr-surface-a20);
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            flex-grow: 1;
+            margin-right: var(--spacing-medium);
+            overflow: hidden;
+        }
+
+        .file-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .file-size {
+            font-size: 0.8em;
+            color: var(--clr-primary-a30);
         }
 
         .remove-button {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background-color: var(--clr-primary-a30);
-            border: none;
-            color: var(--clr-surface-a0);
-            cursor: pointer;
-            transition: all var(--transition-speed) ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.9rem;
+            min-width: 30px;
+            height: 30px;
+            flex-shrink: 0;
         }
 
-        .remove-button:hover {
-            background-color: #ff4444;
-            transform: scale(1.1);
+        @media (max-width: 480px) {
+            #file-list {
+                max-height: 250px;
+                padding: var(--spacing-small);
+            }
+
+            .file-item {
+                padding: var(--spacing-small);
+            }
+
+            .file-name {
+                font-size: 0.9em;
+            }
         }
 
         button[type="submit"] {
@@ -324,36 +349,42 @@
 
     fileInput.addEventListener('change', updateFileList);
 
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
     function updateFileList() {
         fileList.innerHTML = ''; // Réinitialise la liste des fichiers
         fileList.style.display = fileInput.files.length > 0 ? 'flex' : 'none'; // Affiche ou cache la liste des fichiers
         for (const file of fileInput.files) {
             const listItem = document.createElement('div');
             listItem.className = 'file-item';
-            listItem.style.display = 'flex';
-            listItem.style.alignItems = 'center';
-            listItem.style.marginBottom = 'var(--spacing-small)';
-            listItem.style.width = '100%';
-            listItem.style.justifyContent = 'space-between';
-            listItem.textContent = file.name;
+
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'file-info';
+
+            const fileName = document.createElement('div');
+            fileName.className = 'file-name';
+            fileName.textContent = file.name;
+
+            const fileSize = document.createElement('div');
+            fileSize.className = 'file-size';
+            fileSize.textContent = formatFileSize(file.size);
 
             const removeButton = document.createElement('button');
             removeButton.textContent = '✖';
             removeButton.className = 'remove-button';
-            removeButton.style.marginLeft = 'var(--spacing-small)';
-            removeButton.style.backgroundColor = 'var(--clr-primary-a30)';
-            removeButton.style.color = 'var(--clr-surface-a0)';
-            removeButton.style.border = 'none';
-            removeButton.style.borderRadius = '4px';
-            removeButton.style.cursor = 'pointer';
-            removeButton.style.padding = '0';
-            removeButton.style.fontSize = '1rem';
-            removeButton.style.width = '20px';
-            removeButton.style.height = '20px';
             removeButton.addEventListener('click', () => {
                 removeFile(file);
             });
 
+            fileInfo.appendChild(fileName);
+            fileInfo.appendChild(fileSize);
+            listItem.appendChild(fileInfo);
             listItem.appendChild(removeButton);
             fileList.appendChild(listItem);
         }
