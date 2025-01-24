@@ -185,7 +185,7 @@
                 <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
                 </div>
-                <div id="file-list" class="form-group" style="display: flex; flex-direction: column; align-items: flex-start; margin-top: var(--spacing-small); max-height: 150px; overflow-y: auto; border: 1px solid var(--clr-surface-a30); padding: var(--spacing-small); border-radius: 4px;"></div>
+                <div id="file-list" class="form-group" style="display: none; flex-direction: column; align-items: flex-start; margin-top: var(--spacing-small); max-height: 150px; overflow-y: auto; border: 1px solid var(--clr-surface-a30); padding: var(--spacing-small); border-radius: 4px;"></div>
             </fieldset>
             <fieldset>
                 <legend>Upload Images</legend>
@@ -237,6 +237,7 @@
 
     function updateFileList() {
         fileList.innerHTML = ''; // Réinitialise la liste des fichiers
+        fileList.style.display = fileInput.files.length > 0 ? 'flex' : 'none'; // Affiche ou cache la liste des fichiers
         for (const file of fileInput.files) {
             const listItem = document.createElement('div');
             listItem.className = 'file-item';
