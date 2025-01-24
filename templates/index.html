@@ -185,7 +185,7 @@
                 <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
                 </div>
-                <div id="file-list" class="form-group" style="display: flex; flex-direction: column; align-items: flex-start; margin-top: var(--spacing-small);"></div>
+                <div id="file-list" class="form-group" style="display: flex; flex-direction: column; align-items: flex-start; margin-top: var(--spacing-small); max-height: 150px; overflow-y: auto; border: 1px solid var(--clr-surface-a30); padding: var(--spacing-small); border-radius: 4px;"></div>
             </fieldset>
             <fieldset>
                 <legend>Upload Images</legend>
@@ -243,6 +243,8 @@
             listItem.style.display = 'flex';
             listItem.style.alignItems = 'center';
             listItem.style.marginBottom = 'var(--spacing-small)';
+            listItem.style.width = '100%';
+            listItem.style.justifyContent = 'space-between';
             listItem.textContent = file.name;
 
             const removeButton = document.createElement('button');
@@ -254,6 +256,7 @@
             removeButton.style.border = 'none';
             removeButton.style.borderRadius = '4px';
             removeButton.style.cursor = 'pointer';
+            removeButton.style.padding = '2px 6px';
             removeButton.addEventListener('click', () => {
                 removeFile(file);
             });
