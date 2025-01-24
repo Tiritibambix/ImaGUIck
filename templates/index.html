@@ -185,7 +185,7 @@
                 <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
                 </div>
-                <div id="file-list" class="form-group"></div>
+                <div id="file-list" class="form-group" style="display: flex; flex-direction: column; align-items: flex-start; margin-top: var(--spacing-small);"></div>
             </fieldset>
             <fieldset>
                 <legend>Upload Images</legend>
@@ -198,10 +198,15 @@
                     <button type="submit">Upload</button>
                 </div>
             </fieldset>
-            <button type="submit">Upload</button>
-        </div>
-    </fieldset>
-</form>
+        <form action="/upload_url" method="post">
+            <fieldset>
+                <legend>Upload Image by URL</legend>
+                <div class="form-group">
+                    <input type="text" name="url" placeholder="Enter image URL" required>
+                    <button type="submit">Download and Upload</button>
+                </div>
+            </fieldset>
+        </form>
 <script>
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
@@ -235,11 +240,20 @@
         for (const file of fileInput.files) {
             const listItem = document.createElement('div');
             listItem.className = 'file-item';
+            listItem.style.display = 'flex';
+            listItem.style.alignItems = 'center';
+            listItem.style.marginBottom = 'var(--spacing-small)';
             listItem.textContent = file.name;
 
             const removeButton = document.createElement('button');
             removeButton.textContent = '✖';
             removeButton.className = 'remove-button';
+            removeButton.style.marginLeft = 'var(--spacing-small)';
+            removeButton.style.backgroundColor = 'var(--clr-primary-a30)';
+            removeButton.style.color = 'var(--clr-surface-a0)';
+            removeButton.style.border = 'none';
+            removeButton.style.borderRadius = '4px';
+            removeButton.style.cursor = 'pointer';
             removeButton.addEventListener('click', () => {
                 removeFile(file);
             });
