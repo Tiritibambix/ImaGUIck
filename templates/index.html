@@ -130,7 +130,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: var(--input-width);
+            width: 100%;
             height: 120px;
             border: 2px dashed var(--clr-primary-a30);
             border-radius: var(--border-radius-md);
@@ -187,7 +187,7 @@
             margin: var(--spacing-medium) 0;
             max-height: 200px;
             overflow-y: auto;
-            width: var(--input-width);
+            width: 100%;
             border: 1px solid var(--clr-surface-a30);
             box-sizing: border-box;
         }
@@ -277,7 +277,7 @@
         }
 
         button[type="submit"] {
-            width: 100%;
+            width: 100% !important;
             margin-top: var(--spacing-medium);
             height: 48px;
             border-radius: var(--border-radius-md);
@@ -285,6 +285,11 @@
             letter-spacing: 0.5px;
             text-transform: uppercase;
             transition: all var(--transition-speed) ease;
+        }
+
+        /* Forcer la largeur complète pour les zones de drop et la liste */
+        .drop-zone, #file-list {
+            width: 100% !important;
         }
 
         button[type="submit"]:hover {
