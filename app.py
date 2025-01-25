@@ -474,7 +474,27 @@ def resize_image(filename):
         output_format = request.form.get('format', '').upper()
         
         app.logger.info(f"Processing resize request for {filename}")
-        app.logger.info(f"Parameters: width={width}, height={height}, format={output_format}")
+        app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
+        
+        # Si keep_ratio est True et une seule dimension est fournie, calculer l'autre
+        if keep_ratio and (width.isdigit() or height.isdigit()):
+            # Obtenir les dimensions originales
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            original_dimensions = get_image_dimensions(filepath)
+            if original_dimensions:
+                original_width, original_height = original_dimensions
+                if width.isdigit() and not height.isdigit():
+                    # Calculer la hauteur proportionnelle
+                    new_width = int(width)
+                    height = str(round(new_width * original_height / original_width))
+                    app.logger.info(f"Calculated proportional height: {height}")
+                elif height.isdigit() and not width.isdigit():
+                    # Calculer la largeur proportionnelle
+                    new_height = int(height)
+                    width = str(round(new_height * original_width / original_height))
+                    app.logger.info(f"Calculated proportional width: {width}")
+        
+        app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
         
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if not os.path.exists(filepath):
