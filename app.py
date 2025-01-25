@@ -32,55 +32,25 @@ def allowed_file(filename):
     return '.' in filename
 
 def get_image_dimensions(filepath):
-    """Get image dimensions using appropriate tool based on file type."""
+    """Get the dimensions of an image using ImageMagick."""
     try:
-        if filepath.lower().endswith('.arw'):
-            app.logger.info(f"Getting dimensions for ARW file: {filepath}")
-            # Utiliser exiftool pour obtenir les dimensions de l'aperçu JPEG
-            cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', filepath]
-            app.logger.info(f"Running exiftool command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)
+        # Utiliser magick identify au lieu de convert identify
+        cmd = ['magick', 'identify', '-format', '%wx%h', filepath]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            raise Exception(f"Error running identify: {result.stderr}")
             
-            if result.returncode == 0 and result.stdout.strip():
-                app.logger.info(f"Exiftool output: {result.stdout}")
-                # Essayer de parser les dimensions
-                dimensions = result.stdout.strip().split('\n')
-                if len(dimensions) == 2:
-                    try:
-                        height = int(dimensions[0])
-                        width = int(dimensions[1])
-                        app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
-                        return width, height
-                    except ValueError:
-                        app.logger.warning("Could not parse dimensions from exiftool output")
-                        pass
-            else:
-                app.logger.warning(f"Exiftool failed or no output: {result.stderr}")
+        dimensions = result.stdout.strip()
+        if not dimensions:
+            raise Exception("No output from identify command")
             
-            # Si on n'a pas pu obtenir les dimensions de l'aperçu, utiliser les dimensions connues
-            app.logger.info("Using known dimensions for Sony A7 IV")
-            return 7008, 4672  # Dimensions connues pour Sony A7 IV
-        else:
-            app.logger.info(f"Getting dimensions for non-ARW file: {filepath}")
-            cmd = ['convert', 'identify', filepath]
-            app.logger.info(f"Running ImageMagick command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise Exception(f"Error getting image dimensions: {result.stderr}")
-            
-            app.logger.info(f"ImageMagick output: {result.stdout}")
-            # Parse the output to get dimensions
-            match = re.search(r'\s(\d+)x(\d+)\s', result.stdout)
-            if match:
-                width = int(match.group(1))
-                height = int(match.group(2))
-                app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
-                return width, height
-            else:
-                raise Exception("Could not parse image dimensions")
+        width, height = map(int, dimensions.split('x'))
+        return width, height
+        
     except Exception as e:
-        app.logger.error(f"Error getting image dimensions: {str(e)}")
-        return None, None
+        app.logger.error(f"Error getting image dimensions: {e}")
+        return None
 
 def get_format_categories():
     """Categorize image formats by their typical usage."""
@@ -321,7 +291,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
                 raise Exception("No preview image found in RAW file")
         
         # Commande ImageMagick pour redimensionner le JPEG extrait
-        magick_cmd = ['convert', temp_jpeg]
+        magick_cmd = ['magick', temp_jpeg]
         
         if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
@@ -341,7 +311,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     else:
         app.logger.info(f"Processing non-ARW file: {filepath}")
         # Pour les autres formats, utiliser directement ImageMagick
-        command = ['convert', filepath]
+        command = ['magick', filepath]
         
         if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
