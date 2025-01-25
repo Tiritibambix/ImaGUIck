@@ -96,6 +96,8 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
+            max-width: var(--input-width);
+            margin: 0 auto;
         }
 
         input[type="file"],
@@ -105,11 +107,12 @@
             margin-top: var(--spacing-small);
             border: 1px solid var(--clr-surface-a30);
             border-radius: 4px;
-            width: var(--input-width);
+            width: 100%;
             height: var(--input-height);
             background-color: var(--clr-surface-a20);
             color: var(--clr-primary-a50);
             box-sizing: border-box;
+            max-width: var(--input-width);
         }
 
         button {
@@ -131,14 +134,16 @@
             align-items: center;
             justify-content: center;
             width: 100%;
+            max-width: var(--input-width);
             height: 120px;
             border: 2px dashed var(--clr-primary-a30);
             border-radius: var(--border-radius-md);
             color: var(--clr-primary-a40);
-            margin: var(--spacing-medium) 0;
+            margin: var(--spacing-medium) auto;
             cursor: pointer;
             transition: all var(--transition-speed) ease;
             background-color: var(--clr-surface-a20);
+            box-sizing: border-box;
         }
 
         .drop-zone:hover {
@@ -180,14 +185,15 @@
 
         #file-list {
             display: none;
+            flex-direction: column;
+            align-items: center;
             background-color: var(--clr-surface-a20);
             border-radius: var(--border-radius-md);
             padding: var(--spacing-medium);
-            margin: var(--spacing-medium) 0;
+            margin: var(--spacing-medium) auto;
             max-height: 200px;
             overflow-y: auto;
             width: 100%;
-            max-width: var(--input-width);
             border: 1px solid var(--clr-surface-a30);
             box-sizing: border-box;
         }
