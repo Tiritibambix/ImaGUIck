@@ -306,23 +306,27 @@ def get_available_formats():
         all_categorized = set()
         for cat_info in categories.values():
             all_categorized.update(cat_info['formats'])
+            
+        # Ajouter les catégories dans l'ordre spécifié
+        ordered_categories = ['recommended', 'photo', 'web', 'icons', 'animation', 'graphics', 'archive', 'other']
         
-        # Ajouter d'abord les formats non catégorisés dans "Other Formats"
-        uncategorized = sorted(list(available_formats - all_categorized))
-        if uncategorized:
-            categorized_formats['other'] = {
-                'name': 'Other Available Formats',
-                'formats': uncategorized
-            }
-        
-        # Ajouter ensuite les catégories prédéfinies qui ont des formats disponibles
-        for cat_key, cat_info in categories.items():
-            matching_formats = sorted(list(available_formats.intersection(cat_info['formats'])))
-            if matching_formats:
-                categorized_formats[cat_key] = {
-                    'name': cat_info['name'],
-                    'formats': matching_formats
-                }
+        for cat_key in ordered_categories:
+            if cat_key == 'other':
+                # Traiter les formats non catégorisés
+                uncategorized = sorted(list(available_formats - all_categorized))
+                if uncategorized:
+                    categorized_formats['other'] = {
+                        'name': 'Other Available Formats',
+                        'formats': uncategorized
+                    }
+            elif cat_key in categories:
+                # Traiter les catégories prédéfinies
+                matching_formats = sorted(list(available_formats.intersection(categories[cat_key]['formats'])))
+                if matching_formats:
+                    categorized_formats[cat_key] = {
+                        'name': categories[cat_key]['name'],
+                        'formats': matching_formats
+                    }
             
         return categorized_formats
         
