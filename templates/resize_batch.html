@@ -195,14 +195,31 @@
             padding: var(--spacing-small);
             margin-top: var(--spacing-small);
             font-size: 0.9rem;
+            width: var(--input-width);
         }
 
         .batch-info small {
             color: var(--clr-primary-a40);
+            display: block;
+        }
+
+        .info-section {
+            margin-bottom: var(--spacing-small);
+        }
+
+        .info-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-title {
+            display: block;
+            color: var(--clr-primary-a40);
+            margin-bottom: 4px;
+            font-weight: 500;
         }
 
         .batch-info ul {
-            margin: var(--spacing-small) 0 0 0;
+            margin: 4px 0 0 0;
             padding-left: 20px;
             list-style-type: none;
         }
@@ -211,6 +228,7 @@
             margin: 2px 0;
             color: var(--clr-primary-a30);
             font-size: 0.85rem;
+            line-height: 1.4;
         }
 
         .batch-info li:before {
@@ -298,46 +316,49 @@
                         {% endif %}
                     </select>
                 </div>
-                {% if batch_info %}
+                {% if batch_info or image_types %}
                     <div class="batch-info">
                         <small>
-                            Your batch contains:
-                            <ul>
-                                {% if batch_info.has_transparency %}
-                                    <li>Images with transparency</li>
-                                {% endif %}
-                                {% if batch_info.has_photos %}
-                                    <li>Photographic images</li>
-                                {% endif %}
-                                {% if batch_info.has_graphics %}
-                                    <li>Graphic images</li>
-                                {% endif %}
-                            </ul>
+                            {% if batch_info %}
+                                <div class="info-section">
+                                    <span class="info-title">Your batch contains:</span>
+                                    <ul>
+                                        {% if batch_info.has_transparency %}
+                                            <li>Images with transparency</li>
+                                        {% endif %}
+                                        {% if batch_info.has_photos %}
+                                            <li>Photographic images</li>
+                                        {% endif %}
+                                        {% if batch_info.has_graphics %}
+                                            <li>Graphic images</li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                            
+                            {% if image_types %}
+                                <div class="info-section">
+                                    <span class="info-title">Details for each image:</span>
+                                    <ul>
+                                        {% for img in image_types %}
+                                            <li>{{ img.filename }}: 
+                                                {% if img.type.has_transparency %}
+                                                    Contains transparency,
+                                                {% endif %}
+                                                {% if img.type.is_photo %}
+                                                    Photographic image
+                                                {% else %}
+                                                    Graphic image
+                                                {% endif %}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
                         </small>
                     </div>
                 {% endif %}
                 
-                {% if image_types %}
-                    <div class="images-info">
-                        <small>
-                            Details for each image:
-                            <ul>
-                                {% for img in image_types %}
-                                    <li>{{ img.filename }}: 
-                                        {% if img.type.has_transparency %}
-                                            Contains transparency,
-                                        {% endif %}
-                                        {% if img.type.is_photo %}
-                                            Photographic image
-                                        {% else %}
-                                            Graphic image
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </small>
-                    </div>
-                {% endif %}
             </fieldset>
 
             <button type="submit" class="btn-primary">Resize Batch</button>
