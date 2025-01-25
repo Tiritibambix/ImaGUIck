@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resize Batch</title>
+    <title>Batch Image Resizer</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
         .title-large {
@@ -72,13 +72,6 @@
             overflow-x: hidden;
         }
 
-        h1 {
-            color: var(--clr-primary-a50);
-            font-size: var(--header-font-size);
-            margin-bottom: var(--spacing-medium);
-            font-family: 'Poppins', sans-serif;
-        }
-
         form fieldset {
             margin-bottom: var(--spacing-large);
             border: none;
@@ -103,6 +96,7 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
+            margin-bottom: var(--spacing-medium);
         }
 
         input[type="text"],
@@ -149,7 +143,8 @@
             color: var(--clr-primary-a40);
             margin-bottom: var(--spacing-small);
             font-size: 0.9rem;
-            font-family: 'Poppins', sans-serif;
+            display: flex;
+            align-items: center;
         }
 
         small {
@@ -164,10 +159,6 @@
                 max-width: 600px;
             }
 
-            h1 {
-                font-size: 2.4rem;
-            }
-
             button {
                 font-size: 1.1rem;
             }
@@ -176,7 +167,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 class="title-large">Resize Batch</h1>
+        <h1 class="title-large">Batch Resize</h1>
         <form action="/resize_batch" method="post">
             <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
             <fieldset>

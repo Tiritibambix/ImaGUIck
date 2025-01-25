@@ -364,13 +364,13 @@
                 </div>
             </fieldset>
         </form>
-        <form action="/upload" method="post" enctype="multipart/form-data">
+        <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
             <fieldset>
                 <legend>Upload Images</legend>
                 <div class="form-group">
-                    <div id="drop-zone" class="drop-zone">
-                        <p>Drag and drop files here, or click to select files.</p>
-                        <input type="file" id="file-input" name="file" multiple hidden>
+                    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click();">
+                        <input type="file" id="file-input" name="file" multiple style="display: none;">
+                        <p>Glissez vos fichiers ici ou cliquez pour sélectionner</p>
                     </div>
                 </div>
                 <div id="file-list" class="form-group">
@@ -493,6 +493,12 @@
             if (files.length > 0) {
                 uploadedItems = [...uploadedItems, ...files];
                 updateFileList();
+                // Mettre à jour l'input file avec les fichiers
+                const dataTransfer = new DataTransfer();
+                uploadedItems.forEach(item => {
+                    dataTransfer.items.add(item.file);
+                });
+                fileInput.files = dataTransfer.files;
             }
         } catch (error) {
             console.error('Erreur lors du traitement des fichiers:', error);
@@ -549,6 +555,11 @@
 
     function removeFile(index) {
         uploadedItems = uploadedItems.filter((_, i) => i !== index);
+        const dataTransfer = new DataTransfer();
+        uploadedItems.forEach(item => {
+            dataTransfer.items.add(item.file);
+        });
+        fileInput.files = dataTransfer.files;
         updateFileList();
     }
 
@@ -584,6 +595,12 @@
         }));
         uploadedItems = [...uploadedItems, ...files];
         updateFileList();
+        // Mettre à jour l'input file avec tous les fichiers
+        const dataTransfer = new DataTransfer();
+        uploadedItems.forEach(item => {
+            dataTransfer.items.add(item.file);
+        });
+        fileInput.files = dataTransfer.files;
     });
 </script>
 </body>

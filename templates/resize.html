@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resize Options</title>
+    <title>Image Resizer</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
         .title-large {
@@ -72,11 +72,10 @@
             overflow-x: hidden;
         }
 
-        h4 {
-            color: var(--clr-primary-a50);
-            font-size: var(--header-font-size);
+        .file-info-text {
+            color: var(--clr-primary-a40);
             margin-bottom: var(--spacing-medium);
-            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
         }
 
         form fieldset {
@@ -103,6 +102,7 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
+            margin-bottom: var(--spacing-medium);
         }
 
         input[type="text"],
@@ -149,7 +149,8 @@
             color: var(--clr-primary-a40);
             margin-bottom: var(--spacing-small);
             font-size: 0.9rem;
-            font-family: 'Poppins', sans-serif;
+            display: flex;
+            align-items: center;
         }
 
         small {
@@ -164,10 +165,6 @@
                 max-width: 600px;
             }
 
-            h4 {
-                font-size: 1.8rem;
-            }
-
             button {
                 font-size: 1.1rem;
             }
@@ -176,7 +173,9 @@
 </head>
 <body>
     <div class="container">
-        <h4>Resize Image: {{ filename }}</h4>
+        <div class="file-info-text">
+            <small>Current file: {{ filename }}</small>
+        </div>
         <form action="/resize/{{ filename }}" method="post">
             <fieldset>
                 <legend>Resize by Pixels</legend>
