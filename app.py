@@ -62,7 +62,7 @@ def get_image_dimensions(filepath):
             return 7008, 4672  # Dimensions connues pour Sony A7 IV
         else:
             app.logger.info(f"Getting dimensions for non-ARW file: {filepath}")
-            cmd = ['convert', 'identify', filepath]
+            cmd = ['magick', 'identify', filepath]
             app.logger.info(f"Running ImageMagick command: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
@@ -321,7 +321,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
                 raise Exception("No preview image found in RAW file")
         
         # Commande ImageMagick pour redimensionner le JPEG extrait
-        magick_cmd = ['convert', temp_jpeg]
+        magick_cmd = ['magick', temp_jpeg]
         
         if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
@@ -341,7 +341,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     else:
         app.logger.info(f"Processing non-ARW file: {filepath}")
         # Pour les autres formats, utiliser directement ImageMagick
-        command = ['convert', filepath]
+        command = ['magick', filepath]
         
         if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
