@@ -185,10 +185,9 @@
             padding: var(--spacing-medium);
             border-radius: var(--border-radius-md);
             margin: var(--spacing-medium) 0;
-            max-height: 200px;
-            overflow-y: auto;
             width: 100%;
             border: 1px solid var(--clr-surface-a30);
+            box-sizing: border-box;
         }
 
         .file-list-header {
@@ -197,6 +196,8 @@
             align-items: center;
             margin-bottom: var(--spacing-small);
             padding-bottom: 0;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .file-list-title {
@@ -231,7 +232,8 @@
             padding: var(--spacing-small);
             border-bottom: 1px solid var(--clr-surface-a30);
             margin-bottom: 0;
-            transition: background-color var(--transition-speed) ease;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .file-item:last-child {
@@ -248,6 +250,8 @@
             align-items: flex-start;
             flex-grow: 1;
             overflow: hidden;
+            width: calc(100% - 40px);
+            box-sizing: border-box;
         }
 
         .file-name {
@@ -286,6 +290,8 @@
             max-height: 500px;
             overflow-y: auto;
             padding: 0.5rem;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         button[type="submit"] {
