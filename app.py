@@ -327,6 +327,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         # Commande ImageMagick pour redimensionner le JPEG extrait
         magick_cmd = ['magick', temp_jpeg]
         
+        # 1. Redimensionnement
         if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
             magick_cmd.extend(["-resize", resize_value])
@@ -335,33 +336,56 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             magick_cmd.extend(["-resize", f"{percentage}%"])
             app.logger.info(f"Adding percentage resize: {percentage}%")
             
+        # 2. Qualité (si spécifiée)
         if quality.isdigit() and 1 <= int(quality) <= 100:
             magick_cmd.extend(["-quality", quality])
             app.logger.info(f"Setting quality to: {quality}")
             
-        magick_cmd.append(output_path)
-        app.logger.info(f"Final ImageMagick command: {' '.join(magick_cmd)}")
-        return None, magick_cmd, temp_jpeg
+        # 3. Conversion de format (utiliser un fichier temporaire PNG)
+        temp_resized = os.path.join(os.path.dirname(output_path), "temp_resized.png")
+        magick_cmd.append(temp_resized)
+        app.logger.info(f"Saving resized image to temporary file: {temp_resized}")
+        
+        # 4. Deuxième commande pour la conversion finale
+        convert_cmd = ['magick', temp_resized]
+        if quality.isdigit() and 1 <= int(quality) <= 100:
+            convert_cmd.extend(["-quality", quality])
+        convert_cmd.append(output_path)
+        app.logger.info(f"Final conversion command: {' '.join(convert_cmd)}")
+        
+        return None, [magick_cmd, convert_cmd], temp_jpeg
     else:
         app.logger.info(f"Processing non-ARW file: {filepath}")
         # Pour les autres formats, utiliser directement ImageMagick
-        command = ['magick', filepath]
+        
+        # 1. Commande de redimensionnement
+        resize_cmd = ['magick', filepath]
         
         if width.isdigit() and height.isdigit():
             resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-            command.extend(["-resize", resize_value])
+            resize_cmd.extend(["-resize", resize_value])
             app.logger.info(f"Adding resize parameters: {resize_value}")
         elif percentage.isdigit() and 0 < int(percentage) <= 100:
-            command.extend(["-resize", f"{percentage}%"])
+            resize_cmd.extend(["-resize", f"{percentage}%"])
             app.logger.info(f"Adding percentage resize: {percentage}%")
             
         if quality.isdigit() and 1 <= int(quality) <= 100:
-            command.extend(["-quality", quality])
+            resize_cmd.extend(["-quality", quality])
             app.logger.info(f"Setting quality to: {quality}")
             
-        command.append(output_path)
-        app.logger.info(f"Final ImageMagick command: {' '.join(command)}")
-        return None, command, None
+        # Sauvegarder dans un fichier temporaire PNG
+        temp_resized = os.path.join(os.path.dirname(output_path), "temp_resized.png")
+        resize_cmd.append(temp_resized)
+        app.logger.info(f"Saving resized image to temporary file: {temp_resized}")
+        
+        # 2. Commande de conversion de format
+        convert_cmd = ['magick', temp_resized]
+        if quality.isdigit() and 1 <= int(quality) <= 100:
+            convert_cmd.extend(["-quality", quality])
+        convert_cmd.append(output_path)
+        app.logger.info(f"Final conversion command: {' '.join(convert_cmd)}")
+        
+        return None, [resize_cmd, convert_cmd], None
 
 @app.route('/')
 def index():
@@ -442,30 +466,81 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    name, ext = os.path.splitext(filename)
-    output_filename = f"{name}_rsz{ext}"
-    format_conversion = request.form.get('format', None)
-    if format_conversion:
-        output_filename = f"{name}_rsz.{format_conversion.lower()}"
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-
-    command = build_imagemagick_command(
-        filepath=filepath,
-        output_path=output_path,
-        width=request.form.get('width', DEFAULTS["width"]),
-        height=request.form.get('height', DEFAULTS["height"]),
-        percentage=request.form.get('percentage', DEFAULTS["percentage"]),
-        quality=request.form.get('quality', DEFAULTS["quality"]),
-        keep_ratio='keep_ratio' in request.form
-    )
-
     try:
-        subprocess.run(command[1], check=True)
-        flash(f'Image processed successfully: {output_filename}')
-        return redirect(url_for('download', filename=output_filename))
+        # Récupérer les paramètres
+        width = request.form.get('width', '')
+        height = request.form.get('height', '')
+        keep_ratio = request.form.get('keep_ratio') == 'on'
+        output_format = request.form.get('format', '').upper()
+        
+        app.logger.info(f"Processing resize request for {filename}")
+        app.logger.info(f"Parameters: width={width}, height={height}, format={output_format}")
+        
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(filepath):
+            flash('File not found')
+            return redirect(url_for('index'))
+            
+        # Créer un nom de fichier pour la sortie
+        base_name = os.path.splitext(filename)[0]
+        if output_format:
+            output_filename = f"{base_name}_resized.{output_format.lower()}"
+        else:
+            output_filename = f"{base_name}_resized{os.path.splitext(filename)[1]}"
+            
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+        app.logger.info(f"Output path: {output_path}")
+        
+        # Préparer et exécuter les commandes
+        error, commands, temp_file = build_imagemagick_command(
+            filepath=filepath,
+            output_path=output_path,
+            width=width,
+            height=height,
+            percentage=request.form.get('percentage', DEFAULTS["percentage"]),
+            quality=request.form.get('quality', DEFAULTS["quality"]),
+            keep_ratio=keep_ratio
+        )
+        
+        if error:
+            flash(error)
+            return redirect(url_for('resize_options', filename=filename))
+            
+        if not commands:
+            flash('Error preparing resize command')
+            return redirect(url_for('resize_options', filename=filename))
+            
+        # Exécuter les commandes en séquence
+        for cmd in commands:
+            app.logger.info(f"Running command: {' '.join(cmd)}")
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                app.logger.error(f"Command failed: {result.stderr}")
+                flash(f'Error during image processing: {result.stderr}')
+                return redirect(url_for('resize_options', filename=filename))
+                
+        # Nettoyer les fichiers temporaires
+        try:
+            if temp_file and os.path.exists(temp_file):
+                os.remove(temp_file)
+            temp_resized = os.path.join(os.path.dirname(output_path), "temp_resized.png")
+            if os.path.exists(temp_resized):
+                os.remove(temp_resized)
+        except Exception as e:
+            app.logger.warning(f"Error cleaning temporary files: {e}")
+            
+        # Forcer le téléchargement du fichier
+        return send_file(
+            output_path,
+            as_attachment=True,
+            download_name=output_filename,
+            mimetype=f'image/{output_format.lower() if output_format else os.path.splitext(filename)[1][1:].lower()}'
+        )
+        
     except Exception as e:
-        return flash_error(f"Error processing image: {e}"), redirect(url_for('resize_options', filename=filename))
+        app.logger.error(f"Error during resize: {e}")
+        flash(f'Error during resize: {str(e)}')
+        return redirect(url_for('resize_options', filename=filename))
 
 @app.route('/resize_batch_options')
 def resize_batch_options(filenames=None):
