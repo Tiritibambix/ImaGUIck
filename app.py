@@ -371,27 +371,28 @@ def resize_options(filename):
     if not dimensions:
         return redirect(url_for('index'))
 
+    # Récupérer tous les formats disponibles
+    all_formats = get_available_formats()
+    
     # Analyze image and get recommended formats
     image_type = analyze_image_type(filepath)
-    if image_type:
-        format_info = get_recommended_formats(image_type)
-        formats = {
-            'recommended': format_info['recommended'],
-            'compatible': format_info['compatible']
-        }
-    else:
-        formats = {
-            'recommended': [],
-            'compatible': get_available_formats()
-        }
+    format_info = get_recommended_formats(image_type) if image_type else {'recommended': [], 'compatible': []}
+    
+    # Ajouter tous les autres formats disponibles qui ne sont pas déjà dans les listes recommandées
+    other_formats = [fmt for fmt in all_formats if fmt not in format_info['recommended'] and fmt not in format_info['compatible']]
+    
+    formats = {
+        'recommended': sorted(format_info['recommended']),
+        'compatible': sorted(format_info['compatible']),
+        'other': sorted(other_formats)
+    }
 
-    width, height = dimensions
-    return render_template('resize.html', 
-                         filename=filename, 
-                         width=width, 
-                         height=height, 
-                         formats=formats, 
-                         image_type=image_type)
+    return render_template('resize.html',
+                         filename=filename,
+                         width=dimensions[0],
+                         height=dimensions[1],
+                         formats=formats,
+                         defaults=DEFAULTS)
 
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
@@ -421,47 +422,64 @@ def resize_image(filename):
     except Exception as e:
         return flash_error(f"Error processing image: {e}"), redirect(url_for('resize_options', filename=filename))
 
-@app.route('/resize_batch_options/<filenames>')
-def resize_batch_options(filenames):
+@app.route('/resize_batch_options')
+def resize_batch_options(filenames=None):
     """Resize options page for batch processing."""
-    files = filenames.split(',')
+    if not filenames:
+        filenames = request.args.get('filenames', '').split(',')
     
-    # Analyze each image and get common recommended formats
-    image_types = []
-    has_transparency = False
-    has_photos = False
-    has_graphics = False
-    
-    for filename in files:
+    if not filenames or not filenames[0]:
+        return redirect(url_for('index'))
+
+    # Analyze all images in the batch
+    batch_info = {
+        'has_transparency': False,
+        'has_photos': False,
+        'has_graphics': False,
+        'total_files': len(filenames)
+    }
+
+    for filename in filenames:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(filepath):
+            continue
+            
         image_type = analyze_image_type(filepath)
         if image_type:
-            image_types.append({'filename': filename, 'type': image_type})
-            has_transparency = has_transparency or image_type['has_transparency']
-            has_photos = has_photos or image_type['is_photo']
-            has_graphics = has_graphics or not image_type['is_photo']
+            if image_type.has_transparency:
+                batch_info['has_transparency'] = True
+            if image_type.is_photo:
+                batch_info['has_photos'] = True
+            if not image_type.is_photo:
+                batch_info['has_graphics'] = True
+
+    # Récupérer tous les formats disponibles
+    all_formats = get_available_formats()
     
-    # Create a combined image type for the batch
-    batch_type = {
-        'has_transparency': has_transparency,
-        'is_photo': has_photos,
-        'original_format': None  # Not relevant for batch
+    # Get recommended formats based on batch content
+    if batch_info['has_transparency']:
+        image_type = 'transparency'
+    elif batch_info['has_photos'] and not batch_info['has_graphics']:
+        image_type = 'photo'
+    else:
+        image_type = 'graphic'
+        
+    format_info = get_recommended_formats(image_type)
+    
+    # Ajouter tous les autres formats disponibles
+    other_formats = [fmt for fmt in all_formats if fmt not in format_info['recommended'] and fmt not in format_info['compatible']]
+    
+    formats = {
+        'recommended': sorted(format_info['recommended']),
+        'compatible': sorted(format_info['compatible']),
+        'other': sorted(other_formats)
     }
-    
-    # Get format recommendations for the batch
-    format_info = get_recommended_formats(batch_type)
-    
-    batch_info = {
-        'has_transparency': has_transparency,
-        'has_photos': has_photos,
-        'has_graphics': has_graphics
-    }
-    
-    return render_template('resize_batch.html', 
-                         files=files, 
-                         formats=format_info, 
-                         image_types=image_types,
-                         batch_info=batch_info)
+
+    return render_template('resize_batch.html',
+                         files=filenames,
+                         formats=formats,
+                         batch_info=batch_info,
+                         defaults=DEFAULTS)
 
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():
