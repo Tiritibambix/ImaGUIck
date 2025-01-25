@@ -6,13 +6,6 @@
     <title>Batch Image Resizer</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        .title-large {
-            font-size: 1.8em;
-            font-weight: bold;
-            text-align: center;
-            font-family: 'Poppins', sans-serif;
-        }
-
         :root {
             --clr-primary-a0: #808080;
             --clr-primary-a10: #8d8d8d;
@@ -44,32 +37,39 @@
 
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
             font-family: 'Poppins', sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: var(--clr-surface-a0);
+            line-height: 1.6;
             color: var(--clr-primary-a50);
-            overflow-x: hidden;
-            width: 100%;
+            background-color: var(--clr-surface-a0);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: var(--spacing-medium);
         }
 
         .container {
-            width: 90%;
-            max-width: 500px;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: var(--spacing-medium);
             background-color: var(--clr-surface-a10);
-            padding: var(--spacing-large);
             border-radius: var(--border-radius-lg);
             box-shadow: var(--box-shadow);
+        }
+
+        .title-large {
+            font-size: 1.8em;
+            font-weight: bold;
             text-align: center;
-            box-sizing: border-box;
-            overflow-x: hidden;
+            font-family: 'Poppins', sans-serif;
+            color: var(--clr-primary-a50);
+            margin-bottom: var(--spacing-large);
         }
 
         form fieldset {
@@ -99,46 +99,6 @@
             margin-bottom: var(--spacing-medium);
         }
 
-        input[type="text"],
-        input[type="checkbox"],
-        select {
-            padding: var(--spacing-small);
-            margin-top: var(--spacing-small);
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: var(--border-radius-sm);
-            width: var(--input-width);
-            height: var(--input-height);
-            background-color: var(--clr-surface-a20);
-            color: var(--clr-primary-a50);
-            box-sizing: border-box;
-            transition: all var(--transition-speed) ease;
-        }
-
-        input[type="checkbox"] {
-            width: auto;
-            height: auto;
-            margin-right: var(--spacing-small);
-        }
-
-        button {
-            padding: var(--spacing-small);
-            margin-top: var(--spacing-small);
-            border: none;
-            border-radius: var(--border-radius-sm);
-            background-color: var(--clr-primary-a30);
-            color: var(--clr-surface-a0);
-            cursor: pointer;
-            font-size: 1rem;
-            width: var(--input-width);
-            height: var(--input-height);
-            transition: background-color var(--transition-speed) ease;
-            font-family: 'Poppins', sans-serif;
-        }
-
-        button:hover {
-            background-color: var(--clr-primary-a20);
-        }
-
         label {
             color: var(--clr-primary-a40);
             margin-bottom: var(--spacing-small);
@@ -154,13 +114,138 @@
             font-family: 'Poppins', sans-serif;
         }
 
+        input[type="file"],
+        input[type="text"],
+        select,
+        button {
+            padding: var(--spacing-small);
+            margin-top: var(--spacing-small);
+            border: 1px solid var(--clr-primary-a20);
+            border-radius: var(--border-radius-md);
+            width: var(--input-width);
+            height: var(--input-height);
+            background-color: var(--clr-surface-a10);
+            color: var(--clr-primary-a50);
+            box-sizing: border-box;
+            transition: all var(--transition-speed) ease;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            height: 48px;
+            border-radius: var(--border-radius-md);
+            padding: 0 var(--spacing-medium);
+            transition: all var(--transition-speed) ease;
+            border: 1px solid var(--clr-primary-a20);
+            background-color: var(--clr-surface-a10);
+            color: var(--clr-primary-a50);
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--clr-primary-a40);
+            box-shadow: 0 0 0 2px var(--clr-primary-a30);
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            height: auto;
+            margin-right: var(--spacing-small);
+            accent-color: var(--clr-primary-a30);
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            padding-right: var(--spacing-large);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right var(--spacing-small) center;
+            background-size: 16px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--clr-primary-a40);
+            box-shadow: 0 0 0 2px var(--clr-primary-a30);
+        }
+
+        button[type="submit"] {
+            width: 100% !important;
+            margin-top: var(--spacing-medium);
+            height: 48px;
+            border-radius: var(--border-radius-md);
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: all var(--transition-speed) ease;
+            border: none;
+            background-color: var(--clr-primary-a30);
+            color: white;
+            cursor: pointer;
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--box-shadow);
+            background-color: var(--clr-primary-a40);
+        }
+
+        button {
+            border: none;
+            background-color: var(--clr-primary-a30);
+            color: var(--clr-surface-a0);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: var(--clr-primary-a20);
+        }
+
+        .flash-messages {
+            margin-bottom: var(--spacing-medium);
+            padding: var(--spacing-small);
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .flash-message {
+            padding: var(--spacing-small);
+            margin-bottom: var(--spacing-small);
+            border-radius: 4px;
+            background-color: var(--clr-surface-a20);
+            color: var(--clr-primary-a50);
+        }
+
+        .flash-message.error {
+            background-color: #ff4444;
+            color: white;
+        }
+
+        .flash-message.success {
+            background-color: #00C851;
+            color: white;
+        }
+
+        .drop-zone, #file-list {
+            width: 100% !important;
+        }
+
         @media (min-width: 768px) {
             .container {
-                max-width: 600px;
+                max-width: 800px;
+                padding: var(--spacing-large);
+            }
+
+            .title-large {
+                font-size: 2.5rem; /* Taille légèrement augmentée pour les écrans larges */
             }
 
             button {
-                font-size: 1.1rem;
+                font-size: 1.2rem;
             }
         }
     </style>
