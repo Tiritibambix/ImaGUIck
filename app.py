@@ -120,61 +120,6 @@ def get_format_categories():
         }
     }
 
-def get_available_formats():
-    """Get all formats supported by ImageMagick and organize them by category."""
-    try:
-        # Exécute la commande magick -list format pour obtenir tous les formats supportés
-        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
-        if result.returncode != 0:
-            raise Exception(f"Erreur lors de l'exécution de magick -list format: {result.stderr}")
-            
-        available_formats = set()
-        
-        # Parse la sortie pour extraire les formats
-        for line in result.stdout.split('\n'):
-            if not line.strip() or line.startswith('Format') or line.startswith('--'):
-                continue
-                
-            parts = line.split()
-            if len(parts) >= 2:
-                format_name = parts[0].strip('* ')
-                format_flags = parts[1].lower()
-                if 'r' in format_flags or 'w' in format_flags:
-                    available_formats.add(format_name.upper())
-        
-        if not available_formats:
-            raise Exception("Aucun format n'a été trouvé dans la sortie de ImageMagick")
-        
-        # Organiser les formats disponibles par catégorie
-        categories = get_format_categories()
-        categorized_formats = {}
-        
-        # Initialiser toutes les catégories
-        for cat_key, cat_info in categories.items():
-            categorized_formats[cat_key] = {
-                'name': cat_info['name'],
-                'formats': sorted(list(available_formats.intersection(cat_info['formats'])))
-            }
-            
-        # Ajouter une catégorie "Other" pour les formats non catégorisés
-        all_categorized = set()
-        for cat_info in categories.values():
-            all_categorized.update(cat_info['formats'])
-            
-        other_formats = sorted(list(available_formats - all_categorized))
-        if other_formats:
-            categorized_formats['other'] = {
-                'name': 'Other Formats',
-                'formats': other_formats
-            }
-            
-        return categorized_formats
-        
-    except Exception as e:
-        app.logger.error(f"Erreur lors de la récupération des formats : {e}")
-        # Retourner les catégories par défaut avec des formats de base
-        return get_format_categories()
-
 def get_recommended_formats(image_type):
     """Get recommended and compatible formats based on image type."""
     categories = get_format_categories()
@@ -326,6 +271,76 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         app.logger.info(f"Final ImageMagick command: {' '.join(command)}")
         return None, command, None
 
+def get_available_formats():
+    """Get all formats supported by ImageMagick and organize them by category."""
+    try:
+        # Exécute la commande magick -list format pour obtenir tous les formats supportés
+        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Exception(f"Erreur lors de l'exécution de magick -list format: {result.stderr}")
+            
+        available_formats = set()
+        
+        # Parse la sortie pour extraire les formats
+        for line in result.stdout.split('\n'):
+            if not line.strip() or line.startswith('Format') or line.startswith('--'):
+                continue
+                
+            parts = line.split()
+            if len(parts) >= 2:
+                format_name = parts[0].strip('* ')
+                format_flags = parts[1].lower()
+                if 'r' in format_flags or 'w' in format_flags:
+                    available_formats.add(format_name.upper())
+        
+        if not available_formats:
+            raise Exception("Aucun format n'a été trouvé dans la sortie de ImageMagick")
+            
+        app.logger.info(f"Formats détectés : {available_formats}")
+        
+        # Organiser les formats disponibles par catégorie
+        categories = get_format_categories()
+        categorized_formats = {}
+        
+        # Créer un ensemble de tous les formats catégorisés
+        all_categorized = set()
+        for cat_info in categories.values():
+            all_categorized.update(cat_info['formats'])
+        
+        # Ajouter d'abord les formats non catégorisés dans "Other Formats"
+        uncategorized = sorted(list(available_formats - all_categorized))
+        if uncategorized:
+            categorized_formats['other'] = {
+                'name': 'Other Available Formats',
+                'formats': uncategorized
+            }
+        
+        # Ajouter ensuite les catégories prédéfinies qui ont des formats disponibles
+        for cat_key, cat_info in categories.items():
+            matching_formats = sorted(list(available_formats.intersection(cat_info['formats'])))
+            if matching_formats:
+                categorized_formats[cat_key] = {
+                    'name': cat_info['name'],
+                    'formats': matching_formats
+                }
+            
+        return categorized_formats
+        
+    except Exception as e:
+        app.logger.error(f"Erreur lors de la récupération des formats : {e}")
+        # En cas d'erreur, retourner au moins la catégorie "Other" avec des formats de base
+        return {
+            'other': {
+                'name': 'Available Formats',
+                'formats': sorted([
+                    'PNG', 'JPEG', 'JPG', 'GIF', 'TIFF', 'BMP', 'WEBP',
+                    'ICO', 'CUR', 'ICON', 'PICON',
+                    'PDF', 'SVG', 'PSD',
+                    'HEIC', 'AVIF'
+                ])
+            }
+        }
+
 @app.route('/')
 def index():
     """Homepage with upload options."""
@@ -392,21 +407,8 @@ def resize_options(filename):
     if not dimensions:
         return redirect(url_for('index'))
 
-    # Récupérer tous les formats disponibles
-    all_formats = get_available_formats()
-    
-    # Analyze image and get recommended formats
-    image_type = analyze_image_type(filepath)
-    format_info = get_recommended_formats(image_type) if image_type else {'recommended': [], 'compatible': []}
-    
-    # Ajouter tous les autres formats disponibles qui ne sont pas déjà dans les listes recommandées
-    other_formats = [fmt for fmt in all_formats.get('other', []) if fmt not in format_info['recommended'] and fmt not in format_info['compatible']]
-    
-    formats = {
-        'recommended': sorted(format_info['recommended']),
-        'compatible': sorted(format_info['compatible']),
-        'other': sorted(other_formats)
-    }
+    # Récupérer les formats disponibles déjà catégorisés
+    formats = get_available_formats()
 
     return render_template('resize.html',
                          filename=filename,
@@ -474,27 +476,8 @@ def resize_batch_options(filenames=None):
             if not image_type.is_photo:
                 batch_info['has_graphics'] = True
 
-    # Récupérer tous les formats disponibles
-    all_formats = get_available_formats()
-    
-    # Get recommended formats based on batch content
-    if batch_info['has_transparency']:
-        image_type = 'web'
-    elif batch_info['has_photos'] and not batch_info['has_graphics']:
-        image_type = 'photo'
-    else:
-        image_type = 'graphics'
-        
-    format_info = get_recommended_formats(image_type)
-    
-    # Ajouter tous les autres formats disponibles
-    other_formats = [fmt for fmt in all_formats.get('other', []) if fmt not in format_info['recommended'] and fmt not in format_info['compatible']]
-    
-    formats = {
-        'recommended': sorted(format_info['recommended']),
-        'compatible': sorted(format_info['compatible']),
-        'other': sorted(other_formats)
-    }
+    # Récupérer les formats disponibles déjà catégorisés
+    formats = get_available_formats()
 
     return render_template('resize_batch.html',
                          files=filenames,
