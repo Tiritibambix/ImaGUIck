@@ -64,7 +64,7 @@
             width: 90%;
             max-width: 500px;
             background-color: var(--clr-surface-a10);
-            padding: var(--spacing-large);
+            padding: var(--spacing-medium);
             border-radius: var(--border-radius-lg);
             box-shadow: var(--box-shadow);
             text-align: center;
@@ -73,7 +73,7 @@
         }
 
         form fieldset {
-            margin-bottom: var(--spacing-large);
+            margin-bottom: var(--spacing-medium);
             border: none;
             padding: 0;
             display: flex;
@@ -85,10 +85,10 @@
             text-align: center;
             font-weight: bold;
             color: var(--clr-primary-a40);
-            margin-bottom: var(--spacing-medium);
+            margin-bottom: var(--spacing-small);
             width: 100%;
-            font-size: 1.2rem;
-            padding: 0 var(--spacing-small);
+            font-size: 1.1rem;
+            padding: 0;
         }
 
         .form-group {
@@ -96,33 +96,46 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
+            margin-bottom: 12px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            color: var(--clr-primary-a40);
+            margin-bottom: 4px;
+            font-size: 0.9rem;
         }
 
         input[type="file"],
         input[type="text"],
         button {
-            padding: var(--spacing-small);
-            margin-top: var(--spacing-small);
+            padding: 8px var(--spacing-small);
+            margin-top: 0;
             border: 1px solid var(--clr-surface-a30);
             border-radius: 4px;
             width: var(--input-width);
-            height: var(--input-height);
+            height: 36px;
             background-color: var(--clr-surface-a20);
             color: var(--clr-primary-a50);
             box-sizing: border-box;
         }
 
-        button {
-            border: none;
-            background-color: var(--clr-primary-a30);
-            color: var(--clr-surface-a0);
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s ease;
+        button[type="submit"] {
+            margin-top: var(--spacing-medium);
+            height: 44px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
-        button:hover {
-            background-color: var(--clr-primary-a20);
+        small {
+            display: block;
+            color: var(--clr-primary-a30);
+            margin-top: 4px;
+            font-size: 0.8rem;
         }
 
         .drop-zone {
