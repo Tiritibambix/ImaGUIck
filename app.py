@@ -154,14 +154,17 @@ def get_recommended_formats_for_image(image_type, original_format):
 def get_available_formats(filepath=None):
     """Get all formats supported by ImageMagick and organize them by category."""
     try:
-        # Exécute la commande magick -list format pour obtenir tous les formats supportés
-        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
-        if result.returncode != 0:
-            raise Exception(f"Erreur lors de l'exécution de magick -list format: {result.stderr}")
-            
-        available_formats = set()
+        # Liste des formats vidéo à exclure
+        VIDEO_FORMATS = {'3G2', '3GP', 'AVI', 'FLV', 'M4V', 'MKV', 'MOV', 'MP4', 'MPG', 'MPEG', 'OGV', 'SWF', 'VOB', 'WMV'}
         
-        # Parse la sortie pour extraire les formats
+        # Obtenir la liste des formats depuis ImageMagick
+        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            raise Exception("Erreur lors de la récupération des formats")
+            
+        # Parser la sortie pour extraire les formats
+        available_formats = set()
         for line in result.stdout.split('\n'):
             if not line.strip() or line.startswith('Format') or line.startswith('--'):
                 continue
@@ -171,7 +174,8 @@ def get_available_formats(filepath=None):
                 format_name = parts[0].strip('* ')
                 format_flags = parts[1].lower()
                 if 'r' in format_flags or 'w' in format_flags:
-                    available_formats.add(format_name.upper())
+                    if format_name.upper() not in VIDEO_FORMATS:  # Exclure les formats vidéo
+                        available_formats.add(format_name.upper())
         
         if not available_formats:
             raise Exception("Aucun format n'a été trouvé dans la sortie de ImageMagick")
