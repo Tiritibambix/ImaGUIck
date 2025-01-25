@@ -66,7 +66,7 @@
         }
 
         form fieldset {
-            margin-bottom: var(--spacing-medium);
+            margin-bottom: var(--spacing-large);
             border: none;
             padding: 0;
             display: flex;
@@ -78,10 +78,10 @@
             text-align: center;
             font-weight: bold;
             color: var(--clr-primary-a40);
-            margin-bottom: var(--spacing-small);
+            margin-bottom: var(--spacing-medium);
             width: 100%;
-            font-size: 1.1rem;
-            padding: 0;
+            font-size: 1.2rem;
+            padding: 0 var(--spacing-small);
             border-bottom: 1px solid var(--clr-surface-a20);
             padding-bottom: 8px;
         }
@@ -94,22 +94,11 @@
             margin-bottom: 12px;
         }
 
-        .form-group:last-child {
-            margin-bottom: 0;
-        }
-
-        label {
-            color: var(--clr-primary-a40);
-            margin-bottom: 4px;
-            font-size: 0.9rem;
-        }
-
         input[type="file"],
         input[type="text"],
-        select,
         button {
-            padding: 8px var(--spacing-small);
-            margin-top: 0;
+            padding: var(--spacing-small);
+            margin-top: var(--spacing-small);
             border: 1px solid var(--clr-surface-a30);
             border-radius: 4px;
             width: var(--input-width);
@@ -119,23 +108,74 @@
             box-sizing: border-box;
         }
 
+        button {
+            border: none;
+            background-color: var(--clr-primary-a30);
+            color: var(--clr-surface-a0);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: var(--clr-primary-a20);
+        }
+
         button[type="submit"] {
+            width: 100% !important;
             margin-top: var(--spacing-medium);
             height: 44px;
+            border-radius: var(--border-radius-md);
             font-weight: bold;
             letter-spacing: 0.5px;
             text-transform: uppercase;
+            transition: all var(--transition-speed) ease;
         }
 
-        small {
-            display: block;
-            color: var(--clr-primary-a30);
-            margin-top: 4px;
-            font-size: 0.8rem;
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--box-shadow);
         }
 
-        /* Styles spécifiques pour les selects */
+        input[type="text"] {
+            width: 100%;
+            height: 36px;
+            border-radius: var(--border-radius-md);
+            padding: 0 var(--spacing-medium);
+            transition: all var(--transition-speed) ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--clr-primary-a40);
+            box-shadow: 0 0 0 2px var(--clr-primary-a30);
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                max-width: 600px;
+                padding: var(--spacing-large);
+            }
+
+            .title-large {
+                font-size: 2rem;
+            }
+
+            button {
+                font-size: 1.1rem;
+            }
+        }
+
         select {
+            padding: var(--spacing-small);
+            margin-top: var(--spacing-small);
+            border: 1px solid var(--clr-surface-a30);
+            border-radius: 4px;
+            width: var(--input-width);
+            height: 36px;
+            background-color: var(--clr-surface-a20);
+            color: var(--clr-primary-a50);
+            box-sizing: border-box;
             cursor: pointer;
             appearance: none;
             padding-right: var(--spacing-large);
@@ -143,6 +183,12 @@
             background-repeat: no-repeat;
             background-position: right var(--spacing-small) center;
             background-size: 16px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--clr-primary-a40);
+            box-shadow: 0 0 0 2px var(--clr-primary-a30);
         }
 
         .batch-info {
@@ -160,6 +206,8 @@
             color: var(--clr-primary-a40);
             display: block;
             text-align: left;
+            margin-top: 4px;
+            font-size: 0.8rem;
         }
 
         .info-section {
@@ -196,19 +244,9 @@
             margin-right: 8px;
         }
 
-        @media (min-width: 768px) {
-            .container {
-                max-width: 600px;
-                padding: var(--spacing-large);
-            }
-
-            .title-large {
-                font-size: 2rem;
-            }
-
-            button {
-                font-size: 1.1rem;
-            }
+        label {
+            margin-bottom: 4px;
+            font-size: 0.9rem;
         }
     </style>
 </head>
