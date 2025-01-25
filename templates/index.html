@@ -42,6 +42,10 @@
             --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -52,6 +56,8 @@
             min-height: 100vh;
             background-color: var(--clr-surface-a0);
             color: var(--clr-primary-a50);
+            overflow-x: hidden;
+            width: 100%;
         }
 
         .container {
@@ -62,6 +68,8 @@
             border-radius: var(--border-radius-lg);
             box-shadow: var(--box-shadow);
             text-align: center;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
 
         form fieldset {
@@ -178,8 +186,10 @@
             margin: var(--spacing-medium) 0;
             max-height: 200px;
             overflow-y: auto;
-            width: var(--input-width);
+            width: 100%;
+            max-width: var(--input-width);
             border: 1px solid var(--clr-surface-a30);
+            box-sizing: border-box;
         }
 
         .file-item {
