@@ -23,7 +23,7 @@ RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.t
     && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
     && cd /tmp/ImageMagick-7.1.1-41 \
     && ./configure --prefix=/usr/local --disable-shared --without-x \
-    && make -j4 \
+    && make \
     && make install \
     && rm -rf /tmp/*
 
