@@ -87,24 +87,44 @@ def get_available_formats():
     try:
         # Exécute la commande magick -list format pour obtenir tous les formats supportés
         result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Exception(f"Erreur lors de l'exécution de magick -list format: {result.stderr}")
+            
         formats = []
         
         # Parse la sortie pour extraire les formats
         for line in result.stdout.split('\n'):
             # Ignore l'en-tête et les lignes vides
-            if line.strip() and not line.startswith('Format') and not line.startswith('--'):
-                # Le format est le premier mot de chaque ligne
-                format_name = line.split()[0].upper()
-                # Certains formats ont des suffixes comme * ou +, on les enlève
-                format_name = format_name.rstrip('*+')
-                if format_name not in formats:
-                    formats.append(format_name)
+            if not line.strip() or line.startswith('Format') or line.startswith('--'):
+                continue
+                
+            # Le format est dans la première colonne, suivi par les flags rw
+            parts = line.split()
+            if len(parts) >= 2:
+                # Nettoie le nom du format (enlève * et espaces)
+                format_name = parts[0].strip('* ')
+                # Vérifie si le format est supporté en lecture ou écriture (r ou w dans les flags)
+                format_flags = parts[1].lower()
+                if 'r' in format_flags or 'w' in format_flags:
+                    # Convertit en majuscules pour la cohérence
+                    format_name = format_name.upper()
+                    if format_name not in formats:
+                        formats.append(format_name)
         
-        return formats
+        if not formats:
+            raise Exception("Aucun format n'a été trouvé dans la sortie de ImageMagick")
+            
+        return sorted(formats)  # Trie les formats par ordre alphabétique
+        
     except Exception as e:
         app.logger.error(f"Erreur lors de la récupération des formats : {e}")
         # Liste de secours avec les formats les plus courants
-        return ['PNG', 'JPEG', 'GIF', 'TIFF', 'BMP', 'WEBP']
+        return sorted([
+            'PNG', 'JPEG', 'JPG', 'GIF', 'TIFF', 'BMP', 'WEBP',
+            'ICO', 'CUR', 'ICON', 'PICON',  # Formats d'icônes
+            'PDF', 'SVG', 'PSD',  # Formats de documents et vectoriels
+            'HEIC', 'AVIF', 'WEBP'  # Formats modernes
+        ])
 
 def get_format_categories():
     """Categorize image formats by their typical usage."""
