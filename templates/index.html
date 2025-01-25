@@ -229,7 +229,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: var(--spacing-small);
+            padding: 2px 4px;
             border-bottom: 1px solid var(--clr-surface-a30);
         }
 
@@ -244,8 +244,12 @@
         .file-info {
             display: flex;
             flex-direction: column;
+            align-items: flex-start;
             flex-grow: 1;
             overflow: hidden;
+            padding: 2px 0;
+            width: calc(100% - 40px);
+            box-sizing: border-box;
         }
 
         .file-name {
@@ -264,14 +268,17 @@
         }
 
         .remove-button {
-            padding: 0.25rem 0.5rem;
+            padding: 0;
             background-color: transparent;
             border: none;
             cursor: pointer;
             color: var(--clr-primary-a40);
-            font-size: 1.2rem;
-            height: auto;
-            width: auto;
+            font-size: 0.8rem;
+            height: 16px;
+            width: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: color var(--transition-speed) ease;
             margin-left: var(--spacing-small);
         }
@@ -283,7 +290,7 @@
         .file-list-container {
             max-height: 500px;
             overflow-y: auto;
-            padding: 0.5rem;
+            padding: 2px;
             width: 100%;
             box-sizing: border-box;
         }
