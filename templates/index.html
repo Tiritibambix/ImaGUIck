@@ -182,83 +182,87 @@
             display: none;
             flex-direction: column;
             background-color: var(--clr-surface-a20);
-            border-radius: var(--border-radius-md);
             padding: var(--spacing-medium);
+            border-radius: var(--border-radius-md);
             margin: var(--spacing-medium) 0;
             max-height: 200px;
             overflow-y: auto;
             width: 100%;
             border: 1px solid var(--clr-surface-a30);
-            box-sizing: border-box;
+        }
+
+        .file-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-medium);
+            padding-bottom: var(--spacing-small);
+            border-bottom: 1px solid var(--clr-surface-a30);
+        }
+
+        .file-list-title {
+            margin: 0;
+            font-size: 1.1em;
+            color: var(--clr-primary-a50);
+        }
+
+        .clear-all-button {
+            padding: 0.5rem 1rem;
+            background-color: var(--clr-surface-a30);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--clr-primary-a50);
+            font-size: 0.9rem;
+            height: auto;
+            width: auto;
         }
 
         .file-item {
             display: flex;
+            justify-content: space-between;
             align-items: center;
             padding: var(--spacing-small);
-            background-color: var(--clr-surface-a30);
-            border-radius: var(--border-radius-sm);
-            margin-bottom: var(--spacing-small);
-            transition: var(--transition-speed);
+            border-bottom: 1px solid var(--clr-surface-a30);
+            margin-bottom: 0;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
         }
 
         .file-info {
-            flex: 1;
-            overflow: hidden;
-            margin-right: var(--spacing-small);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            flex-grow: 1;
         }
 
         .file-name {
+            font-size: 0.9rem;
             color: var(--clr-primary-a50);
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            margin-bottom: 2px;
         }
 
         .file-size {
-            color: var(--clr-primary-a30);
-            font-size: 0.85em;
-            margin-top: 2px;
+            font-size: 0.8rem;
+            color: var(--clr-primary-a40);
         }
 
         .remove-button {
-            width: 24px;
-            height: 24px;
-            padding: 0;
+            padding: 0.25rem 0.5rem;
+            background-color: transparent;
             border: none;
-            background-color: var(--clr-surface-a20);
-            color: var(--clr-primary-a30);
-            border-radius: var(--border-radius-sm);
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            transition: var(--transition-speed);
+            color: var(--clr-primary-a40);
+            font-size: 1.2rem;
+            height: auto;
+            width: auto;
+            transition: color var(--transition-speed) ease;
         }
 
         .remove-button:hover {
-            background-color: var(--clr-surface-a10);
             color: var(--clr-primary-a50);
-        }
-
-        /* Style cohérent avec la scrollbar du système */
-        #file-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        #file-list::-webkit-scrollbar-track {
-            background: var(--clr-surface-a10);
-        }
-
-        #file-list::-webkit-scrollbar-thumb {
-            background: var(--clr-surface-a30);
-            border-radius: var(--border-radius-sm);
-        }
-
-        #file-list::-webkit-scrollbar-thumb:hover {
-            background: var(--clr-primary-a30);
         }
 
         @media (max-width: 480px) {
@@ -343,7 +347,14 @@
                 <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
                 </div>
-                <div id="file-list" class="form-group"></div>
+                <div id="file-list" class="form-group">
+                    <div class="file-list-header">
+                        <h3 class="file-list-title">Fichiers sélectionnés :</h3>
+                        <button type="button" class="clear-all-button" onclick="clearAllFiles()">
+                            Effacer la sélection
+                        </button>
+                    </div>
+                </div>
             </fieldset>
             <fieldset>
                 <legend>Upload Images</legend>
@@ -410,8 +421,18 @@
         }
         
         // Configuration initiale de la liste
-        fileList.style.display = 'block';
-        fileList.style.opacity = '0';
+        fileList.style.display = 'flex';
+        
+        // Ajout du header
+        const header = document.createElement('div');
+        header.className = 'file-list-header';
+        header.innerHTML = `
+            <h3 class="file-list-title">Fichiers sélectionnés :</h3>
+            <button type="button" class="clear-all-button" onclick="clearAllFiles()">
+                Effacer la sélection
+            </button>
+        `;
+        fileList.appendChild(header);
         
         // Créer les éléments de fichier
         for (const file of fileInput.files) {
@@ -430,7 +451,8 @@
             fileSize.textContent = formatFileSize(file.size);
 
             const removeButton = document.createElement('button');
-            removeButton.textContent = '×';
+            removeButton.type = 'button';
+            removeButton.textContent = '✕';
             removeButton.className = 'remove-button';
             removeButton.title = 'Retirer';
             removeButton.addEventListener('click', (e) => {
@@ -444,12 +466,16 @@
             listItem.appendChild(removeButton);
             fileList.appendChild(listItem);
         }
+    }
 
-        // Animation douce de la liste
-        requestAnimationFrame(() => {
-            fileList.style.transition = 'var(--transition-speed)';
-            fileList.style.opacity = '1';
-        });
+    function clearAllFiles() {
+        fileInput.value = '';
+        fileList.style.transition = 'var(--transition-speed)';
+        fileList.style.opacity = '0';
+        setTimeout(() => {
+            fileList.style.display = 'none';
+            fileList.innerHTML = '';
+        }, 200);
     }
 
     function removeFile(fileToRemove) {
