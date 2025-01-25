@@ -291,29 +291,15 @@
                     <label for="format">Convert all to format:</label>
                     <select name="format" id="format">
                         <option value="">Keep Original Formats</option>
-                        {% if formats.recommended %}
-                        <optgroup label="Recommended Formats">
-                            {% for format in formats.recommended %}
-                            <option value="{{ format }}">{{ format }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                        
-                        {% if formats.compatible %}
-                        <optgroup label="Compatible Formats">
-                            {% for format in formats.compatible %}
-                            <option value="{{ format }}">{{ format }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                        
-                        {% if formats.other %}
-                        <optgroup label="Other Available Formats">
-                            {% for format in formats.other %}
-                            <option value="{{ format }}">{{ format }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
+                        {% for category, info in formats.items() %}
+                            {% if info.formats %}
+                            <optgroup label="{{ info.name }}">
+                                {% for format in info.formats %}
+                                <option value="{{ format }}">{{ format }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                        {% endfor %}
                     </select>
                 </div>
                 {% if batch_info or image_types %}

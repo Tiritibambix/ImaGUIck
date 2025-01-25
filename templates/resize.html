@@ -238,29 +238,16 @@
                 <div class="form-group">
                     <label for="format">Output Format:</label>
                     <select name="format" id="format">
-                        {% if formats.recommended %}
-                        <optgroup label="Recommended Formats">
-                            {% for format in formats.recommended %}
-                            <option value="{{ format }}">{{ format }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                        
-                        {% if formats.compatible %}
-                        <optgroup label="Compatible Formats">
-                            {% for format in formats.compatible %}
-                            <option value="{{ format }}">{{ format }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                        
-                        {% if formats.other %}
-                        <optgroup label="Other Available Formats">
-                            {% for format in formats.other %}
-                            <option value="{{ format }}">{{ format }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
+                        <option value="">Keep Original Format</option>
+                        {% for category, info in formats.items() %}
+                            {% if info.formats %}
+                            <optgroup label="{{ info.name }}">
+                                {% for format in info.formats %}
+                                <option value="{{ format }}">{{ format }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                        {% endfor %}
                     </select>
                 </div>
                 {% if image_type %}
