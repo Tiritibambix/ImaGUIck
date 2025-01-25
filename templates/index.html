@@ -171,99 +171,84 @@
         }
 
         #file-list {
-            background-color: var(--clr-surface-a10);
-            border-radius: var(--border-radius-lg);
+            display: none;
+            background-color: var(--clr-surface-a20);
+            border-radius: var(--border-radius-md);
             padding: var(--spacing-medium);
             margin: var(--spacing-medium) 0;
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
-            width: 100%;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+            width: var(--input-width);
             border: 1px solid var(--clr-surface-a30);
-            scrollbar-width: thin;
-            scrollbar-color: var(--clr-primary-a30) var(--clr-surface-a10);
-        }
-
-        #file-list::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        #file-list::-webkit-scrollbar-track {
-            background: var(--clr-surface-a20);
-            border-radius: 4px;
-        }
-
-        #file-list::-webkit-scrollbar-thumb {
-            background: var(--clr-primary-a30);
-            border-radius: 4px;
         }
 
         .file-item {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: var(--spacing-medium);
-            margin-bottom: var(--spacing-small);
-            background-color: var(--clr-surface-a20);
-            border-radius: var(--border-radius-md);
-            transition: all 0.3s ease;
-            border: 1px solid transparent;
-        }
-
-        .file-item:hover {
-            transform: translateX(4px);
-            border-color: var(--clr-primary-a30);
+            padding: var(--spacing-small);
             background-color: var(--clr-surface-a30);
+            border-radius: var(--border-radius-sm);
+            margin-bottom: var(--spacing-small);
+            transition: var(--transition-speed);
         }
 
         .file-info {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            flex-grow: 1;
-            margin-right: var(--spacing-medium);
+            flex: 1;
             overflow: hidden;
+            margin-right: var(--spacing-small);
         }
 
         .file-name {
-            font-weight: 600;
-            margin-bottom: 6px;
+            color: var(--clr-primary-a50);
+            font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            width: 100%;
-            color: var(--clr-primary-a50);
-            font-size: 0.95em;
-            letter-spacing: 0.3px;
         }
 
         .file-size {
-            font-size: 0.8em;
             color: var(--clr-primary-a30);
-            font-weight: 500;
+            font-size: 0.85em;
+            margin-top: 2px;
         }
 
         .remove-button {
-            min-width: 32px;
-            height: 32px;
-            flex-shrink: 0;
-            border-radius: 50%;
-            background-color: transparent;
-            border: 1px solid var(--clr-primary-a30);
-            color: var(--clr-primary-a40);
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: none;
+            background-color: var(--clr-surface-a20);
+            color: var(--clr-primary-a30);
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
-            padding: 0;
-            font-size: 14px;
+            font-size: 12px;
+            transition: var(--transition-speed);
         }
 
         .remove-button:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-color: var(--clr-primary-a50);
+            background-color: var(--clr-surface-a10);
             color: var(--clr-primary-a50);
-            transform: scale(1.1);
+        }
+
+        /* Style cohérent avec la scrollbar du système */
+        #file-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #file-list::-webkit-scrollbar-track {
+            background: var(--clr-surface-a10);
+        }
+
+        #file-list::-webkit-scrollbar-thumb {
+            background: var(--clr-surface-a30);
+            border-radius: var(--border-radius-sm);
+        }
+
+        #file-list::-webkit-scrollbar-thumb:hover {
+            background: var(--clr-primary-a30);
         }
 
         @media (max-width: 480px) {
@@ -343,7 +328,7 @@
                 <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
                 </div>
-                <div id="file-list" class="form-group" style="display: none; flex-direction: column; align-items: flex-start; margin-top: var(--spacing-small); max-height: 100px; overflow-y: auto; border: 1px solid var(--clr-surface-a30); padding: var(--spacing-small); border-radius: 4px; width: var(--input-width); font-size: 0.9rem;"></div>
+                <div id="file-list" class="form-group"></div>
             </fieldset>
             <fieldset>
                 <legend>Upload Images</legend>
@@ -402,8 +387,18 @@
     }
 
     function updateFileList() {
-        fileList.innerHTML = ''; // Réinitialise la liste des fichiers
-        fileList.style.display = fileInput.files.length > 0 ? 'flex' : 'none'; // Affiche ou cache la liste des fichiers
+        fileList.innerHTML = '';
+        
+        if (fileInput.files.length === 0) {
+            fileList.style.display = 'none';
+            return;
+        }
+        
+        // Configuration initiale de la liste
+        fileList.style.display = 'block';
+        fileList.style.opacity = '0';
+        
+        // Créer les éléments de fichier
         for (const file of fileInput.files) {
             const listItem = document.createElement('div');
             listItem.className = 'file-item';
@@ -420,9 +415,11 @@
             fileSize.textContent = formatFileSize(file.size);
 
             const removeButton = document.createElement('button');
-            removeButton.textContent = '✖';
+            removeButton.textContent = '×';
             removeButton.className = 'remove-button';
-            removeButton.addEventListener('click', () => {
+            removeButton.title = 'Retirer';
+            removeButton.addEventListener('click', (e) => {
+                e.preventDefault();
                 removeFile(file);
             });
 
@@ -430,45 +427,45 @@
             fileInfo.appendChild(fileSize);
             listItem.appendChild(fileInfo);
             listItem.appendChild(removeButton);
-            
-            // Ajouter une animation d'entrée
-            listItem.style.opacity = '0';
-            listItem.style.transform = 'translateY(10px)';
             fileList.appendChild(listItem);
-            
-            // Déclencher l'animation après l'ajout au DOM
-            requestAnimationFrame(() => {
-                listItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                listItem.style.opacity = '1';
-                listItem.style.transform = 'translateY(0)';
-            });
         }
+
+        // Animation douce de la liste
+        requestAnimationFrame(() => {
+            fileList.style.transition = 'var(--transition-speed)';
+            fileList.style.opacity = '1';
+        });
     }
 
     function removeFile(fileToRemove) {
-        // Trouver l'élément DOM du fichier à supprimer
-        const fileItems = fileList.getElementsByClassName('file-item');
-        for (const item of fileItems) {
-            if (item.querySelector('.file-name').textContent === fileToRemove.name) {
-                // Ajouter l'animation de sortie
-                item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                item.style.opacity = '0';
-                item.style.transform = 'translateX(-10px)';
-                
-                // Attendre la fin de l'animation avant de supprimer
-                setTimeout(() => {
-                    // Mettre à jour la liste des fichiers
-                    const dataTransfer = new DataTransfer();
-                    for (const file of fileInput.files) {
-                        if (file !== fileToRemove) {
-                            dataTransfer.items.add(file);
-                        }
+        const item = Array.from(fileList.getElementsByClassName('file-item'))
+            .find(item => item.querySelector('.file-name').textContent === fileToRemove.name);
+            
+        if (item) {
+            item.style.transition = 'var(--transition-speed)';
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-8px)';
+            
+            setTimeout(() => {
+                const dataTransfer = new DataTransfer();
+                for (const file of fileInput.files) {
+                    if (file !== fileToRemove) {
+                        dataTransfer.items.add(file);
                     }
-                    fileInput.files = dataTransfer.files;
+                }
+                fileInput.files = dataTransfer.files;
+                
+                if (fileInput.files.length === 0) {
+                    fileList.style.transition = 'var(--transition-speed)';
+                    fileList.style.opacity = '0';
+                    setTimeout(() => {
+                        fileList.style.display = 'none';
+                        fileList.innerHTML = '';
+                    }, 200);
+                } else {
                     updateFileList();
-                }, 300); // Correspond à la durée de l'animation
-                return;
-            }
+                }
+            }, 200);
         }
     }
 </script>
