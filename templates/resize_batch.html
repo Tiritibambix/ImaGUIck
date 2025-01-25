@@ -187,6 +187,37 @@
             border-color: var(--clr-primary-a40);
             box-shadow: 0 0 0 2px var(--clr-primary-a30);
         }
+
+        .batch-info {
+            background-color: var(--clr-surface-a10);
+            border: 1px solid var(--clr-surface-a20);
+            border-radius: var(--border-radius-md);
+            padding: var(--spacing-small);
+            margin-top: var(--spacing-small);
+            font-size: 0.9rem;
+        }
+
+        .batch-info small {
+            color: var(--clr-primary-a40);
+        }
+
+        .batch-info ul {
+            margin: var(--spacing-small) 0 0 0;
+            padding-left: 20px;
+            list-style-type: none;
+        }
+
+        .batch-info li {
+            margin: 2px 0;
+            color: var(--clr-primary-a30);
+            font-size: 0.85rem;
+        }
+
+        .batch-info li:before {
+            content: "•";
+            color: var(--clr-primary-a20);
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
