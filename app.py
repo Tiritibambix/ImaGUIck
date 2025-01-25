@@ -407,31 +407,64 @@ def resize_options(filename):
 
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
-    """Handle resizing or format conversion for a single image."""
+    """Resize an image and return the resized version."""
+    # Récupérer les paramètres
+    width = request.form.get('width', '')
+    height = request.form.get('height', '')
+    keep_ratio = request.form.get('keep_ratio') == 'on'
+    output_format = request.form.get('format', '').upper()
+    
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    name, ext = os.path.splitext(filename)
-    output_filename = f"{name}_rsz{ext}"
-    format_conversion = request.form.get('format', None)
-    if format_conversion:
-        output_filename = f"{name}_rsz.{format_conversion.lower()}"
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-
-    command = build_imagemagick_command(
+    if not os.path.exists(filepath):
+        flash('File not found')
+        return redirect(url_for('index'))
+        
+    # Créer un nom de fichier pour la sortie
+    base_name = os.path.splitext(filename)[0]
+    if output_format:
+        output_filename = f"{base_name}_resized.{output_format.lower()}"
+    else:
+        output_filename = f"{base_name}_resized{os.path.splitext(filename)[1]}"
+        
+    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+    
+    # Préparer et exécuter la commande
+    error, command, final_output_path = build_imagemagick_command(
         filepath=filepath,
         output_path=output_path,
-        width=request.form.get('width', DEFAULTS["width"]),
-        height=request.form.get('height', DEFAULTS["height"]),
+        width=width,
+        height=height,
         percentage=request.form.get('percentage', DEFAULTS["percentage"]),
         quality=request.form.get('quality', DEFAULTS["quality"]),
-        keep_ratio='keep_ratio' in request.form
+        keep_ratio=keep_ratio
     )
-
+    
+    if error:
+        flash(error)
+        return redirect(url_for('resize_options', filename=filename))
+        
+    if not command:
+        flash('Error preparing resize command')
+        return redirect(url_for('resize_options', filename=filename))
+        
     try:
-        subprocess.run(command[1], check=True)
-        flash(f'Image processed successfully: {output_filename}')
-        return redirect(url_for('download', filename=output_filename))
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            flash(f'Error during resize: {result.stderr}')
+            return redirect(url_for('resize_options', filename=filename))
+            
+        # Forcer le téléchargement du fichier
+        return send_file(
+            final_output_path,
+            as_attachment=True,
+            download_name=output_filename,
+            mimetype=f'image/{output_format.lower() if output_format else os.path.splitext(filename)[1][1:].lower()}'
+        )
+        
     except Exception as e:
-        return flash_error(f"Error processing image: {e}"), redirect(url_for('resize_options', filename=filename))
+        app.logger.error(f"Error during resize: {e}")
+        flash(f'Error during resize: {str(e)}')
+        return redirect(url_for('resize_options', filename=filename))
 
 @app.route('/resize_batch_options')
 def resize_batch_options(filenames=None):
