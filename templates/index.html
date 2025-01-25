@@ -216,6 +216,11 @@
             font-size: 0.9rem;
             height: auto;
             width: auto;
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        .clear-all-button:hover {
+            background-color: var(--clr-surface-a20);
         }
 
         .file-item {
@@ -225,10 +230,15 @@
             padding: var(--spacing-small);
             border-bottom: 1px solid var(--clr-surface-a30);
             margin-bottom: 0;
+            transition: background-color var(--transition-speed) ease;
         }
 
         .file-item:last-child {
             border-bottom: none;
+        }
+
+        .file-item:hover {
+            background-color: var(--clr-surface-a30);
         }
 
         .file-info {
@@ -236,12 +246,17 @@
             flex-direction: column;
             align-items: flex-start;
             flex-grow: 1;
+            overflow: hidden;
         }
 
         .file-name {
             font-size: 0.9rem;
             color: var(--clr-primary-a50);
             margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
         }
 
         .file-size {
@@ -259,25 +274,17 @@
             height: auto;
             width: auto;
             transition: color var(--transition-speed) ease;
+            margin-left: var(--spacing-small);
         }
 
         .remove-button:hover {
             color: var(--clr-primary-a50);
         }
 
-        @media (max-width: 480px) {
-            #file-list {
-                max-height: 250px;
-                padding: var(--spacing-small);
-            }
-
-            .file-item {
-                padding: var(--spacing-small);
-            }
-
-            .file-name {
-                font-size: 0.9em;
-            }
+        .file-list-container {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 0.5rem;
         }
 
         button[type="submit"] {
@@ -347,6 +354,15 @@
                 <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
                 </div>
+            </fieldset>
+            <fieldset>
+                <legend>Upload Images</legend>
+                <div class="form-group">
+                    <div id="drop-zone" class="drop-zone">
+                        <p>Drag and drop files here, or click to select files.</p>
+                        <input type="file" id="file-input" name="file" multiple hidden>
+                    </div>
+                </div>
                 <div id="file-list" class="form-group">
                     <div class="file-list-header">
                         <h3 class="file-list-title">Fichiers sélectionnés :</h3>
@@ -354,16 +370,9 @@
                             Effacer la sélection
                         </button>
                     </div>
+                    <div class="file-list-container"></div>
                 </div>
-            </fieldset>
-            <fieldset>
-                <legend>Upload Images</legend>
                 <div class="form-group">
-                    <!-- Drag and Drop Zone -->
-                    <div id="drop-zone" class="drop-zone">
-                        <p>Drag and drop files here, or click to select files.</p>
-                        <input type="file" id="file-input" name="file" multiple hidden>
-                    </div>
                     <button type="submit">Upload</button>
                 </div>
             </fieldset>
@@ -377,65 +386,121 @@
             </fieldset>
         </form>
 <script>
-    const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('file-input');
-    const fileList = document.getElementById('file-list');
+    // Variables globales pour la gestion des fichiers
+    let uploadedItems = [];
+    let dragActive = false;
 
-    dropZone.addEventListener('click', () => {
-        fileInput.click(); // Simule un clic pour ouvrir le sélecteur de fichiers
-    });
+    // Fonction principale de traitement des fichiers et dossiers
+    async function processFilesAndFolders(items) {
+        const files = [];
+        
+        const processEntry = async (entry, basePath = '') => {
+            if (entry.isFile) {
+                return new Promise((resolve, reject) => {
+                    entry.file(file => {
+                        const relativePath = basePath ? `/${basePath}/${file.name}` : `/${file.name}`;
+                        files.push({
+                            name: file.name,
+                            path: relativePath,
+                            size: file.size,
+                            file: file,
+                            parentFolder: basePath.split('/')[0] || ''
+                        });
+                        resolve();
+                    }, reject);
+                });
+            } else if (entry.isDirectory) {
+                const dirReader = entry.createReader();
+                return new Promise((resolve, reject) => {
+                    const readEntries = () => {
+                        dirReader.readEntries(async (entries) => {
+                            if (entries.length === 0) {
+                                resolve();
+                            } else {
+                                const promises = entries.map(entry => {
+                                    const newPath = basePath ? `${basePath}/${entry.name}` : entry.name;
+                                    return processEntry(entry, newPath);
+                                });
+                                await Promise.all(promises);
+                                readEntries();
+                            }
+                        }, reject);
+                    };
+                    readEntries();
+                });
+            }
+        };
 
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault(); // Empêche le comportement par défaut (ouverture du fichier)
-        dropZone.classList.add('dragover'); // Ajoute un effet visuel
-    });
+        const promises = [];
+        for (const item of items) {
+            if (item.kind === 'file') {
+                const entry = item.webkitGetAsEntry();
+                if (entry) {
+                    const basePath = entry.isDirectory ? entry.name : '';
+                    promises.push(processEntry(entry, basePath));
+                }
+            }
+        }
+        
+        await Promise.all(promises);
+        return files;
+    }
 
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('dragover'); // Retire l'effet visuel
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        const files = e.dataTransfer.files; // Récupère les fichiers déposés
-        fileInput.files = files; // Ajoute les fichiers au champ caché
-        updateFileList(); // Met à jour la liste des fichiers
-    });
-
-    fileInput.addEventListener('change', updateFileList);
-
+    // Fonction de formatage de la taille des fichiers
     function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
+        if (bytes === 0) return '0 B';
         const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    function updateFileList() {
-        fileList.innerHTML = '';
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+
+    async function handleDrop(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragActive = false;
+        dropZone.classList.remove('dragover');
         
-        if (fileInput.files.length === 0) {
+        try {
+            let files = [];
+            if (e.dataTransfer.items) {
+                files = await processFilesAndFolders(Array.from(e.dataTransfer.items));
+            } else {
+                files = Array.from(e.dataTransfer.files).map(file => ({
+                    name: file.name,
+                    path: `/${file.name}`,
+                    size: file.size,
+                    file: file,
+                    parentFolder: ''
+                }));
+            }
+            
+            if (files.length > 0) {
+                uploadedItems = [...uploadedItems, ...files];
+                updateFileList();
+            }
+        } catch (error) {
+            console.error('Erreur lors du traitement des fichiers:', error);
+        }
+    }
+
+    function updateFileList() {
+        const fileList = document.getElementById('file-list');
+        const listContainer = fileList.querySelector('.file-list-container');
+        listContainer.innerHTML = '';
+        
+        if (uploadedItems.length === 0) {
             fileList.style.display = 'none';
             return;
         }
         
-        // Configuration initiale de la liste
         fileList.style.display = 'flex';
         
-        // Ajout du header
-        const header = document.createElement('div');
-        header.className = 'file-list-header';
-        header.innerHTML = `
-            <h3 class="file-list-title">Fichiers sélectionnés :</h3>
-            <button type="button" class="clear-all-button" onclick="clearAllFiles()">
-                Effacer la sélection
-            </button>
-        `;
-        fileList.appendChild(header);
-        
-        // Créer les éléments de fichier
-        for (const file of fileInput.files) {
+        uploadedItems.forEach((item, index) => {
             const listItem = document.createElement('div');
             listItem.className = 'file-item';
 
@@ -444,71 +509,71 @@
 
             const fileName = document.createElement('div');
             fileName.className = 'file-name';
-            fileName.textContent = file.name;
+            fileName.textContent = item.path;
 
             const fileSize = document.createElement('div');
             fileSize.className = 'file-size';
-            fileSize.textContent = formatFileSize(file.size);
+            fileSize.textContent = formatFileSize(item.size);
 
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
             removeButton.textContent = '✕';
             removeButton.className = 'remove-button';
             removeButton.title = 'Retirer';
-            removeButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                removeFile(file);
-            });
+            removeButton.onclick = () => removeFile(index);
 
             fileInfo.appendChild(fileName);
             fileInfo.appendChild(fileSize);
             listItem.appendChild(fileInfo);
             listItem.appendChild(removeButton);
-            fileList.appendChild(listItem);
-        }
+            listContainer.appendChild(listItem);
+        });
     }
 
     function clearAllFiles() {
+        uploadedItems = [];
         fileInput.value = '';
-        fileList.style.transition = 'var(--transition-speed)';
-        fileList.style.opacity = '0';
-        setTimeout(() => {
-            fileList.style.display = 'none';
-            fileList.innerHTML = '';
-        }, 200);
+        updateFileList();
     }
 
-    function removeFile(fileToRemove) {
-        const item = Array.from(fileList.getElementsByClassName('file-item'))
-            .find(item => item.querySelector('.file-name').textContent === fileToRemove.name);
-            
-        if (item) {
-            item.style.transition = 'var(--transition-speed)';
-            item.style.opacity = '0';
-            item.style.transform = 'translateX(-8px)';
-            
-            setTimeout(() => {
-                const dataTransfer = new DataTransfer();
-                for (const file of fileInput.files) {
-                    if (file !== fileToRemove) {
-                        dataTransfer.items.add(file);
-                    }
-                }
-                fileInput.files = dataTransfer.files;
-                
-                if (fileInput.files.length === 0) {
-                    fileList.style.transition = 'var(--transition-speed)';
-                    fileList.style.opacity = '0';
-                    setTimeout(() => {
-                        fileList.style.display = 'none';
-                        fileList.innerHTML = '';
-                    }, 200);
-                } else {
-                    updateFileList();
-                }
-            }, 200);
-        }
+    function removeFile(index) {
+        uploadedItems = uploadedItems.filter((_, i) => i !== index);
+        updateFileList();
     }
+
+    dropZone.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragActive = true;
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!dragActive) {
+            dragActive = true;
+            dropZone.classList.add('dragover');
+        }
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dragActive = false;
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', handleDrop);
+    
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files).map(file => ({
+            name: file.name,
+            path: `/${file.name}`,
+            size: file.size,
+            file: file,
+            parentFolder: ''
+        }));
+        uploadedItems = [...uploadedItems, ...files];
+        updateFileList();
+    });
 </script>
 </body>
 </html>
