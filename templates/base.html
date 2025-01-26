@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImaGUIck - Image Processing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --clr-primary-a0: #808080;
+            --clr-primary-a10: #8d8d8d;
+            --clr-primary-a20: #9b9b9b;
+            --clr-primary-a30: #a9a9a9;
+            --clr-primary-a40: #b6b6b6;
+            --clr-primary-a50: #ffffff;
+
+            --clr-surface-a0: #121212;
+            --clr-surface-a10: #282828;
+            --clr-surface-a20: #3f3f3f;
+            --clr-surface-a30: #575757;
+
+            --spacing-xs: 5px;
+            --spacing-small: 10px;
+            --spacing-medium: 20px;
+            --spacing-large: 40px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            background-color: var(--clr-surface-a0);
+            color: var(--clr-primary-a50);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing-medium);
+        }
+
+        h1, h2, h3 {
+            color: var(--clr-primary-a50);
+            margin-bottom: var(--spacing-medium);
+        }
+
+        a {
+            color: var(--clr-primary-a40);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        a:hover {
+            color: var(--clr-primary-a50);
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+</body>
+</html>

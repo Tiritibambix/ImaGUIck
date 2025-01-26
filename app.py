@@ -295,8 +295,12 @@ def analyze_image_type(filepath):
 
 def flash_error(message):
     """Flash error message and log if needed."""
-    flash(message)
     app.logger.error(message)
+    flash(message)
+    return render_template('result.html', 
+                         success=False, 
+                         title='Error',
+                         return_url=request.referrer)
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
     """Build ImageMagick command for resizing and formatting."""
@@ -493,8 +497,11 @@ def resize_image(filename):
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if not os.path.exists(filepath):
             flash('File not found')
-            return redirect(url_for('index'))
-            
+            return render_template('result.html', 
+                                success=False, 
+                                title='Error',
+                                return_url=url_for('resize_options', filename=filename))
+
         # Créer un nom de fichier pour la sortie
         base_name = os.path.splitext(filename)[0]
         if output_format:
@@ -518,11 +525,17 @@ def resize_image(filename):
         
         if error:
             flash(error)
-            return redirect(url_for('resize_options', filename=filename))
+            return render_template('result.html', 
+                                success=False, 
+                                title='Error',
+                                return_url=url_for('resize_options', filename=filename))
             
         if not commands:
             flash('Error preparing resize command')
-            return redirect(url_for('resize_options', filename=filename))
+            return render_template('result.html', 
+                                success=False, 
+                                title='Error',
+                                return_url=url_for('resize_options', filename=filename))
             
         # Exécuter les commandes en séquence
         for cmd in commands:
@@ -531,7 +544,10 @@ def resize_image(filename):
             if result.returncode != 0:
                 app.logger.error(f"Command failed: {result.stderr}")
                 flash(f'Error during image processing: {result.stderr}')
-                return redirect(url_for('resize_options', filename=filename))
+                return render_template('result.html', 
+                                    success=False, 
+                                    title='Error',
+                                    return_url=url_for('resize_options', filename=filename))
                 
         # Nettoyer les fichiers temporaires
         try:
@@ -543,18 +559,20 @@ def resize_image(filename):
         except Exception as e:
             app.logger.warning(f"Error cleaning temporary files: {e}")
             
-        # Forcer le téléchargement du fichier
-        return send_file(
-            output_path,
-            as_attachment=True,
-            download_name=output_filename,
-            mimetype=f'image/{output_format.lower() if output_format else os.path.splitext(filename)[1][1:].lower()}'
-        )
-        
+        flash('Image processed successfully!')
+        return render_template('result.html',
+                            success=True,
+                            title='Success',
+                            filename=output_filename,
+                            batch=False)
+
     except Exception as e:
-        app.logger.error(f"Error during resize: {e}")
+        app.logger.error(f"Error during resize: {str(e)}")
         flash(f'Error during resize: {str(e)}')
-        return redirect(url_for('resize_options', filename=filename))
+        return render_template('result.html',
+                            success=False,
+                            title='Error',
+                            return_url=url_for('resize_options', filename=filename))
 
 @app.route('/resize_batch_options')
 def resize_batch_options(filenames=None):
@@ -616,12 +634,18 @@ def resize_batch():
     """Resize multiple images and compress them into a ZIP."""
     if 'filenames' not in request.form:
         flash('No files selected')
-        return redirect(url_for('index'))
+        return render_template('result.html',
+                            success=False,
+                            title='Error',
+                            return_url=url_for('index'))
 
     filenames = request.form['filenames'].split(',')
     if not filenames:
         flash('No files selected')
-        return redirect(url_for('index'))
+        return render_template('result.html',
+                            success=False,
+                            title='Error',
+                            return_url=url_for('index'))
 
     # Créer un dossier temporaire pour les fichiers traités
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -635,12 +659,13 @@ def resize_batch():
 
     output_files = []
     processed = False
+    errors = []
 
     for filename in filenames:
         try:
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             if not os.path.isfile(filepath):
-                flash(f'File not found: {filename}')
+                errors.append(f'File not found: {filename}')
                 continue
 
             output_filename = f'resized_{filename}'
@@ -669,13 +694,20 @@ def resize_batch():
             processed = True
 
         except Exception as e:
-            app.logger.error(f"Error processing {filename}: {str(e)}")
-            flash(f'Error processing {filename}: {str(e)}')
+            error_msg = f"Error processing {filename}: {str(e)}"
+            app.logger.error(error_msg)
+            errors.append(error_msg)
 
     if not processed:
         app.logger.error("No images processed.")
         flash('No images were processed successfully')
-        return redirect(url_for('index'))
+        if errors:
+            for error in errors:
+                flash(error)
+        return render_template('result.html',
+                            success=False,
+                            title='Batch Processing Failed',
+                            return_url=request.referrer)
 
     # Créer le fichier ZIP
     zip_filename = f'batch_resized_{timestamp}.zip'
@@ -685,12 +717,27 @@ def resize_batch():
         with ZipFile(zip_path, 'w') as zipf:
             for file in output_files:
                 zipf.write(file, os.path.basename(file))
+        
+        if errors:
+            flash('Some files were processed with errors:')
+            for error in errors:
+                flash(error)
+        else:
+            flash('All files processed successfully!')
+            
+        return render_template('result.html',
+                            success=True,
+                            title='Batch Processing Complete',
+                            filename=zip_filename,
+                            batch=True)
+
     except Exception as e:
         app.logger.error(f"Error creating ZIP file: {str(e)}")
         flash('Error creating ZIP file')
-        return redirect(url_for('index'))
-
-    return redirect(url_for('download_batch', filename=zip_filename))
+        return render_template('result.html',
+                            success=False,
+                            title='Error',
+                            return_url=request.referrer)
 
 @app.route('/download_batch/<filename>')
 def download_batch(filename):

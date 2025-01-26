@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="result-container {% if success %}success{% else %}error{% endif %}">
+        <h1>{{ title }}</h1>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if success %}
+            <div class="success-actions">
+                {% if batch %}
+                    <a href="{{ url_for('download_batch', filename=filename) }}" class="btn-primary">Download ZIP</a>
+                {% else %}
+                    <a href="{{ url_for('download', filename=filename) }}" class="btn-primary">Download File</a>
+                {% endif %}
+                <a href="{{ url_for('index') }}" class="btn-secondary">Process Another Image</a>
+            </div>
+        {% else %}
+            <div class="error-actions">
+                {% if return_url %}
+                    <a href="{{ return_url }}" class="btn-primary">Try Again</a>
+                {% endif %}
+                <a href="{{ url_for('index') }}" class="btn-secondary">Start Over</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .result-container {
+        text-align: center;
+        padding: 2rem;
+        border-radius: 8px;
+        margin: 2rem auto;
+        max-width: 600px;
+    }
+
+    .success {
+        background-color: rgba(40, 167, 69, 0.1);
+        border: 1px solid #28a745;
+    }
+
+    .error {
+        background-color: rgba(220, 53, 69, 0.1);
+        border: 1px solid #dc3545;
+    }
+
+    .messages {
+        margin: 1rem 0;
+    }
+
+    .message {
+        padding: 0.5rem;
+        margin: 0.5rem 0;
+        border-radius: 4px;
+    }
+
+    .success-actions, .error-actions {
+        margin-top: 2rem;
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background-color: var(--clr-primary-a0);
+        color: white;
+    }
+
+    .btn-secondary {
+        background-color: var(--clr-surface-a20);
+        color: white;
+    }
+
+    .btn-primary:hover, .btn-secondary:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
