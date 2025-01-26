@@ -12,72 +12,101 @@ import re
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'arw', 'cr2', 'nef'}
+ALLOWED_URL_SCHEMES = {'http', 'https'}
+MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max
 DEFAULTS = {
     "quality": "100",
     "width": "",
     "height": "",
     "percentage": "",
 }
+
+# Ensure paths are absolute and secure
+UPLOAD_FOLDER = os.path.abspath(UPLOAD_FOLDER)
+OUTPUT_FOLDER = os.path.abspath(OUTPUT_FOLDER)
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
-app.secret_key = 'supersecretkey'
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'supersecretkey')  # Better to use env variable
 app.logger.setLevel(logging.INFO)
 
+def is_safe_path(basedir, path):
+    """Ensure the path is contained within the base directory"""
+    try:
+        return os.path.abspath(path).startswith(os.path.abspath(basedir))
+    except (TypeError, ValueError):
+        return False
+
 def allowed_file(filename):
-    """Allow all file types supported by ImageMagick."""
-    return '.' in filename
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def sanitize_filename(filename):
+    """Sanitize filename to prevent path traversal"""
+    return secure_filename(filename)
+
+def validate_url(url):
+    """Validate URL scheme and domain"""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        return parsed.scheme in ALLOWED_URL_SCHEMES
+    except:
+        return False
+
+def secure_command(cmd_list):
+    """Validate and sanitize command arguments"""
+    # Ensure all arguments are strings and don't contain shell metacharacters
+    sanitized = []
+    for arg in cmd_list:
+        if not isinstance(arg, str):
+            arg = str(arg)
+        # Remove any shell metacharacters
+        arg = re.sub(r'[;&|`$]', '', arg)
+        sanitized.append(arg)
+    return sanitized
 
 def get_image_dimensions(filepath):
     """Get image dimensions using appropriate tool based on file type."""
     try:
+        if not is_safe_path(app.config['UPLOAD_FOLDER'], filepath):
+            raise ValueError("Invalid file path")
+
         if filepath.lower().endswith('.arw'):
             app.logger.info(f"Getting dimensions for ARW file: {filepath}")
-            # Utiliser exiftool pour obtenir les dimensions de l'aperçu JPEG
-            cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', filepath]
-            app.logger.info(f"Running exiftool command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            cmd = secure_command(['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', filepath])
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
             
             if result.returncode == 0 and result.stdout.strip():
                 app.logger.info(f"Exiftool output: {result.stdout}")
-                # Essayer de parser les dimensions
                 dimensions = result.stdout.strip().split('\n')
                 if len(dimensions) == 2:
                     try:
                         height = int(dimensions[0])
                         width = int(dimensions[1])
-                        app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
                         return width, height
                     except ValueError:
                         app.logger.warning("Could not parse dimensions from exiftool output")
-                        pass
-            else:
-                app.logger.warning(f"Exiftool failed or no output: {result.stderr}")
-            
-            # Si on n'a pas pu obtenir les dimensions de l'aperçu, utiliser les dimensions connues
-            app.logger.info("Using known dimensions for Sony A7 IV")
-            return 7008, 4672  # Dimensions connues pour Sony A7 IV
+            return 7008, 4672  # Fallback dimensions for Sony A7 IV
         else:
             app.logger.info(f"Getting dimensions for non-ARW file: {filepath}")
-            cmd = ['magick', 'identify', filepath]
-            app.logger.info(f"Running ImageMagick command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            cmd = secure_command(['magick', 'identify', filepath])
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
             if result.returncode != 0:
                 raise Exception(f"Error getting image dimensions: {result.stderr}")
             
-            app.logger.info(f"ImageMagick output: {result.stdout}")
-            # Parse the output to get dimensions
             match = re.search(r'\s(\d+)x(\d+)\s', result.stdout)
             if match:
                 width = int(match.group(1))
                 height = int(match.group(2))
-                app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
                 return width, height
-            else:
-                raise Exception("Could not parse image dimensions")
+            raise Exception("Could not parse image dimensions")
     except Exception as e:
         app.logger.error(f"Error getting image dimensions: {str(e)}")
         return None, None
@@ -290,102 +319,56 @@ def flash_error(message):
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
     """Build ImageMagick command for resizing and formatting."""
-    # Pour les fichiers RAW Sony ARW, on extrait le JPEG intégré
-    if filepath.lower().endswith('.arw'):
-        app.logger.info(f"Processing ARW file: {filepath}")
-        # Créer un nom temporaire pour le fichier JPEG extrait
-        temp_jpeg = os.path.join(os.path.dirname(output_path), f"{os.path.splitext(os.path.basename(filepath))[0]}_preview.jpg")
-        app.logger.info(f"Temporary JPEG will be saved as: {temp_jpeg}")
-        
-        # Essayer d'abord JpgFromRaw (meilleure qualité)
-        app.logger.info("Attempting to extract JpgFromRaw...")
-        exif_cmd = ['exiftool', '-b', '-JpgFromRaw', filepath]
-        app.logger.info(f"Running exiftool command: {' '.join(exif_cmd)}")
-        result = subprocess.run(exif_cmd, capture_output=True)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            app.logger.info("Successfully extracted JpgFromRaw")
-            # Sauvegarder le JPEG extrait
-            with open(temp_jpeg, 'wb') as f:
-                f.write(result.stdout)
-            app.logger.info(f"Saved JpgFromRaw to: {temp_jpeg}")
-        else:
-            app.logger.info("No JpgFromRaw found, trying PreviewImage...")
-            # Si pas de JpgFromRaw, essayer PreviewImage
-            exif_cmd = ['exiftool', '-b', '-PreviewImage', filepath]
-            app.logger.info(f"Running exiftool command: {' '.join(exif_cmd)}")
-            result = subprocess.run(exif_cmd, capture_output=True)
-            if result.returncode == 0 and result.stdout.strip():
-                app.logger.info("Successfully extracted PreviewImage")
-                with open(temp_jpeg, 'wb') as f:
-                    f.write(result.stdout)
-                app.logger.info(f"Saved PreviewImage to: {temp_jpeg}")
-            else:
-                app.logger.error(f"Exiftool error: {result.stderr.decode('utf-8', errors='ignore')}")
-                raise Exception("No preview image found in RAW file")
-        
-        # Commande ImageMagick pour redimensionner le JPEG extrait
-        magick_cmd = ['magick', temp_jpeg]
-        
-        # 1. Redimensionnement
-        if width.isdigit() and height.isdigit():
-            resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-            magick_cmd.extend(["-resize", resize_value])
-            app.logger.info(f"Adding resize parameters: {resize_value}")
-        elif percentage.isdigit() and 0 < int(percentage) <= 100:
-            magick_cmd.extend(["-resize", f"{percentage}%"])
-            app.logger.info(f"Adding percentage resize: {percentage}%")
-            
-        # 2. Qualité (si spécifiée)
-        if quality.isdigit() and 1 <= int(quality) <= 100:
-            magick_cmd.extend(["-quality", quality])
-            app.logger.info(f"Setting quality to: {quality}")
-            
-        # 3. Conversion de format (utiliser un fichier temporaire PNG)
-        temp_resized = os.path.join(os.path.dirname(output_path), "temp_resized.png")
-        magick_cmd.append(temp_resized)
-        app.logger.info(f"Saving resized image to temporary file: {temp_resized}")
-        
-        # 4. Deuxième commande pour la conversion finale
-        convert_cmd = ['magick', temp_resized]
-        if quality.isdigit() and 1 <= int(quality) <= 100:
-            convert_cmd.extend(["-quality", quality])
-        convert_cmd.append(output_path)
-        app.logger.info(f"Final conversion command: {' '.join(convert_cmd)}")
-        
-        return None, [magick_cmd, convert_cmd], temp_jpeg
-    else:
-        app.logger.info(f"Processing non-ARW file: {filepath}")
-        # Pour les autres formats, utiliser directement ImageMagick
-        
-        # 1. Commande de redimensionnement
-        resize_cmd = ['magick', filepath]
-        
-        if width.isdigit() and height.isdigit():
-            resize_value = f"{width}x{height}" if keep_ratio else f"{width}x{height}!"
-            resize_cmd.extend(["-resize", resize_value])
-            app.logger.info(f"Adding resize parameters: {resize_value}")
-        elif percentage.isdigit() and 0 < int(percentage) <= 100:
-            resize_cmd.extend(["-resize", f"{percentage}%"])
-            app.logger.info(f"Adding percentage resize: {percentage}%")
-            
-        if quality.isdigit() and 1 <= int(quality) <= 100:
-            resize_cmd.extend(["-quality", quality])
-            app.logger.info(f"Setting quality to: {quality}")
-            
-        # Sauvegarder dans un fichier temporaire PNG
-        temp_resized = os.path.join(os.path.dirname(output_path), "temp_resized.png")
-        resize_cmd.append(temp_resized)
-        app.logger.info(f"Saving resized image to temporary file: {temp_resized}")
-        
-        # 2. Commande de conversion de format
-        convert_cmd = ['magick', temp_resized]
-        if quality.isdigit() and 1 <= int(quality) <= 100:
-            convert_cmd.extend(["-quality", quality])
-        convert_cmd.append(output_path)
-        app.logger.info(f"Final conversion command: {' '.join(convert_cmd)}")
-        
-        return None, [resize_cmd, convert_cmd], None
+    if not is_safe_path(app.config['UPLOAD_FOLDER'], filepath) or \
+       not is_safe_path(app.config['OUTPUT_FOLDER'], output_path):
+        raise ValueError("Invalid file path")
+
+    cmd = ['magick', 'convert']
+    
+    # Validate numeric inputs
+    try:
+        if width:
+            width = int(width)
+            if width <= 0 or width > 20000:
+                raise ValueError("Invalid width")
+        if height:
+            height = int(height)
+            if height <= 0 or height > 20000:
+                raise ValueError("Invalid height")
+        if percentage:
+            percentage = float(percentage)
+            if percentage <= 0 or percentage > 1000:
+                raise ValueError("Invalid percentage")
+        if quality:
+            quality = int(quality)
+            if quality < 1 or quality > 100:
+                raise ValueError("Invalid quality")
+    except ValueError as e:
+        raise ValueError(f"Invalid parameter: {str(e)}")
+
+    # Add input file
+    cmd.append(filepath)
+
+    # Add resize options
+    resize_opts = []
+    if width or height:
+        resize_opts.append(f"{width or ''}x{height or ''}")
+        if not keep_ratio:
+            resize_opts.append("!")
+    elif percentage:
+        resize_opts.append(f"{percentage}%")
+    
+    if resize_opts:
+        cmd.extend(['-resize', ''.join(resize_opts)])
+
+    # Add quality
+    if quality:
+        cmd.extend(['-quality', str(quality)])
+
+    # Add output file
+    cmd.append(output_path)
+
+    return secure_command(cmd)
 
 @app.route('/')
 def index():
@@ -422,28 +405,35 @@ def upload_file():
 @app.route('/upload_url', methods=['POST'])
 def upload_url():
     """Handle image upload from a URL."""
-    url = request.form.get('url')
-    if not url:
-        return flash_error("No URL provided."), redirect(url_for('index'))
-
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, stream=True, headers=headers)
+        url = request.form.get('url')
+        if not url or not validate_url(url):
+            flash("URL invalide ou non autorisée", "error")
+            return redirect(url_for('index'))
+
+        response = requests.get(url, stream=True, timeout=10, verify=True)
         response.raise_for_status()
 
-        filename = url.split("/")[-1].split("?")[0]
-        if not filename:
-            return flash_error("Unable to determine a valid filename from the URL."), redirect(url_for('index'))
+        content_type = response.headers.get('content-type', '').lower()
+        if not content_type.startswith('image/'):
+            flash("Le fichier n'est pas une image valide", "error")
+            return redirect(url_for('index'))
 
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+        # Get filename from URL or generate one
+        filename = sanitize_filename(os.path.basename(url)) or 'image.jpg'
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        # Save file securely
         with open(filepath, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+                if chunk:
+                    f.write(chunk)
 
-        flash(f"Image downloaded successfully: {filename}")
         return redirect(url_for('resize_options', filename=filename))
-    except requests.exceptions.RequestException as e:
-        return flash_error(f"Error downloading image: {e}"), redirect(url_for('index'))
+    except Exception as e:
+        app.logger.error(f"Error downloading image: {str(e)}")
+        flash("Erreur lors du téléchargement de l'image", "error")
+        return redirect(url_for('index'))
 
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
