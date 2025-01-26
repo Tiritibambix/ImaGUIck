@@ -19,13 +19,10 @@ RUN apt-get update && apt-get install -y \
     libmagickwand-dev \
     exiftool \
     zip unzip \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# Créer le répertoire pour la politique de sécurité
+# Créer le répertoire pour la politique de sécurité et copier le fichier
 RUN mkdir -p /etc/ImageMagick-7
-
-# Copier la politique de sécurité d'ImageMagick
 COPY policy.xml /etc/ImageMagick-7/policy.xml
 
 # Télécharger et installer ImageMagick 7.1.1-41
@@ -57,15 +54,12 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 # Exposer le port
 EXPOSE 5000
 
-# Passer à l'utilisateur non-root
-USER imagick
-
 # Variables d'environnement pour la sécurité
 ENV FLASK_ENV=production \
     PYTHONUNBUFFERED=1
 
-# Note: FLASK_SECRET_KEY should be passed at runtime
-# docker run -e FLASK_SECRET_KEY=your_secret_key ...
+# Passer à l'utilisateur non-root
+USER imagick
 
 # Commande pour démarrer l'application Flask
 CMD ["python", "app.py"]
