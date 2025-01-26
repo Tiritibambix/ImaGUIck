@@ -6,19 +6,36 @@ ImaGUIck is a simple and intuitive web application for batch image processing, p
 
 ## ✨ Features
 
-- 🖼️ **Single or Batch Image Processing**
+- 🖼️ **Single or Batch Image Processing**:
+  - Process individual images
+  - Batch process multiple images with ZIP export
+  - Clear success/error feedback for each operation
 - 📏 **Flexible Resizing Options**:
   - By specific dimensions (width x height)
   - By percentage
   - With or without aspect ratio preservation
-- 🔄 **Support for Multiple Image Formats**:
+- 🔄 **Smart Format Support**:
   - Common formats (JPG, PNG, GIF, etc.)
-  - RAW formats (ARW, etc.)
+  - RAW formats (ARW, CR2, CR3, NEF, RAF, RW2, DNG)
+  - Modern formats (WEBP, AVIF, HEIC)
+  - Animation formats (GIF, WEBP, APNG)
+  - Vector formats (SVG, PDF, EPS)
 - 🌐 **Image Import from URL**
-- 📦 **Batch Export in ZIP Format**
-- 🎨 **Image Quality Control**
+- 📦 **Enhanced Batch Processing**:
+  - ZIP export with organized structure
+  - Detailed processing status for each image
+  - Error handling with specific feedback
+- 🎨 **Advanced Image Analysis**:
+  - Automatic transparency detection
+  - Photo vs. graphic type detection
+  - Format-specific optimizations
+- 💾 **Smart Format Recommendations**:
+  - Context-aware format suggestions
+  - Quality-preserving options (PNG, DNG)
+  - Format-specific optimizations
+  - Support for modern compression formats
 - 🔍 **Automatic Image Type Analysis**
-- 💾 **Intelligent Format Recommendations**
+- 🔍 **Intelligent Format Recommendations**
 
 ## 🚀 Installation
 
@@ -119,23 +136,26 @@ networks: {}
 
 ```
 imaguick/
-├── .github
-|     ├── workflows
-|     |     ├── docker-build-test.yml
-|     |     ├── docker-build.yml
-├── .gitignore                        # Excluded files for version control
-├── Dockerfile                        # Instructions to build the Docker image
-├── LICENSE                           # License for ImaGUIck and ImageMagick
-├── README.md                         # Documentation
-├── TODO.md
-├── app.py                            # The main Python application
-├── requirements.txt                  # Python dependencies
-├── templates                         # HTML templates for the web interface
-|     ├── index.html                  # Homepage
-|     ├── resize.html                 # Resize options for individual images
-|     ├── resize_batch.html           # Batch processing options
-
+├── Dockerfile                  # Container configuration for Docker deployment
+├── LICENSE                     # Project and ImageMagick licenses
+├── README.md                   # Project documentation
+├── TODO.md                     # Development roadmap and planned features
+├── app.py                      # Main application logic and routes
+├── docker-compose.yml          # Docker Compose configuration for easy deployment
+├── requirements.txt            # Python package dependencies
+├── templates                   # HTML templates for the web interface
+|     ├── base.html             # Base template with common styling and structure
+|     ├── index.html            # Main page with file upload and import options
+|     ├── resize.html           # Single image processing configuration
+|     ├── resize_batch.html     # Batch processing options and configuration
+|     ├── result.html           # Success/Error feedback display
 ```
+
+The application follows a clean and modular structure:
+- Core application files at the root level for easy deployment
+- Containerization support with Docker and Docker Compose
+- Separate template directory for all web interface components
+- Clear separation between processing logic (app.py) and presentation (templates)
 
 ## 🤝 Contribution
 
