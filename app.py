@@ -573,7 +573,10 @@ def resize_batch_options(filenames=None):
         'total_files': len(filenames)
     }
 
+    # Collecter les informations détaillées pour chaque image
+    image_types = []
     first_file_path = None
+
     for filename in filenames:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if not os.path.exists(filepath):
@@ -584,12 +587,19 @@ def resize_batch_options(filenames=None):
             
         image_type = analyze_image_type(filepath)
         if image_type:
+            # Mettre à jour les informations du batch
             if image_type.get('has_transparency'):
                 batch_info['has_transparency'] = True
             if image_type.get('is_photo'):
                 batch_info['has_photos'] = True
             if not image_type.get('is_photo'):
                 batch_info['has_graphics'] = True
+            
+            # Ajouter les informations détaillées de l'image
+            image_types.append({
+                'filename': filename,
+                'type': image_type
+            })
 
     # Récupérer les formats disponibles basés sur le premier fichier
     formats = get_available_formats(first_file_path)
@@ -598,6 +608,7 @@ def resize_batch_options(filenames=None):
                          files=filenames,
                          formats=formats,
                          batch_info=batch_info,
+                         image_types=image_types,
                          defaults=DEFAULTS)
 
 @app.route('/resize_batch', methods=['POST'])
