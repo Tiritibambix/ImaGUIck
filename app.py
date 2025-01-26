@@ -603,46 +603,83 @@ def resize_batch_options(filenames=None):
 @app.route('/resize_batch', methods=['POST'])
 def resize_batch():
     """Resize multiple images and compress them into a ZIP."""
-    filenames = request.form.get('filenames').split(',')
+    if 'filenames' not in request.form:
+        flash('No files selected')
+        return redirect(url_for('index'))
+
+    filenames = request.form['filenames'].split(',')
+    if not filenames:
+        flash('No files selected')
+        return redirect(url_for('index'))
+
+    # Créer un dossier temporaire pour les fichiers traités
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    batch_folder = os.path.join(app.config['OUTPUT_FOLDER'], f'batch_{timestamp}')
+    os.makedirs(batch_folder, exist_ok=True)
+
+    width = request.form.get('width', DEFAULTS["width"])
+    height = request.form.get('height', DEFAULTS["height"])
+    keep_ratio = 'keep_ratio' in request.form
+    output_format = request.form.get('format', '').upper()
+
     output_files = []
+    processed = False
 
     for filename in filenames:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        name, ext = os.path.splitext(filename)
-        output_filename = f"{name}_rsz{ext}"
-        format_conversion = request.form.get('format', None)
-        if format_conversion:
-            output_filename = f"{name}_rsz.{format_conversion.lower()}"
-        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
-
-        command = build_imagemagick_command(
-            filepath=filepath,
-            output_path=output_path,
-            width=request.form.get('width', DEFAULTS["width"]),
-            height=request.form.get('height', DEFAULTS["height"]),
-            percentage=request.form.get('percentage', DEFAULTS["percentage"]),
-            quality=request.form.get('quality', DEFAULTS["quality"]),
-            keep_ratio='keep_ratio' in request.form
-        )
-
         try:
-            subprocess.run(command, check=True)
-            output_files.append(output_path)
-        except Exception as e:
-            flash_error(f"Error processing {filename}: {e}")
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if not os.path.isfile(filepath):
+                flash(f'File not found: {filename}')
+                continue
 
-    if len(output_files) > 1:
-        zip_suffix = datetime.now().strftime("%y%m%d-%H%M")
-        zip_filename = f"batch_output_{zip_suffix}.zip"
-        zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
+            output_filename = f'resized_{filename}'
+            if output_format:
+                output_filename = f'{os.path.splitext(output_filename)[0]}.{output_format.lower()}'
+            output_path = os.path.join(batch_folder, output_filename)
+
+            # Construire et exécuter la commande de redimensionnement
+            commands = build_imagemagick_command(
+                filepath=filepath,
+                output_path=output_path,
+                width=width,
+                height=height,
+                percentage=request.form.get('percentage', DEFAULTS["percentage"]),
+                quality=request.form.get('quality', DEFAULTS["quality"]),
+                keep_ratio=keep_ratio
+            )
+
+            for cmd in commands:
+                app.logger.info(f"Running command: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
+                if result.returncode != 0:
+                    raise Exception(f"Command failed: {result.stderr}")
+
+            output_files.append(output_path)
+            processed = True
+
+        except Exception as e:
+            app.logger.error(f"Error processing {filename}: {str(e)}")
+            flash(f'Error processing {filename}: {str(e)}')
+
+    if not processed:
+        app.logger.error("No images processed.")
+        flash('No images were processed successfully')
+        return redirect(url_for('index'))
+
+    # Créer le fichier ZIP
+    zip_filename = f'batch_resized_{timestamp}.zip'
+    zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
+    
+    try:
         with ZipFile(zip_path, 'w') as zipf:
             for file in output_files:
                 zipf.write(file, os.path.basename(file))
-        return redirect(url_for('download_batch', filename=zip_filename))
-    elif len(output_files) == 1:
-        return redirect(url_for('download', filename=os.path.basename(output_files[0])))
-    else:
-        return flash_error("No images processed."), redirect(url_for('index'))
+    except Exception as e:
+        app.logger.error(f"Error creating ZIP file: {str(e)}")
+        flash('Error creating ZIP file')
+        return redirect(url_for('index'))
+
+    return redirect(url_for('download_batch', filename=zip_filename))
 
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
