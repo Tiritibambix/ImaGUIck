@@ -1,29 +1,11 @@
-version: '3.8'
-
 services:
-  web:
-    build: .
-    ports:
-      - "5000:5000"
+  imaguick:
+    stdin_open: true
+    tty: true
     volumes:
       - ./uploads:/app/uploads
       - ./output:/app/output
-    environment:
-      - FLASK_ENV=production
-      - FLASK_SECRET_KEY=supersecretkey123  # Remplacer par une vraie clé secrète en production
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    read_only: true
-    tmpfs:
-      - /tmp
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    ports:
+      - 5000:5000
+    image: tiritibambix/imaguick:latest
+networks: {}

@@ -1,9 +1,6 @@
 # Choisir l'image de base
 FROM python:3.9-slim
 
-# Créer un utilisateur non-root
-RUN groupadd -r imagick && useradd -r -g imagick imagick
-
 # Dépendances nécessaires pour compiler ImageMagick et autres utilitaires
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -21,10 +18,6 @@ RUN apt-get update && apt-get install -y \
     zip unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Créer le répertoire pour la politique de sécurité et copier le fichier
-RUN mkdir -p /etc/ImageMagick-7
-COPY policy.xml /etc/ImageMagick-7/policy.xml
-
 # Télécharger et installer ImageMagick 7.1.1-41
 RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz \
     && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
@@ -40,26 +33,15 @@ ENV PATH="/usr/local/bin:${PATH}"
 # Vérifier que ImageMagick est bien installé
 RUN magick -version
 
-# Créer et définir les permissions des répertoires
-RUN mkdir -p /app/uploads /app/output \
-    && chown -R imagick:imagick /app
-
 # Copier l'application dans le conteneur
 WORKDIR /app
-COPY --chown=imagick:imagick . /app
+COPY . /app
 
 # Installer les dépendances Python
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Exposer le port
 EXPOSE 5000
-
-# Variables d'environnement pour la sécurité
-ENV FLASK_ENV=production \
-    PYTHONUNBUFFERED=1
-
-# Passer à l'utilisateur non-root
-USER imagick
 
 # Commande pour démarrer l'application Flask
 CMD ["python", "app.py"]
