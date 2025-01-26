@@ -22,18 +22,20 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+# Créer le répertoire pour la politique de sécurité
+RUN mkdir -p /etc/ImageMagick-7
+
+# Copier la politique de sécurité d'ImageMagick
+COPY policy.xml /etc/ImageMagick-7/policy.xml
+
 # Télécharger et installer ImageMagick 7.1.1-41
 RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz \
     && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
     && cd /tmp/ImageMagick-7.1.1-41 \
     && ./configure --prefix=/usr/local --disable-shared --without-x \
-    --with-security-policy=/etc/ImageMagick-7/policy.xml \
     && make \
     && make install \
     && rm -rf /tmp/*
-
-# Configurer la politique de sécurité d'ImageMagick
-COPY policy.xml /etc/ImageMagick-7/policy.xml
 
 # Ajouter /usr/local/bin au PATH
 ENV PATH="/usr/local/bin:${PATH}"
@@ -60,8 +62,10 @@ USER imagick
 
 # Variables d'environnement pour la sécurité
 ENV FLASK_ENV=production \
-    PYTHONUNBUFFERED=1 \
-    FLASK_SECRET_KEY=""
+    PYTHONUNBUFFERED=1
+
+# Note: FLASK_SECRET_KEY should be passed at runtime
+# docker run -e FLASK_SECRET_KEY=your_secret_key ...
 
 # Commande pour démarrer l'application Flask
 CMD ["python", "app.py"]
