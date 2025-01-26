@@ -42,15 +42,15 @@ ImaGUIck is a simple and intuitive web application for batch image processing, p
 ### Prerequisites
 
 - Python 3.9+
-- Docker (optional)
-- [`ImageMagick 7.1.1-41`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.1-41)
+- [`ImageMagick 7.1.1-41`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.1-41) or newer
 - ExifTool
+- Docker (optional, for containerized deployment)
 
 ### Local Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/ImaGUIck.git
+   git clone https://github.com/tiritibambix/ImaGUIck.git
    cd ImaGUIck
    ```
 
@@ -59,10 +59,16 @@ ImaGUIck is a simple and intuitive web application for batch image processing, p
    pip install -r requirements.txt
    ```
 
-3. Run the application:
+3. Ensure ImageMagick and ExifTool are properly installed and accessible from your PATH.
+
+4. Run the application:
    ```bash
    python app.py
    ```
+
+   The application will be available at `http://localhost:5000`
+
+> **Note**: For Windows users, make sure to add ImageMagick to your system's PATH during installation.
 
 ### Installation with Docker (supports amd64 and arm64)
 
