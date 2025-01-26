@@ -134,30 +134,39 @@ def get_recommended_formats_for_image(image_type, original_format):
     """Get recommended formats based on image characteristics."""
     recommended = set()
     
+    # PNG est toujours recommandé car c'est un excellent format sans perte
+    recommended.add('PNG')
+    
     if image_type.get('has_transparency'):
-        recommended.update(['PNG', 'WEBP', 'AVIF'])
+        recommended.update(['WEBP', 'AVIF'])
     
     if image_type.get('is_photo'):
-        recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC'])
+        recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC', 'DNG'])
     else:
         # Pour les graphiques, logos, etc.
-        recommended.update(['PNG', 'WEBP', 'SVG'])
+        recommended.update(['WEBP', 'SVG'])
     
     # Cas spéciaux basés sur le format original
     if original_format:
         original_format = original_format.upper()
-        if original_format in ['GIF', 'WEBP', 'MNG', 'APNG']:
+        if original_format in ['ARW', 'CR2', 'CR3', 'NEF', 'RAF', 'RW2', 'DNG']:
+            # Format RAW - on ajoute les formats de haute qualité
+            recommended.update(['TIFF', 'DNG'])
+        elif original_format in ['GIF', 'WEBP', 'MNG', 'APNG']:
             # Format d'animation
             recommended.update(['GIF', 'WEBP', 'APNG'])
         elif original_format in ['ICO', 'CUR', 'ICON']:
             # Format d'icône
-            recommended.update(['ICO', 'PNG'])
+            recommended.add('ICO')
         elif original_format in ['SVG', 'EPS', 'AI', 'PDF']:
             # Format vectoriel
-            recommended.update(['SVG', 'PDF', 'EPS', 'PNG'])
+            recommended.update(['SVG', 'PDF', 'EPS'])
         elif original_format in ['PSD', 'XCF', 'PSB']:
             # Format d'édition
-            recommended.update(['PSD', 'TIFF', 'PNG'])
+            recommended.update(['PSD', 'TIFF'])
+        elif original_format in ['TIFF']:
+            # Formats de haute qualité
+            recommended.add('TIFF')
     
     return sorted(list(recommended))
 
