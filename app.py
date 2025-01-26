@@ -28,9 +28,10 @@ app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
 
 def allowed_file(filename):
-    """Allow only specific image file extensions."""
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp', 'arw', 'cr2', 'cr3', 'nef', 'raf', 'dng', 'heic'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    """Allow all image file types supported by ImageMagick, but block potentially dangerous extensions."""
+    BLOCKED_EXTENSIONS = {'php', 'php3', 'php4', 'php5', 'phtml', 'exe', 'js', 'jsp', 'html', 'htm', 'sh', 'bash', 'py', 'pl'}
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    return ext and ext not in BLOCKED_EXTENSIONS
 
 def secure_path(filepath):
     """Ensure the filepath is secure and within allowed directories."""
