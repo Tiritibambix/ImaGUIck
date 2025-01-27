@@ -49,6 +49,11 @@ RUN crontab /etc/cron.d/cleanup-cron
 # Installer les dépendances Python
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
+# Vérifier l'installation de Gunicorn
+RUN pip install gunicorn && \
+    gunicorn --version && \
+    which gunicorn
+
 # Script de démarrage pour lancer cron et l'application
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
