@@ -21,12 +21,10 @@
 - [x] Work on only displaying eloquent formats (jpg > dng / mp4 > mov)
 
 - [x] Work on .ARW format
+     
+- [x] Cron purge
     
-- [ ] Handle specific download or image processing errors without stopping the entire process.
-    
-- [ ] Cron purge
-    
-- [ ] Batch: at convert page, small scrollable window at the top of the form displaying the list of files, with a red cross next to each file name to remove a file from the batch if needed. Must be responsive.
+- [x] Batch: at convert page, small scrollable window at the top of the form displaying the list of files, with a red cross next to each file name to remove a file from the batch if needed. Must be responsive.
       Likewise, display a list of selected files               
     
-- [ ] Back to `index` and empty fields after successful download
+- [x] Back to `index` and empty fields after successful download
