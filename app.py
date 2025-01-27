@@ -311,67 +311,62 @@ def flash_error(message):
                          title='Error',
                          return_url=request.referrer)
 
-def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio):
+def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio, 
+                        auto_denoise=False, auto_level=False, auto_gamma=False):
     """Build ImageMagick command for resizing and formatting."""
-    try:
-        secure_input_path = secure_path(filepath)
-        secure_output_path = secure_path(output_path)
-        if not secure_input_path or not secure_output_path:
-            raise Exception("Invalid file path")
+    if not secure_path(filepath) or not secure_path(output_path):
+        return None
 
-        commands = []
-        
-        # Vérifier si c'est un fichier RAW
-        if filepath.lower().endswith(('.arw', '.cr2', '.cr3', '.nef', '.raf')):
-            app.logger.info("Processing RAW file...")
-            temp_jpg = os.path.join(app.config['OUTPUT_FOLDER'], 'temp_preview.jpg')
-            # Extraction du preview JPEG
-            commands.append(['exiftool', '-b', '-JpgFromRaw', secure_input_path])
+    command = ['magick', filepath]
+
+    # Apply auto corrections in optimal order
+    if auto_denoise:
+        command.extend(['-wavelet-denoise', '5%x0.3'])
+    if auto_gamma:
+        command.append('-auto-gamma')
+    if auto_level:
+        command.append('-auto-level')
+
+    # Handle resizing
+    if percentage:
+        try:
+            resize_value = f"{float(percentage)}%"
+            command.extend(['-resize', resize_value])
+        except ValueError:
+            return None
+    elif width or height:
+        try:
+            if width:
+                width = int(width)
+            if height:
+                height = int(height)
             
-        # Construire la commande de redimensionnement
-        resize_cmd = ['magick', 'convert']
-        
-        if filepath.lower().endswith(('.arw', '.cr2', '.cr3', '.nef', '.raf')):
-            resize_cmd.extend(['-'])  # Lire depuis stdin pour les fichiers RAW
-        else:
-            resize_cmd.append(secure_input_path)
-            
-        # Ajouter les options de qualité
-        if quality and quality.isdigit():
-            resize_cmd.extend(['-quality', str(min(100, max(1, int(quality))))])
-            
-        # Calculer les dimensions de redimensionnement
-        if percentage and percentage.isdigit():
-            resize_value = f"{min(1000, max(1, int(percentage)))}%"
-            resize_cmd.extend(['-resize', resize_value])
-        elif width or height:
-            if width and not width.isdigit():
-                width = ''
-            if height and not height.isdigit():
-                height = ''
-                
+            resize_value = ''
             if width and height:
-                resize_value = f"{min(10000, max(1, int(width)))}x{min(10000, max(1, int(height)))}"
+                resize_value = f"{width}x{height}"
                 if keep_ratio:
-                    resize_value += ">"
+                    resize_value += '>'
             elif width:
-                resize_value = f"{min(10000, max(1, int(width)))}"
+                resize_value = f"{width}"
             elif height:
-                resize_value = f"x{min(10000, max(1, int(height)))}"
-            else:
-                resize_value = None
-                
+                resize_value = f"x{height}"
+            
             if resize_value:
-                resize_cmd.extend(['-resize', resize_value])
-                
-        resize_cmd.append(secure_output_path)
-        commands.append(resize_cmd)
-        
-        return commands
-        
-    except Exception as e:
-        app.logger.error(f"Error building ImageMagick command: {str(e)}")
-        raise
+                command.extend(['-resize', resize_value])
+        except ValueError:
+            return None
+
+    # Set quality
+    if quality and quality != "100":
+        try:
+            quality_value = int(quality)
+            if 1 <= quality_value <= 100:
+                command.extend(['-quality', str(quality_value)])
+        except ValueError:
+            return None
+
+    command.append(output_path)
+    return command
 
 @app.route('/')
 def index():
@@ -479,6 +474,9 @@ def resize_image(filename):
         height = request.form.get('height', '')
         keep_ratio = request.form.get('keep_ratio') == 'on'
         output_format = request.form.get('format', '').upper()
+        auto_denoise = request.form.get('auto_denoise') == 'on'
+        auto_level = request.form.get('auto_level') == 'on'
+        auto_gamma = request.form.get('auto_gamma') == 'on'
         
         app.logger.info(f"Processing resize request for {filename}")
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
@@ -529,7 +527,10 @@ def resize_image(filename):
             height=height,
             percentage=request.form.get('percentage', DEFAULTS["percentage"]),
             quality=request.form.get('quality', DEFAULTS["quality"]),
-            keep_ratio=keep_ratio
+            keep_ratio=keep_ratio,
+            auto_denoise=auto_denoise,
+            auto_level=auto_level,
+            auto_gamma=auto_gamma
         ), None
         
         if error:
@@ -665,6 +666,9 @@ def resize_batch():
     height = request.form.get('height', DEFAULTS["height"])
     keep_ratio = 'keep_ratio' in request.form
     output_format = request.form.get('format', '').upper()
+    auto_denoise = 'auto_denoise' in request.form
+    auto_level = 'auto_level' in request.form
+    auto_gamma = 'auto_gamma' in request.form
 
     output_files = []
     processed = False
@@ -690,7 +694,10 @@ def resize_batch():
                 height=height,
                 percentage=request.form.get('percentage', DEFAULTS["percentage"]),
                 quality=request.form.get('quality', DEFAULTS["quality"]),
-                keep_ratio=keep_ratio
+                keep_ratio=keep_ratio,
+                auto_denoise=auto_denoise,
+                auto_level=auto_level,
+                auto_gamma=auto_gamma
             )
 
             for cmd in commands:

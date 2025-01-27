@@ -195,6 +195,48 @@
             margin-top: 2px;
             font-size: 0.75rem;
         }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 120px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            padding: 5px 0;
+            border-radius: 6px;
+
+            /* Position the tooltip */
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+
+            /* Fade in tooltip */
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #555 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -235,6 +277,31 @@
                     <label for="quality">Quality (1-100):</label>
                     <input type="text" name="quality" id="quality" value="100">
                 </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="auto_denoise" id="auto_denoise">
+                        Auto-Denoise
+                        <span class="tooltip" title="Reduces image noise while preserving details using wavelet analysis">?</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="auto_level" id="auto_level">
+                        Auto-Level
+                        <span class="tooltip" title="Optimizes image levels for better dynamic range and contrast">?</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="auto_gamma" id="auto_gamma">
+                        Auto-Gamma
+                        <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
+                    </label>
+                </div>
+
                 <div class="form-group">
                     <label for="format">Output Format:</label>
                     <select name="format" id="format">
