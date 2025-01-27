@@ -2,6 +2,10 @@
   <img src="https://i.postimg.cc/rFRD78SG/Ima-GUIck-logo-NOWM-50.png" width="400" />
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-amd64%20%7C%20arm64-blue" alt="Platform Support" />
+</p>
+
 ImaGUIck is a simple and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
 
 ## ⚠️ Security Notice
