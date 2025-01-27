@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     libmagickwand-dev \
     exiftool \
     zip unzip \
+    cron \
     && rm -rf /var/lib/apt/lists/*
 
 # Télécharger et installer ImageMagick 7.1.1-41
@@ -37,11 +38,23 @@ RUN magick -version
 WORKDIR /app
 COPY . /app
 
+# Rendre le script de nettoyage exécutable
+RUN chmod +x /app/cleanup.py
+
+# Configurer le cron job
+RUN echo "0 */12 * * * /usr/local/bin/python /app/cleanup.py >> /var/log/cleanup.log 2>&1" > /etc/cron.d/cleanup-cron
+RUN chmod 0644 /etc/cron.d/cleanup-cron
+RUN crontab /etc/cron.d/cleanup-cron
+
 # Installer les dépendances Python
 RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Script de démarrage pour lancer cron et l'application
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Exposer le port
 EXPOSE 5000
 
-# Commande pour démarrer l'application Flask
-CMD ["python", "app.py"]
+# Utiliser le script de démarrage
+CMD ["/app/start.sh"]
