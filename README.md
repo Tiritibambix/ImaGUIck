@@ -126,6 +126,15 @@ networks: {}
 
 4. Start processing and download your images.
 
+### Automatic Cleanup
+
+- Uploaded and processed files are automatically cleaned up after 48 hours
+- To manually trigger an immediate cleanup:
+  ```bash
+  docker exec <container_name> /app/cleanup.sh
+  ```
+  Replace `<container_name>` with your container name (e.g., `imaguick`)
+
 ## 🛠️ Technical Architecture
 
 ### Technologies Used
