@@ -321,7 +321,13 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
 
     # Apply auto corrections in optimal order
     if auto_denoise:
-        command.extend(['-wavelet-denoise', '1%x0.1'])
+        # Convert to Lab, denoise L channel only, convert back to sRGB
+        command.extend([
+            '-colorspace', 'Lab',
+            '(', '-clone', '0', '-channel', 'L', '-wavelet-denoise', '2%x0.5', '-channel', 'all', ')',
+            '-swap', '0,1',
+            '-colorspace', 'sRGB'
+        ])
     if auto_gamma:
         command.append('-auto-gamma')
     if auto_level:

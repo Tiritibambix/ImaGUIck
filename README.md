@@ -29,7 +29,7 @@ This application is designed for local usage only. While it can be exposed to th
   - Animation formats (GIF, WEBP, APNG)
   - Vector formats (SVG, PDF, EPS)
 - ✨ **Automatic Image Enhancement**:
-  - Noise reduction using wavelet analysis (1% threshold with 0.1 softness for minimal noise removal)
+  - Smart noise reduction using wavelet analysis on luminance only (preserves color fidelity)
   - Auto-level for dynamic range optimization
   - Auto-gamma for balanced exposure correction
 - 🌐 **Image Import from URL**
