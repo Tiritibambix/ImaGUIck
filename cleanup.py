@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import time
+import argparse
 from datetime import datetime, timedelta
 import logging
 
@@ -53,6 +54,18 @@ def cleanup_old_files(directory, hours=48):
                 f"{total_size_freed / (1024*1024):.2f} MB libérés")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Nettoie les fichiers anciens des dossiers uploads et output')
+    parser.add_argument('--now', action='store_true', help='Nettoie tous les fichiers immédiatement')
+    args = parser.parse_args()
+
+    # Si --now est utilisé, on met hours=0 pour tout nettoyer
+    hours = 0 if args.now else 48
+    
+    if args.now:
+        logging.info("Mode nettoyage immédiat activé")
+    else:
+        logging.info(f"Nettoyage des fichiers plus vieux que {hours} heures")
+
     # Nettoyer les dossiers uploads et output
-    cleanup_old_files("uploads")
-    cleanup_old_files("output")
+    cleanup_old_files("uploads", hours=hours)
+    cleanup_old_files("output", hours=hours)

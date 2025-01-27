@@ -38,8 +38,8 @@ RUN magick -version
 WORKDIR /app
 COPY . /app
 
-# Rendre le script de nettoyage exécutable
-RUN chmod +x /app/cleanup.py
+# Rendre les scripts exécutables
+RUN chmod +x /app/cleanup.py /app/cleanup.sh
 
 # Configurer le cron job
 RUN echo "0 */12 * * * /usr/local/bin/python /app/cleanup.py >> /var/log/cleanup.log 2>&1" > /etc/cron.d/cleanup-cron
