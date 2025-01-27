@@ -312,7 +312,7 @@ def flash_error(message):
                          return_url=request.referrer)
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio, 
-                        auto_denoise=False, auto_level=False, auto_gamma=False):
+                        auto_level=False, auto_gamma=False):
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
         return None
@@ -320,20 +320,6 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     command = ['magick', filepath]
 
     # Apply auto corrections in optimal order
-    if auto_denoise:
-        # Utiliser une approche très douce basée sur un petit flou gaussien sélectif
-        command.extend([
-            '-colorspace', 'Lab',
-            '(',
-                '-clone', '0',
-                '-channel', 'L',
-                '-selective-blur', '0x2+5%',  # Rayon=0 (auto), sigma=2, seuil=5%
-                '-channel', 'all',
-            ')',
-            '-swap', '0,1',
-            '-colorspace', 'sRGB'
-        ])
-
     if auto_gamma:
         command.append('-auto-gamma')
     if auto_level:
@@ -486,7 +472,6 @@ def resize_image(filename):
         height = request.form.get('height', '')
         keep_ratio = request.form.get('keep_ratio') == 'on'
         output_format = request.form.get('format', '').upper()
-        auto_denoise = request.form.get('auto_denoise') == 'on'
         auto_level = request.form.get('auto_level') == 'on'
         auto_gamma = request.form.get('auto_gamma') == 'on'
         
@@ -540,7 +525,6 @@ def resize_image(filename):
             percentage=request.form.get('percentage', DEFAULTS["percentage"]),
             quality=request.form.get('quality', DEFAULTS["quality"]),
             keep_ratio=keep_ratio,
-            auto_denoise=auto_denoise,
             auto_level=auto_level,
             auto_gamma=auto_gamma
         )
@@ -662,9 +646,8 @@ def resize_batch():
     height = request.form.get('height', DEFAULTS["height"])
     keep_ratio = 'keep_ratio' in request.form
     output_format = request.form.get('format', '').upper()
-    auto_denoise = 'auto_denoise' in request.form
-    auto_level = 'auto_level' in request.form
-    auto_gamma = 'auto_gamma' in request.form
+    auto_level = request.form.get('auto_level') == 'on'
+    auto_gamma = request.form.get('auto_gamma') == 'on'
 
     output_files = []
     processed = False
@@ -691,7 +674,6 @@ def resize_batch():
                 percentage=request.form.get('percentage', DEFAULTS["percentage"]),
                 quality=request.form.get('quality', DEFAULTS["quality"]),
                 keep_ratio=keep_ratio,
-                auto_denoise=auto_denoise,
                 auto_level=auto_level,
                 auto_gamma=auto_gamma
             )
