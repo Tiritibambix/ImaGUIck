@@ -158,15 +158,15 @@ imaguick/
 ├── app.py                      # Main application logic and routes
 ├── cleanup.py                  # Automatic file cleanup script
 ├── cleanup.sh                  # Shell script for manual cleanup
-├── docker-compose.yml         # Docker Compose configuration
-├── requirements.txt           # Python package dependencies
-├── start.sh                   # Container startup script
-├── templates                  # HTML templates for the web interface
-|     ├── base.html            # Base template with common styling
-|     ├── index.html           # Main upload and import page
-|     ├── resize.html          # Single image processing options
-|     ├── resize_batch.html    # Batch processing configuration
-|     ├── result.html          # Success/Error feedback display
+├── docker-compose.yml          # Docker Compose configuration
+├── requirements.txt            # Python package dependencies
+├── start.sh                    # Container startup script
+├── templates                   # HTML templates for the web interface
+|     ├── base.html             # Base template with common styling
+|     ├── index.html            # Main upload and import page
+|     ├── resize.html           # Single image processing options
+|     ├── resize_batch.html     # Batch processing configuration
+|     ├── result.html           # Success/Error feedback display
 ```
 
 The application follows a clean and modular structure:
