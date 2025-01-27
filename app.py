@@ -519,8 +519,8 @@ def resize_image(filename):
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         app.logger.info(f"Output path: {output_path}")
         
-        # Préparer et exécuter les commandes
-        error, commands, temp_file = None, build_imagemagick_command(
+        # Préparer la commande
+        command = build_imagemagick_command(
             filepath=filepath,
             output_path=output_path,
             width=width,
@@ -531,44 +531,28 @@ def resize_image(filename):
             auto_denoise=auto_denoise,
             auto_level=auto_level,
             auto_gamma=auto_gamma
-        ), None
+        )
         
-        if error:
-            flash(error)
-            return render_template('result.html', 
-                                success=False, 
-                                title='Error',
-                                return_url=url_for('resize_options', filename=filename))
-            
-        if not commands:
+        if not command:
             flash('Error preparing resize command')
             return render_template('result.html', 
                                 success=False, 
                                 title='Error',
                                 return_url=url_for('resize_options', filename=filename))
             
-        # Exécuter les commandes en séquence
-        for cmd in commands:
-            app.logger.info(f"Running command: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
-            if result.returncode != 0:
-                app.logger.error(f"Command failed: {result.stderr}")
-                flash(f'Error during image processing: {result.stderr}')
-                return render_template('result.html', 
-                                    success=False, 
-                                    title='Error',
-                                    return_url=url_for('resize_options', filename=filename))
-                
-        # Nettoyer les fichiers temporaires
+        # Exécuter la commande
         try:
-            if temp_file and os.path.exists(temp_file):
-                os.remove(temp_file)
-            temp_resized = os.path.join(os.path.dirname(output_path), "temp_resized.png")
-            if os.path.exists(temp_resized):
-                os.remove(temp_resized)
-        except Exception as e:
-            app.logger.warning(f"Error cleaning temporary files: {e}")
-            
+            app.logger.info(f"Executing command: {' '.join(command)}")
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            error_message = f"Error during image processing: {e.stderr}"
+            app.logger.error(error_message)
+            flash(error_message)
+            return render_template('result.html', 
+                                success=False, 
+                                title='Error',
+                                return_url=url_for('resize_options', filename=filename))
+                
         flash('Image processed successfully!')
         return render_template('result.html',
                             success=True,
@@ -687,7 +671,7 @@ def resize_batch():
             output_path = os.path.join(batch_folder, output_filename)
 
             # Construire et exécuter la commande de redimensionnement
-            commands = build_imagemagick_command(
+            command = build_imagemagick_command(
                 filepath=filepath,
                 output_path=output_path,
                 width=width,
@@ -700,14 +684,21 @@ def resize_batch():
                 auto_gamma=auto_gamma
             )
 
-            for cmd in commands:
-                app.logger.info(f"Running command: {' '.join(cmd)}")
-                result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
-                if result.returncode != 0:
-                    raise Exception(f"Command failed: {result.stderr}")
+            if not command:
+                app.logger.error(f"Error preparing resize command for {filename}")
+                continue
 
-            output_files.append(output_path)
-            processed = True
+            # Exécuter la commande
+            try:
+                app.logger.info(f"Executing command: {' '.join(command)}")
+                subprocess.run(command, check=True, capture_output=True, text=True)
+                output_files.append(output_path)
+                processed = True
+            except subprocess.CalledProcessError as e:
+                error_message = f"Error processing {filename}: {e.stderr}"
+                app.logger.error(error_message)
+                flash(error_message)
+                continue
 
         except Exception as e:
             error_msg = f"Error processing {filename}: {str(e)}"
