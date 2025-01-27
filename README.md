@@ -51,8 +51,10 @@ This application is designed for local usage only. While it can be exposed to th
 
 - Python 3.9+
 - [`ImageMagick 7.1.1-41`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.1-41) or newer
-- ExifTool
-- Docker (optional, for containerized deployment)
+  - Windows users: Add ImageMagick to your system's PATH during installation
+  - Linux users: Install development headers (e.g., `libmagickwand-dev`)
+- ExifTool for metadata handling
+- Docker (recommended for easier deployment)
 
 ### Local Installation
 
@@ -62,23 +64,39 @@ This application is designed for local usage only. While it can be exposed to th
    cd ImaGUIck
    ```
 
-2. Install Python dependencies:
+2. Create required directories:
+   ```bash
+   mkdir -p uploads output
+   ```
+
+3. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Ensure ImageMagick and ExifTool are properly installed and accessible from your PATH.
+4. Verify installations:
+   ```bash
+   # Verify ImageMagick
+   magick -version
+   
+   # Verify ExifTool
+   exiftool -ver
+   ```
 
-4. Run the application:
+5. Run the application:
    ```bash
    python app.py
    ```
 
    The application will be available at `http://localhost:5000`
 
-> **Note**: For Windows users, make sure to add ImageMagick to your system's PATH during installation.
+> **Note**: The local installation includes automatic cleanup of files older than 48 hours. 
+> To manually trigger cleanup, run:
+> ```bash
+> python cleanup.py --now
+> ```
 
-### Installation with Docker (supports amd64 and arm64)
+### Docker Installation (Recommended)
 
 1. Clone the repository
 
