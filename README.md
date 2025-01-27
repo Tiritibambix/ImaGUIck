@@ -28,6 +28,10 @@ This application is designed for local usage only. While it can be exposed to th
   - Modern formats (WEBP, AVIF, HEIC)
   - Animation formats (GIF, WEBP, APNG)
   - Vector formats (SVG, PDF, EPS)
+- ✨ **Automatic Image Enhancement**:
+  - Noise reduction using wavelet analysis (5%x0.3 threshold for optimal detail preservation)
+  - Auto-level for dynamic range optimization
+  - Auto-gamma for balanced exposure correction
 - 🌐 **Image Import from URL**
 - 📦 **Enhanced Batch Processing**:
   - ZIP export with organized structure
