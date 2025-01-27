@@ -321,7 +321,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
 
     # Apply auto corrections in optimal order
     if auto_denoise:
-        command.extend(['-wavelet-denoise', '0.5%x0.5'])
+        command.extend(['-wavelet-denoise', '1%x0.1'])
     if auto_gamma:
         command.append('-auto-gamma')
     if auto_level:
