@@ -321,16 +321,13 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
 
     # Apply auto corrections in optimal order
     if auto_denoise:
-        # Very gentle noise reduction that preserves details:
-        # 1. Convert to Lab colorspace
-        # 2. Apply minimal wavelet denoising on L channel only
-        # 3. Convert back to sRGB
+        # Utiliser une approche très douce basée sur un petit flou gaussien sélectif
         command.extend([
             '-colorspace', 'Lab',
             '(',
                 '-clone', '0',
                 '-channel', 'L',
-                '-wavelet-denoise', '0.75%x0.2',  # Very gentle denoising
+                '-selective-blur', '0x2+5%',  # Rayon=0 (auto), sigma=2, seuil=5%
                 '-channel', 'all',
             ')',
             '-swap', '0,1',
