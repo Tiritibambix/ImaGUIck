@@ -321,13 +321,24 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
 
     # Apply auto corrections in optimal order
     if auto_denoise:
-        # Convert to Lab, denoise L channel only, convert back to sRGB
+        # Adaptive noise reduction approach:
+        # 1. Convert to Lab colorspace
+        # 2. Apply gentle wavelet denoising on L channel only
+        # 3. Apply very light kuwahara filter for edge preservation
+        # 4. Convert back to sRGB
         command.extend([
             '-colorspace', 'Lab',
-            '(', '-clone', '0', '-channel', 'L', '-wavelet-denoise', '2%x0.5', '-channel', 'all', ')',
+            '(',
+                '-clone', '0',
+                '-channel', 'L',
+                '-wavelet-denoise', '1.5%x0.5',  # Reduced strength for more subtle effect
+                '-kuwahara', '2x2',  # Very small radius to preserve details
+                '-channel', 'all',
+            ')',
             '-swap', '0,1',
             '-colorspace', 'sRGB'
         ])
+
     if auto_gamma:
         command.append('-auto-gamma')
     if auto_level:
