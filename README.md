@@ -151,26 +151,29 @@ networks: {}
 
 ```
 imaguick/
-├── Dockerfile                  # Container configuration for Docker deployment
+├── Dockerfile                  # Container configuration and build instructions
 ├── LICENSE                     # Project and ImageMagick licenses
 ├── README.md                   # Project documentation
 ├── TODO.md                     # Development roadmap and planned features
 ├── app.py                      # Main application logic and routes
-├── docker-compose.yml          # Docker Compose configuration for easy deployment
-├── requirements.txt            # Python package dependencies
-├── templates                   # HTML templates for the web interface
-|     ├── base.html             # Base template with common styling and structure
-|     ├── index.html            # Main page with file upload and import options
-|     ├── resize.html           # Single image processing configuration
-|     ├── resize_batch.html     # Batch processing options and configuration
-|     ├── result.html           # Success/Error feedback display
+├── cleanup.py                  # Automatic file cleanup script
+├── cleanup.sh                  # Shell script for manual cleanup
+├── docker-compose.yml         # Docker Compose configuration
+├── requirements.txt           # Python package dependencies
+├── start.sh                   # Container startup script
+├── templates                  # HTML templates for the web interface
+|     ├── base.html            # Base template with common styling
+|     ├── index.html           # Main upload and import page
+|     ├── resize.html          # Single image processing options
+|     ├── resize_batch.html    # Batch processing configuration
+|     ├── result.html          # Success/Error feedback display
 ```
 
 The application follows a clean and modular structure:
 - Core application files at the root level for easy deployment
+- Separate cleanup scripts for automated and manual file management
 - Containerization support with Docker and Docker Compose
-- Separate template directory for all web interface components
-- Clear separation between processing logic (app.py) and presentation (templates)
+- Modular template system for the web interface
 
 ## 🤝 Contribution
 
