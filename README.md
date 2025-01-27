@@ -4,6 +4,10 @@
 
 ImaGUIck is a simple and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
 
+## ⚠️ Security Notice
+
+This application is designed for local usage only. While it can be exposed to the internet, doing so is at your own risk and not recommended without implementing additional security measures. The application does not include built-in authentication or advanced security features.
+
 ## ✨ Features
 
 - 🖼️ **Single or Batch Image Processing**:
