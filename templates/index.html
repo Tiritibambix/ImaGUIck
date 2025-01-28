@@ -351,6 +351,11 @@
             box-shadow: 0 0 0 2px var(--clr-primary-a30);
         }
 
+        .title-container {
+            text-align: center;
+            margin-bottom: var(--spacing-medium);
+        }
+
         .logo-container {
             text-align: center;
             margin-bottom: var(--spacing-medium);
@@ -359,6 +364,7 @@
         .small-logo {
             height: 50px;
             width: auto;
+            margin-top: var(--spacing-small);
         }
 
         @media (min-width: 768px) {
@@ -379,8 +385,8 @@
 </head>
 <body>
     <div class="container">
-        <h1 class="title-large">ImaGUIck</h1>
-        <div class="logo-container">
+        <div class="title-container">
+            <h1 class="title-large">ImaGUIck</h1>
             <img src="{{ url_for('static', filename='media/imaguick-logo.png') }}" alt="ImaGUIck Logo" class="small-logo">
         </div>
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -394,7 +400,6 @@
         {% endwith %}
         <form action="/upload" method="post" enctype="multipart/form-data">
             <fieldset>
-                <legend class="title-large">ImaGUIck</legend>
                 <div class="form-group">
                 </div>
             </fieldset>
