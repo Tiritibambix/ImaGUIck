@@ -351,17 +351,6 @@
             box-shadow: 0 0 0 2px var(--clr-primary-a30);
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: var(--spacing-large);
-        }
-
-        .banner-image {
-            max-width: 100%;
-            height: auto;
-            margin-bottom: var(--spacing-medium);
-        }
-
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
@@ -380,9 +369,6 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <img src="{{ url_for('static', filename='media/imaguick-banner.png') }}" alt="ImaGUIck Banner" class="banner-image">
-        </div>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             <div class="flash-messages">
