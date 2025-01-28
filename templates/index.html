@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ImaGUIck</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='media/imaguick-favicon.ico') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
         .title-large {
@@ -350,6 +351,17 @@
             box-shadow: 0 0 0 2px var(--clr-primary-a30);
         }
 
+        .header {
+            text-align: center;
+            margin-bottom: var(--spacing-large);
+        }
+
+        .banner-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: var(--spacing-medium);
+        }
+
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
@@ -368,6 +380,9 @@
 </head>
 <body>
     <div class="container">
+        <div class="header">
+            <img src="{{ url_for('static', filename='media/imaguick-banner.png') }}" alt="ImaGUIck Banner" class="banner-image">
+        </div>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             <div class="flash-messages">
