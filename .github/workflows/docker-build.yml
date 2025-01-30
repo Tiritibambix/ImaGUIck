@@ -29,6 +29,15 @@ jobs:
     # Set up Docker Buildx
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+      with:
+        platforms: linux/amd64,linux/arm64
+
+    # Set up QEMU for multi-architecture builds
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: linux/amd64,linux/arm64
+        image: tonistiigi/binfmt:qemu-v7.0.0
 
     # Cache Docker layers to speed up builds
     - name: Cache Docker layers
