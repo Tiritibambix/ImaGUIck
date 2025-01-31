@@ -19,14 +19,18 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
     # Checkout the repository
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Set up QEMU for multi-architecture builds
+    # Activer les fonctionnalités expérimentales de Docker si nécessaire
+    - name: Enable experimental features
+      run: echo "DOCKER_CLI_EXPERIMENTAL=enabled" >> $GITHUB_ENV
+
+    # Set up QEMU pour build multi-architecture
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
 
@@ -41,7 +45,7 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # Build and push Docker image with cache optimization
+    # Build et push avec cache optimisé
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
       with:
@@ -50,11 +54,11 @@ jobs:
         push: true
         tags: tiritibambix/imaguick:latest
         platforms: linux/amd64,linux/arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha, type=registry
+        cache-to: type=gha, type=registry,mode=max
         provenance: false
 
-    # Update Docker Hub description
+    # Mettre à jour la description de Docker Hub
     - name: Update Docker Hub description
       uses: peter-evans/dockerhub-description@v4
       with:
@@ -64,6 +68,6 @@ jobs:
         readme-filepath: ./README.md
         short-description: "ImaGUIck - A GUI tool for image processing and batch operations"
 
-    # Logout from Docker Hub
+    # Logout de Docker Hub
     - name: Logout from Docker Hub
       run: docker logout
