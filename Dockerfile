@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     wget \
     tar \
+    pkg-config \
     libjpeg-dev \
     libpng-dev \
     libtiff-dev \
@@ -21,22 +22,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Télécharger et compiler ImageMagick 7.1.1-41
 RUN cd /tmp \
-    && wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz \
-    && tar xf ImageMagick-7.1.1-41.tar.gz \
+    && wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O imagemagick.tar.gz \
+    && tar xzf imagemagick.tar.gz \
     && cd ImageMagick-7.1.1-41 \
     && ./configure \
         --prefix=/usr/local \
-        --disable-shared \
+        --enable-shared=no \
+        --enable-static=yes \
+        --with-modules=no \
         --disable-openmp \
         --without-x \
         --without-perl \
-        --with-jpeg \
-        --with-png \
-        --with-tiff \
-    && make -j1 \
+        --with-jpeg=yes \
+        --with-png=yes \
+        --with-tiff=yes \
+    && make -j1 LDFLAGS='-L/usr/lib' \
     && make install \
+    && ldconfig /usr/local/lib \
     && cd /tmp \
-    && rm -rf ImageMagick* \
+    && rm -rf * \
     && magick -version
 
 # Ajouter /usr/local/bin au PATH
