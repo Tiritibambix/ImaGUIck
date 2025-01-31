@@ -20,21 +20,41 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Télécharger et compiler ImageMagick 7.1.1-41
-RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz \
-    && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
-    && cd /tmp/ImageMagick-7.1.1-41 \
-    && CFLAGS="-O2 -fPIC" CXXFLAGS="-O2 -fPIC" LDFLAGS="-L/usr/lib/aarch64-linux-gnu" ./configure \
-        --build=$(arch)-unknown-linux-gnu \
-        --prefix=/usr/local \
-        --disable-shared \
-        --disable-openmp \
-        --without-x \
-        --without-perl \
-        --enable-static \
-        --with-pic \
+RUN set -e \
+    && cd /tmp \
+    && wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O imagemagick.tar.gz \
+    && tar -xzf imagemagick.tar.gz \
+    && cd ImageMagick-7.1.1-41 \
+    && case $(uname -m) in \
+        x86_64) \
+            CFLAGS="-O2" CXXFLAGS="-O2" ./configure \
+                --prefix=/usr/local \
+                --disable-shared \
+                --disable-openmp \
+                --without-x \
+                --without-perl \
+                --with-jpeg \
+                --with-png \
+                --with-tiff ;; \
+        aarch64) \
+            CFLAGS="-O2" CXXFLAGS="-O2" ./configure \
+                --prefix=/usr/local \
+                --host=aarch64-unknown-linux-gnu \
+                --disable-shared \
+                --disable-openmp \
+                --without-x \
+                --without-perl \
+                --with-jpeg \
+                --with-png \
+                --with-tiff ;; \
+        *) \
+            echo "Architecture non supportée: $(uname -m)" && exit 1 ;; \
+    esac \
     && make -j1 \
     && make install \
-    && rm -rf /tmp/*
+    && cd /tmp \
+    && rm -rf * \
+    && magick -version
 
 # Ajouter /usr/local/bin au PATH
 ENV PATH="/usr/local/bin:${PATH}"
