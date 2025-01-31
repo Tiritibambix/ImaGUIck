@@ -23,8 +23,8 @@ RUN apt-get update && apt-get install -y \
 RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz \
     && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
     && cd /tmp/ImageMagick-7.1.1-41 \
-    && ./configure --prefix=/usr/local --disable-shared --without-x \
-    && make \
+    && CFLAGS="-O2" CXXFLAGS="-O2" ./configure --prefix=/usr/local --disable-shared --without-x --without-perl \
+    && make -j1 \
     && make install \
     && rm -rf /tmp/*
 
