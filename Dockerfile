@@ -6,9 +6,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
     g++ \
+    libtool \
+    automake \
+    autoconf \
+    pkg-config \
     wget \
     tar \
-    pkg-config \
     libjpeg-dev \
     libpng-dev \
     libtiff-dev \
@@ -22,16 +25,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cron \
     && rm -rf /var/lib/apt/lists/*
 
-# Télécharger et compiler ImageMagick 7.1.1-41
+# Télécharger et compiler ImageMagick 7.1.1-50
 RUN cd /tmp \
-    && wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O imagemagick.tar.gz \
+    && wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-50.tar.gz -O imagemagick.tar.gz \
     && tar xzf imagemagick.tar.gz \
-    && cd ImageMagick-7.1.1-41 \
+    && cd ImageMagick-7.1.1-50 \
     && ./configure \
         --prefix=/usr/local \
         --disable-shared \
         --without-x \
-    && make -j$(nproc) || make -j1 \
+    && make -j1 \
     && make install \
     && ldconfig /usr/local/lib \
     && cd /tmp \
