@@ -1,26 +1,24 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Démarrage du script start.sh"
+echo "Starting cleanup..."
 
-# Démarrer le service cron en arrière-plan
-echo "🔄 Démarrage du service cron..."
-cron -f &
+# Démarrer le service cron
+service cron start || echo "Warning: Could not start cron service"
 
-# Création des répertoires nécessaires
-echo "📂 Vérification et création des répertoires..."
-mkdir -p /app/uploads /app/output
+# Créer les répertoires si nécessaire
+mkdir -p /app/uploads
+mkdir -p /app/output
 
 # Trouver le chemin de Gunicorn
-GUNICORN_PATH=$(command -v gunicorn || true)
+GUNICORN_PATH=$(which gunicorn || echo "/usr/local/bin/gunicorn")
 
-if [ -z "$GUNICORN_PATH" ]; then
-    echo "❌ Erreur : Gunicorn introuvable ! Vérifiez l'installation."
-    exit 1
+if [ ! -f "$GUNICORN_PATH" ]; then
+    echo "Error: Gunicorn not found in PATH"
+    GUNICORN_PATH="/usr/local/python/bin/gunicorn"
 fi
 
-echo "✅ Gunicorn trouvé : $GUNICORN_PATH"
+echo "Using Gunicorn at: $GUNICORN_PATH"
 
 # Démarrer l'application avec Gunicorn
-echo "🚀 Lancement de Gunicorn..."
-exec "$GUNICORN_PATH" --bind 0.0.0.0:5000 --workers 4 --timeout 120 app:app
+exec $GUNICORN_PATH --bind 0.0.0.0:5000 --workers 4 --timeout 120 app:app
