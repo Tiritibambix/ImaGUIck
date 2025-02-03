@@ -4,14 +4,9 @@ FROM python:3.9-slim
 # Installer les dépendances nécessaires pour compiler ImageMagick et autres utilitaires
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    gcc \
-    g++ \
-    libtool \
-    automake \
-    autoconf \
-    pkg-config \
     wget \
     tar \
+    pkg-config \
     libjpeg-dev \
     libpng-dev \
     libtiff-dev \
@@ -25,16 +20,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cron \
     && rm -rf /var/lib/apt/lists/*
 
-# Télécharger et compiler ImageMagick 7.1.1-50
+# Télécharger et compiler ImageMagick 7.1.1-41
 RUN cd /tmp \
-    && wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-50.tar.gz -O imagemagick.tar.gz \
+    && wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O imagemagick.tar.gz \
     && tar xzf imagemagick.tar.gz \
-    && cd ImageMagick-7.1.1-50 \
+    && cd ImageMagick-7.1.1-41 \
     && ./configure \
         --prefix=/usr/local \
-        --disable-shared \
+        --enable-shared=no \
+        --enable-static=yes \
+        --with-modules=no \
+        --disable-openmp \
         --without-x \
-    && make -j1 \
+        --without-perl \
+        --with-jpeg=yes \
+        --with-png=yes \
+        --with-tiff=yes \
+    && make -j1 LDFLAGS='-L/usr/lib' \
     && make install \
     && ldconfig /usr/local/lib \
     && cd /tmp \
