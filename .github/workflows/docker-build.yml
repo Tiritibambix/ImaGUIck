@@ -50,19 +50,31 @@ jobs:
           pip install pip-audit && \
           pip-audit"
 
-  debug:
+  test-arm64:
     runs-on: ubuntu-24.04
     steps:
-      - name: Setup QEMU
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
 
-      - name: Setup Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+          use: true
 
-      - name: Show Buildx Information
-        run: docker buildx ls
+      - name: Build test for arm64
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --progress=plain \
+            --file Dockerfile \
+            --tag test-arm64:latest \
+            .
 
   build-and-push:
     runs-on: ubuntu-24.04
@@ -74,7 +86,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64  # Désactivation temporaire de arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -97,7 +109,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64  # Désactivation temporaire de arm64
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.version }}
