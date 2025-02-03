@@ -17,57 +17,97 @@ on:
       - 'TODO.md'
   workflow_dispatch:
 
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: tiritibambix/imaguick
+
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-
+  setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-    # Étape 1 : Cloner le dépôt
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # Étape 2 : Set up QEMU pour le multi-arch
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      - name: Extract version from Git
+        id: version
+        run: echo "version=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-    # Étape 3 : Set up Docker Buildx
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        install: true
-        use: true
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # Étape 4 : Connexion à Docker Hub
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+  audit:
+    runs-on: ubuntu-24.04
+    needs: setup
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # Étape 5 : Construire et pousser l'image Docker avec cache optimisé
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: Dockerfile
-        push: true
-        tags: tiritibambix/imaguick:latest
-        platforms: linux/amd64,linux/arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        provenance: false
+      - name: Check dependencies with pip-audit
+        run: |
+          docker run --rm -v $(pwd):/app -w /app python:3.10-slim sh -c " \
+          python -m venv venv && \
+          . venv/bin/activate && \
+          pip install --upgrade pip setuptools && \
+          pip install pip-audit && \
+          pip-audit"
 
-    # Étape 6 : Mettre à jour la description de Docker Hub
-    - name: Update Docker Hub description
-      uses: peter-evans/dockerhub-description@v4
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        repository: tiritibambix/imaguick
-        readme-filepath: ./README.md
-        short-description: "ImaGUIck - A GUI tool for image processing and batch operations"
+  build-and-push:
+    runs-on: ubuntu-24.04
+    needs: [setup, audit]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # Étape 7 : Logout de Docker Hub proprement
-    - name: Logout from Docker Hub
-      if: always()  # Assure que le logout s'exécute même en cas d'erreur
-      run: docker logout
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+          use: true
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+  update-dockerhub:
+    runs-on: ubuntu-24.04
+    needs: build-and-push
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          repository: ${{ env.IMAGE_NAME }}
+          readme-filepath: ./README.md
+          short-description: "ImaGUIck - A GUI tool for image processing and batch operations"
+
+      - name: Logout from Docker Hub
+        if: always()
+        run: docker logout
