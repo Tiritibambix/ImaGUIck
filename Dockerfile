@@ -4,6 +4,10 @@ FROM python:3.9-slim
 # Installer les dépendances nécessaires
 RUN apt-get update && apt-get install -y \
     build-essential \
+    g++ \
+    autoconf \
+    automake \
+    libtool \
     wget \
     tar \
     libjpeg-dev \
@@ -21,13 +25,15 @@ RUN apt-get update && apt-get install -y \
 
 # Définir une variable d'environnement pour améliorer la compatibilité QEMU
 ENV QEMU_EXECVE=1
+ENV CFLAGS="-O1"
+ENV CXXFLAGS="-O1"
 
 # Télécharger et installer ImageMagick 7.1.1-41
 RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz \
     && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
     && cd /tmp/ImageMagick-7.1.1-41 \
     && ./configure --prefix=/usr/local --disable-shared --without-x --disable-openmp \
-    && make -j$(nproc) \
+    && make -j2 \
     && make install \
     && rm -rf /tmp/*
 
