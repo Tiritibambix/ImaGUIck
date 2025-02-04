@@ -1,7 +1,7 @@
 # Choisir l'image de base
 FROM python:3.9-slim
 
-# Dépendances nécessaires pour compiler ImageMagick et autres utilitaires
+# Installer les dépendances nécessaires
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
@@ -19,12 +19,15 @@ RUN apt-get update && apt-get install -y \
     cron \
     && rm -rf /var/lib/apt/lists/*
 
+# Définir une variable d'environnement pour améliorer la compatibilité QEMU
+ENV QEMU_EXECVE=1
+
 # Télécharger et installer ImageMagick 7.1.1-41
 RUN wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz \
     && tar -xvzf /tmp/imagemagick.tar.gz -C /tmp \
     && cd /tmp/ImageMagick-7.1.1-41 \
-    && ./configure --prefix=/usr/local --disable-shared --without-x \
-    && make \
+    && ./configure --prefix=/usr/local --disable-shared --without-x --disable-openmp \
+    && make -j$(nproc) \
     && make install \
     && rm -rf /tmp/*
 
