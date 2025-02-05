@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/tiritibambix/ImaGUIck/static/media/imaguick-banner-opacity.png" width="400" />
+  <img src="https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/static/media/imaguick-banner-opacity.png" width="400" />
 </p>
 
 <p align="center">
