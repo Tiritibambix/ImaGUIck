@@ -55,7 +55,7 @@ COPY . /app
 RUN chmod +x /app/cleanup.py /app/cleanup.sh
 
 # Configurer le cron job
-RUN echo "0 */12 * * * /usr/local/bin/python /app/cleanup.py >> /var/log/cleanup.log 2>&1" > /etc/cron.d/cleanup-cron
+RUN echo "0 */12 * * * /usr/local/bin/python /app/cleanup.py 2>&1" > /etc/cron.d/cleanup-cron
 RUN chmod 0644 /etc/cron.d/cleanup-cron
 RUN crontab /etc/cron.d/cleanup-cron
 

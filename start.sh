@@ -3,12 +3,23 @@ set -e
 
 echo "Starting cleanup..."
 
-# Démarrer le service cron
-service cron start || echo "Warning: Could not start cron service"
+# Démarrer le service cron et vérifier qu'il fonctionne
+if ! service cron start; then
+    echo "Error: Failed to start cron service"
+    exit 1
+fi
 
-# Créer les répertoires si nécessaire
-mkdir -p /app/uploads
-mkdir -p /app/output
+# Vérifier que cron est bien en cours d'exécution
+if ! pgrep cron > /dev/null; then
+    echo "Error: Cron service is not running"
+    exit 1
+fi
+
+echo "Cron service started successfully"
+
+# Créer les répertoires si nécessaire et s'assurer des bonnes permissions
+mkdir -p /app/uploads && chmod 755 /app/uploads
+mkdir -p /app/output && chmod 755 /app/output
 
 # Trouver le chemin de Gunicorn
 GUNICORN_PATH=$(which gunicorn || echo "/usr/local/bin/gunicorn")
