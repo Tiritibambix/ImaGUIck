@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     exiftool \
     zip unzip \
     cron \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Cas particulier pour ARM64 : utiliser une version pré-compilée d'ImageMagick
