@@ -736,7 +736,7 @@ def resize_batch():
                             return_url=request.referrer)
 
     # Créer le fichier ZIP
-    zip_filename = f'batch_resized_{timestamp}.zip'
+    zip_filename = f'ImaGUIck_{timestamp}.zip'
     zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
     
     try:
