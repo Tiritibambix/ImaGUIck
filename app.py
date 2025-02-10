@@ -333,7 +333,9 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             'high': '1x0.6+0.02+0.0',
             'heavy': '1x0.6+0.02+0.5'
         }
-        command.extend(['-unsharp', sharpen_params.get(sharpen_level, '1x0.5+0.02+0.0')])
+        sharpen_value = sharpen_params.get(sharpen_level, '1x0.5+0.02+0.0')
+        app.logger.info(f"Applying sharpening with level {sharpen_level}: -unsharp {sharpen_value}")
+        command.extend(['-unsharp', sharpen_value])
 
     # Handle 1080p resizing
     if use_1080p:
@@ -489,8 +491,11 @@ def resize_image(filename):
         output_format = request.form.get('format', '').upper()
         auto_level = request.form.get('auto_level') == 'on'
         auto_gamma = request.form.get('auto_gamma') == 'on'
+        use_sharpen = request.form.get('use_sharpen') == 'on'
+        sharpen_level = request.form.get('sharpen_level', 'standard')
         
         app.logger.info(f"Processing resize request for {filename}")
+        app.logger.info(f"Sharpening: enabled={use_sharpen}, level={sharpen_level}")
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
         
         # Si keep_ratio est True et une seule dimension est fournie, calculer l'autre
