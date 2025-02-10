@@ -331,7 +331,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             'low': '1x0.4+0.02+0.0',
             'standard': '1x0.5+0.02+0.0',
             'high': '1x0.6+0.02+0.0',
-            'heavy': '1x1+0.02+0.0'
+            'heavy': '1x0.6+0.02+0.5'
         }
         command.extend(['-unsharp', sharpen_params.get(sharpen_level, '1x0.5+0.02+0.0')])
 
