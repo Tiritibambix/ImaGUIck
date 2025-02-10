@@ -312,7 +312,7 @@ def flash_error(message):
                          return_url=request.referrer)
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
-                         auto_level=False, auto_gamma=False, use_1080p=False):
+                         auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
         return None
@@ -324,6 +324,15 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         command.append('-auto-gamma')
     if auto_level:
         command.append('-auto-level')
+
+    # Apply sharpening with specific parameters based on level
+    if use_sharpen:
+        sharpen_params = {
+            'low': '1x0.4+0.02+0.0',
+            'standard': '1x0.5+0.02+0.0',
+            'high': '1x0.6+0.02+0.0'
+        }
+        command.extend(['-unsharp', sharpen_params.get(sharpen_level, '1x0.5+0.02+0.0')])
 
     # Handle 1080p resizing
     if use_1080p:
@@ -532,7 +541,9 @@ def resize_image(filename):
             keep_ratio=keep_ratio,
             auto_level=auto_level,
             auto_gamma=auto_gamma,
-            use_1080p=request.form.get('use_1080p') == 'on'
+            use_1080p=request.form.get('use_1080p') == 'on',
+            use_sharpen=request.form.get('use_sharpen') == 'on',
+            sharpen_level=request.form.get('sharpen_level', 'standard')
         )
         
         if not command:
@@ -682,7 +693,9 @@ def resize_batch():
                 keep_ratio=keep_ratio,
                 auto_level=auto_level,
                 auto_gamma=auto_gamma,
-                use_1080p=request.form.get('use_1080p') == 'on'
+                use_1080p=request.form.get('use_1080p') == 'on',
+                use_sharpen=request.form.get('use_sharpen') == 'on',
+                sharpen_level=request.form.get('sharpen_level', 'standard')
             )
 
             if not command:
