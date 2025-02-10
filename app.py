@@ -528,9 +528,9 @@ def resize_image(filename):
         # Créer un nom de fichier pour la sortie
         base_name = os.path.splitext(filename)[0]
         if output_format:
-            output_filename = f"{base_name}_resized.{output_format.lower()}"
+            output_filename = f"{base_name}_imaGUIck.{output_format.lower()}"
         else:
-            output_filename = f"{base_name}_resized{os.path.splitext(filename)[1]}"
+            output_filename = f"{base_name}_imaGUIck{os.path.splitext(filename)[1]}"
             
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         app.logger.info(f"Output path: {output_path}")
@@ -682,9 +682,9 @@ def resize_batch():
                 errors.append(f'File not found: {filename}')
                 continue
 
-            output_filename = f'resized_{filename}'
+            output_filename = f'{os.path.splitext(filename)[0]}_imaGUIck{os.path.splitext(filename)[1]}'
             if output_format:
-                output_filename = f'{os.path.splitext(output_filename)[0]}.{output_format.lower()}'
+                output_filename = f'{os.path.splitext(filename)[0]}_imaGUIck.{output_format.lower()}'
             output_path = os.path.join(batch_folder, output_filename)
 
             # Construire et exécuter la commande de redimensionnement

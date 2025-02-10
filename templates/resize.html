@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Resizer</title>
+    <title>ImaGUIck</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='media/imaguick-favicon.ico') }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -97,36 +98,17 @@
 
         .form-group-horizontal {
             display: flex;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: nowrap;
+            gap: var(--spacing-medium);
+            margin-bottom: var(--spacing-medium);
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .form-group-horizontal label {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: var(--spacing-xs);
             white-space: nowrap;
-            font-size: 0.85rem;
-        }
-
-        .label-with-select {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .compact-select {
-            margin-left: 4px;
-            padding: var(--spacing-xs) 16px 0 4px;
-            background-color: var(--clr-surface-a20);
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: var(--border-radius-sm);
-            color: var(--clr-primary-a50);
-            font-size: 0.85rem;
-            cursor: pointer;
-            position: relative;
-            top: -2px;
         }
 
         .form-group-horizontal .tooltip {
@@ -301,16 +283,34 @@
                         <input type="checkbox" name="use_1080p" id="use_1080p"> 1080p
                         <span class="tooltip" title="Resize image to max 1080 pixels on longest edge">?</span>
                     </label>
-                    <div class="label-with-select">
+                    <label style="display: inline-flex; align-items: center; white-space: nowrap;">
                         <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen for: screen
                         <span class="tooltip" title="Optimize sharpness for screen display">?</span>
-                        <select name="sharpen_level" id="sharpen_level" class="compact-select">
+                        <select name="sharpen_level" id="sharpen_level" class="compact-select" style="width: auto; min-width: 0;">
                             <option value="low">Low</option>
                             <option value="standard" selected>Standard</option>
                             <option value="high">High</option>
                         </select>
-                    </div>
+                    </label>
                 </div>
+
+                <style>
+                .compact-select {
+                    margin-left: 4px;
+                    padding: 2px 16px 2px 4px;
+                    height: 22px;
+                    background-color: var(--clr-surface-a20);
+                    border: 1px solid var(--clr-surface-a30);
+                    border-radius: var(--border-radius-sm);
+                    color: var(--clr-primary-a50);
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                }
+
+                .compact-select:hover {
+                    background-color: var(--clr-surface-a30);
+                }
+                </style>
                 <small>Original dimensions: {{ width }} x {{ height }} pixels</small>
             </fieldset>
 
