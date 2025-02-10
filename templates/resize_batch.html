@@ -334,13 +334,14 @@
                         <input type="checkbox" name="use_1080p" id="batch_use_1080p"> 1080p
                         <span class="tooltip" title="Resize image to max 1080 pixels on longest edge">?</span>
                     </label>
-                    <label>
+                    <label style="display: inline-flex; align-items: center; white-space: nowrap;">
                         <input type="checkbox" name="use_sharpen" id="batch_use_sharpen"> Sharpen for: screen
                         <span class="tooltip" title="Optimize sharpness for screen display">?</span>
-                        <select name="sharpen_level" id="batch_sharpen_level" class="compact-select">
+                        <select name="sharpen_level" id="batch_sharpen_level" class="compact-select" style="width: auto; min-width: 0;">
                             <option value="low">Low</option>
                             <option value="standard" selected>Standard</option>
                             <option value="high">High</option>
+                            <option value="heavy">Heavy</option>
                         </select>
                     </label>
                 </div>
