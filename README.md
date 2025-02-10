@@ -32,6 +32,7 @@ This application is designed for local usage only. While it can be exposed to th
 - ✨ **Automatic Image Enhancement**:
   - Auto-level for dynamic range optimization
   - Auto-gamma for balanced exposure correction
+  - Screen-optimized sharpening with three levels (low, standard, high)
 - 🌐 **Image Import from URL**
 - 📦 **Enhanced Batch Processing**:
   - ZIP export with organized structure
