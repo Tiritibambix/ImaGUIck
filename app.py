@@ -331,7 +331,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             'low': '1x0.4+0.02+0.0',
             'standard': '1x0.5+0.02+0.0',
             'high': '1x0.6+0.02+0.0',
-            'heavy': '1x0.6+0.02+0.5'
+            'heavy': '5x5+1.0+1.0'
         }
         sharpen_value = sharpen_params.get(sharpen_level, '1x0.5+0.02+0.0')
         app.logger.info(f"Applying sharpening with level {sharpen_level}: -unsharp {sharpen_value}")
