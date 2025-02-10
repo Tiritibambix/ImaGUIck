@@ -332,32 +332,32 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     else:
         # Original resizing logic
         if percentage:
-        try:
-            resize_value = f"{float(percentage)}%"
-            command.extend(['-resize', resize_value])
-        except ValueError:
-            return None
-    elif width or height:
-        try:
-            if width:
-                width = int(width)
-            if height:
-                height = int(height)
-            
-            resize_value = ''
-            if width and height:
-                resize_value = f"{width}x{height}"
-                if keep_ratio:
-                    resize_value += '>'
-            elif width:
-                resize_value = f"{width}"
-            elif height:
-                resize_value = f"x{height}"
-            
-            if resize_value:
+            try:
+                resize_value = f"{float(percentage)}%"
                 command.extend(['-resize', resize_value])
-        except ValueError:
-            return None
+            except ValueError:
+                return None
+        elif width or height:
+            try:
+                if width:
+                    width = int(width)
+                if height:
+                    height = int(height)
+                
+                resize_value = ''
+                if width and height:
+                    resize_value = f"{width}x{height}"
+                    if keep_ratio:
+                        resize_value += '>'
+                elif width:
+                    resize_value = f"{width}"
+                elif height:
+                    resize_value = f"x{height}"
+                
+                if resize_value:
+                    command.extend(['-resize', resize_value])
+            except ValueError:
+                return None
 
     # Set quality
     if quality and quality != "100":
