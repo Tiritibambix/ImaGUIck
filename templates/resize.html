@@ -130,6 +130,35 @@
             box-sizing: border-box;
         }
 
+        .label-with-select {
+            font-size: 0.85rem;  /* Même taille que les autres labels */
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .compact-select {
+            margin-left: 4px;
+            padding: 0 16px 0 4px;
+            height: 16px;  /* Réduit la hauteur */
+            line-height: 16px;  /* Alignement vertical du texte */
+            background-color: var(--clr-surface-a20);
+            border: 1px solid var(--clr-surface-a30);
+            border-radius: var(--border-radius-sm);
+            color: var(--clr-primary-a50);
+            font-size: 0.8rem;  /* Légèrement plus petit */
+            cursor: pointer;
+            position: relative;
+            top: -1px;  /* Ajustement plus subtil */
+            width: auto;
+            min-width: 0;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 2px center;
+            background-size: 10px;  /* Flèche plus petite */
+        }
+
         select {
             padding: var(--spacing-small);
             margin-top: var(--spacing-small);
@@ -283,34 +312,7 @@
                         <input type="checkbox" name="use_1080p" id="use_1080p"> 1080p
                         <span class="tooltip" title="Resize image to max 1080 pixels on longest edge">?</span>
                     </label>
-                    <label style="display: inline-flex; align-items: center; white-space: nowrap;">
-                        <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen for: screen
-                        <span class="tooltip" title="Optimize sharpness for screen display">?</span>
-                        <select name="sharpen_level" id="sharpen_level" class="compact-select" style="width: auto; min-width: 0;">
-                            <option value="low">Low</option>
-                            <option value="standard" selected>Standard</option>
-                            <option value="high">High</option>
-                        </select>
-                    </label>
                 </div>
-
-                <style>
-                .compact-select {
-                    margin-left: 4px;
-                    padding: 2px 16px 2px 4px;
-                    height: 22px;
-                    background-color: var(--clr-surface-a20);
-                    border: 1px solid var(--clr-surface-a30);
-                    border-radius: var(--border-radius-sm);
-                    color: var(--clr-primary-a50);
-                    font-size: 0.85rem;
-                    cursor: pointer;
-                }
-
-                .compact-select:hover {
-                    background-color: var(--clr-surface-a30);
-                }
-                </style>
                 <small>Original dimensions: {{ width }} x {{ height }} pixels</small>
             </fieldset>
 
@@ -330,17 +332,26 @@
                 </div>
 
                 <div class="form-group-horizontal">
-                    <label>
-                        <input type="checkbox" name="auto_level" id="auto_level">
-                        Auto-Level
-                        <span class="tooltip" title="Optimizes image levels for better dynamic range and contrast">?</span>
-                    </label>
-
-                    <label>
-                        <input type="checkbox" name="auto_gamma" id="auto_gamma">
-                        Auto-Gamma
-                        <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
-                    </label>
+                    <div style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: nowrap;">
+                        <label>
+                            <input type="checkbox" name="auto_level" id="auto_level">
+                            Auto-Level
+                            <span class="tooltip" title="Optimizes image levels for better dynamic range and contrast">?</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" name="auto_gamma" id="auto_gamma">
+                            Auto-Gamma
+                            <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
+                        </label>
+                        <div class="label-with-select">
+                        <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen for: screen
+                        <span class="tooltip" title="Optimize sharpness for screen display">?</span>
+                        <select name="sharpen_level" id="sharpen_level" class="compact-select">
+                            <option value="low">Low</option>
+                            <option value="standard" selected>Standard</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-group">

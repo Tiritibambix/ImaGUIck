@@ -218,7 +218,7 @@ Contributions are welcome! To contribute:
 
 ## 📝 License
 
-This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License - see the [LICENSE](LICENSE) file for details.   
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details. 
 **ImageMagick's** license can be found [HERE](https://imagemagick.org/script/license.php).
 
 
