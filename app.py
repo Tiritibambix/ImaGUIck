@@ -311,8 +311,8 @@ def flash_error(message):
                          title='Error',
                          return_url=request.referrer)
 
-def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio, 
-                        auto_level=False, auto_gamma=False):
+def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
+                         auto_level=False, auto_gamma=False, use_1080p=False):
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
         return None
@@ -325,8 +325,13 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     if auto_level:
         command.append('-auto-level')
 
-    # Handle resizing
-    if percentage:
+    # Handle 1080p resizing
+    if use_1080p:
+        # Force keep_ratio to True for 1080p
+        command.extend(['-resize', '1080x1080>'])
+    else:
+        # Original resizing logic
+        if percentage:
         try:
             resize_value = f"{float(percentage)}%"
             command.extend(['-resize', resize_value])
@@ -526,7 +531,8 @@ def resize_image(filename):
             quality=request.form.get('quality', DEFAULTS["quality"]),
             keep_ratio=keep_ratio,
             auto_level=auto_level,
-            auto_gamma=auto_gamma
+            auto_gamma=auto_gamma,
+            use_1080p=request.form.get('use_1080p') == 'on'
         )
         
         if not command:
@@ -675,7 +681,8 @@ def resize_batch():
                 quality=request.form.get('quality', DEFAULTS["quality"]),
                 keep_ratio=keep_ratio,
                 auto_level=auto_level,
-                auto_gamma=auto_gamma
+                auto_gamma=auto_gamma,
+                use_1080p=request.form.get('use_1080p') == 'on'
             )
 
             if not command:
