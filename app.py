@@ -8,6 +8,8 @@ from PIL import Image
 import requests
 import logging
 import re
+import shlex
+from urllib.parse import urlparse
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -26,6 +28,9 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
+
+# Liste blanche de domaines autorisés pour les téléchargements
+ALLOWED_DOMAINS = {'example.com', 'another-allowed-domain.com'}
 
 def allowed_file(filename):
     """Allow all image file types supported by ImageMagick, but block potentially dangerous extensions."""
@@ -54,7 +59,6 @@ def get_image_dimensions(filepath):
 
         if filepath.lower().endswith('.arw'):
             app.logger.info(f"Getting dimensions for ARW file: {filepath}")
-            cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', secure_file_path]
             cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', shlex.quote(secure_file_path)]
             app.logger.info(f"Running exiftool command")
             result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
@@ -63,6 +67,7 @@ def get_image_dimensions(filepath):
                 app.logger.info(f"Exiftool output received")
                 dimensions = result.stdout.strip().split('\n')
                 if len(dimensions) == 2:
+                    try:
                         height = int(dimensions[0])
                         width = int(dimensions[1])
                         app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
@@ -71,6 +76,8 @@ def get_image_dimensions(filepath):
                         app.logger.warning("Could not parse dimensions from exiftool output")
                         pass
             
+            return 7008, 4672  # Dimensions connues pour Sony A7 IV
+        else:
             app.logger.info(f"Getting dimensions for non-ARW file")
             cmd = ['magick', 'identify', shlex.quote(secure_file_path)]
             app.logger.info(f"Running ImageMagick command")
