@@ -55,29 +55,31 @@ def get_image_dimensions(filepath):
         if filepath.lower().endswith('.arw'):
             app.logger.info(f"Getting dimensions for ARW file: {filepath}")
             cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', secure_file_path]
+            app.logger.info(f"Running exiftool command")
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
+            
+            if result.returncode == 0 and result.stdout.strip():
+                app.logger.info(f"Exiftool output received")
+                dimensions = result.stdout.strip().split('\n')
+                if len(dimensions) == 2:
+                    try:
+                        height = int(dimensions[0])
+                        width = int(dimensions[1])
+                        app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
+                        return width, height
+                    except ValueError:
+                        app.logger.warning("Could not parse dimensions from exiftool output")
+                        pass
+            
+            return 7008, 4672  # Dimensions connues pour Sony A7 IV
         else:
             app.logger.info(f"Getting dimensions for non-ARW file")
             cmd = ['magick', 'identify', secure_file_path]
-
-        app.logger.info(f"Running command: {' '.join(cmd)}")
-        result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
-        
-        if result.returncode != 0:
-            raise Exception(f"Error getting image dimensions: {result.stderr}")
-
-        if filepath.lower().endswith('.arw'):
-            dimensions = result.stdout.strip().split('\n')
-            if len(dimensions) == 2:
-                try:
-                    height = int(dimensions[0])
-                    width = int(dimensions[1])
-                    app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
-                    return width, height
-                except ValueError:
-                    app.logger.warning("Could not parse dimensions from exiftool output")
-                    pass
-            return 7008, 4672  # Dimensions connues pour Sony A7 IV
-        else:
+            app.logger.info(f"Running ImageMagick command")
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
+            if result.returncode != 0:
+                raise Exception(f"Error getting image dimensions: {result.stderr}")
+            
             match = re.search(r'\s(\d+)x(\d+)\s', result.stdout)
             if match:
                 width = int(match.group(1))
@@ -309,33 +311,26 @@ def flash_error(message):
                          title='Error',
                          return_url=request.referrer)
 
-ALLOWED_COMMANDS = {
-    'auto_gamma': '-auto-gamma',
-    'auto_level': '-auto-level',
-    'use_1080p': '-resize 1920x1080',
-    'use_sharpen': {
-        'standard': '-sharpen 0x1',
-        'strong': '-sharpen 0x2'
-    }
-}
-
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                          auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
         return None
 
-    # Validate and sanitize inputs
-    filepath = secure_filename(filepath)
-    output_path = secure_filename(output_path)
-
-    command = ['magick', filepath]
+    # Vérifier l'existence du fichier avant de construire la commande
+    if not os.path.exists(filepath):
+        app.logger.error(f"Fichier introuvable : {filepath}")
+        return None
+        
+    # Normaliser le chemin pour ImageMagick
+    normalized_path = os.path.normpath(filepath).replace('\\', '/')
+    command = ['magick', normalized_path]
 
     # Apply auto corrections in optimal order
-    if auto_gamma and 'auto_gamma' in ALLOWED_COMMANDS:
-        command.append(ALLOWED_COMMANDS['auto_gamma'])
-    if auto_level and 'auto_level' in ALLOWED_COMMANDS:
-        command.append(ALLOWED_COMMANDS['auto_level'])
+    if auto_gamma:
+        command.append('-auto-gamma')
+    if auto_level:
+        command.append('-auto-level')
 
     # Apply sharpening with specific parameters based on level
     if use_sharpen:
@@ -414,8 +409,22 @@ def upload_file():
     uploaded_files = []
     for file in files:
         if file and allowed_file(file.filename):
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
-            file.save(filepath)
+            # Vérification renforcée du chemin et création du fichier
+            filename = secure_filename(file.filename)
+            if not filename:
+                flash("Nom de fichier invalide")
+                continue
+                
+            filepath = os.path.abspath(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            
+            try:
+                file.save(filepath)
+                app.logger.info(f"Fichier enregistré : {filepath}")
+            except Exception as e:
+                app.logger.error(f"Erreur sauvegarde fichier: {str(e)}")
+                flash(f"Erreur lors de l'enregistrement de {filename}")
+                continue
             uploaded_files.append(filepath)
         else:
             flash_error(f"Unsupported file format for {file.filename}.")
@@ -439,13 +448,6 @@ def upload_url():
             # Validate URL
             if not url.startswith(('http://', 'https://')):
                 flash('Invalid URL scheme. Only HTTP and HTTPS are allowed.')
-                return redirect(url_for('index'))
-
-            # Check if the domain is allowed
-            allowed_domains = ['example.com', 'anotherdomain.com']
-            domain = url.split('/')[2]
-            if domain not in allowed_domains:
-                flash('Domain not allowed.')
                 return redirect(url_for('index'))
 
             # Set timeout and size limits
@@ -483,7 +485,6 @@ def upload_url():
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
-    filename = secure_filename(filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     dimensions = get_image_dimensions(filepath)
     if not dimensions:
@@ -503,15 +504,6 @@ def resize_options(filename):
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
     try:
-        # Validate and sanitize filename
-        filename = secure_filename(filename)
-        if not filename:
-            flash('Invalid filename')
-            return render_template('result.html', 
-                                success=False, 
-                                title='Error',
-                                return_url=url_for('resize_options', filename=filename))
-        
         # Récupérer les paramètres
         width = request.form.get('width', '')
         height = request.form.get('height', '')
@@ -521,23 +513,15 @@ def resize_image(filename):
         auto_gamma = request.form.get('auto_gamma') == 'on'
         use_sharpen = request.form.get('use_sharpen') == 'on'
         sharpen_level = request.form.get('sharpen_level', 'standard')
-        
+
         app.logger.info(f"Processing resize request for {filename}")
         app.logger.info(f"Sharpening: enabled={use_sharpen}, level={sharpen_level}")
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
-        
+
         # Si keep_ratio est True et une seule dimension est fournie, calculer l'autre
         if keep_ratio and (width.isdigit() or height.isdigit()):
             # Obtenir les dimensions originales
-            base_path = app.config['UPLOAD_FOLDER']
-            secure_name = secure_filename(filename)
-            filepath = os.path.normpath(os.path.join(base_path, secure_name))
-            if not filepath.startswith(base_path):
-                flash('Invalid file path')
-                return render_template('result.html', 
-                                    success=False, 
-                                    title='Error',
-                                    return_url=url_for('resize_options', filename=filename))
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             original_dimensions = get_image_dimensions(filepath)
             if original_dimensions:
                 original_width, original_height = original_dimensions
@@ -551,18 +535,16 @@ def resize_image(filename):
                     new_height = int(height)
                     width = str(round(new_height * original_width / original_height))
                     app.logger.info(f"Calculated proportional width: {width}")
-        
+
         app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
-        
-        base_path = app.config['UPLOAD_FOLDER']
-        secure_name = secure_filename(filename)
-        filepath = os.path.normpath(os.path.join(base_path, secure_name))
-        if not filepath.startswith(base_path) or not os.path.exists(filepath):
-            flash('File not found or invalid path')
-            return render_template('result.html', 
-                                success=False, 
-                                title='Error',
-                                return_url=url_for('resize_options', filename=filename))
+
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(filepath):
+            flash('File not found')
+            return render_template('result.html',
+                                    success=False,
+                                    title='Error',
+                                    return_url=url_for('resize_options', filename=filename))
 
         # Créer un nom de fichier pour la sortie
         base_name = os.path.splitext(filename)[0]
@@ -570,10 +552,10 @@ def resize_image(filename):
             output_filename = f"{base_name}_imaGUIck.{output_format.lower()}"
         else:
             output_filename = f"{base_name}_imaGUIck{os.path.splitext(filename)[1]}"
-            
+
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         app.logger.info(f"Output path: {output_path}")
-        
+
         # Préparer la commande
         command = build_imagemagick_command(
             filepath=filepath,
@@ -589,14 +571,14 @@ def resize_image(filename):
             use_sharpen=request.form.get('use_sharpen') == 'on',
             sharpen_level=request.form.get('sharpen_level', 'standard')
         )
-        
+
         if not command:
             flash('Error preparing resize command')
-            return render_template('result.html', 
-                                success=False, 
-                                title='Error',
-                                return_url=url_for('resize_options', filename=filename))
-            
+            return render_template('result.html',
+                                    success=False,
+                                    title='Error',
+                                    return_url=url_for('resize_options', filename=filename))
+
         # Exécuter la commande
         try:
             app.logger.info(f"Executing command: {' '.join(command)}")
@@ -605,11 +587,11 @@ def resize_image(filename):
             error_message = f"Error during image processing: {e.stderr}"
             app.logger.error(error_message)
             flash(error_message)
-            return render_template('result.html', 
-                                success=False, 
-                                title='Error',
-                                return_url=url_for('resize_options', filename=filename))
-                
+            return render_template('result.html',
+                                    success=False,
+                                    title='Error',
+                                    return_url=url_for('resize_options', filename=filename))
+
         flash('Image processed successfully!')
         return render_template('result.html',
                             success=True,
@@ -624,6 +606,11 @@ def resize_image(filename):
                             success=False,
                             title='Error',
                             return_url=url_for('resize_options', filename=filename))
+
+    finally:
+        app.logger.info(f"File path: {filepath}")
+        app.logger.info(f"Output path: {output_path}")
+        app.logger.info(f"Command: {' '.join(command)}")
 
 @app.route('/resize_batch_options')
 def resize_batch_options(filenames=None):
@@ -647,11 +634,7 @@ def resize_batch_options(filenames=None):
     first_file_path = None
 
     for filename in filenames:
-        # Normalize the filename and ensure it is within the UPLOAD_FOLDER directory
-        filepath = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        if not filepath.startswith(os.path.abspath(app.config['UPLOAD_FOLDER'])):
-            app.logger.error(f"Invalid file path: {filepath}")
-            continue
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if not os.path.exists(filepath):
             continue
             
@@ -720,11 +703,7 @@ def resize_batch():
 
     for filename in filenames:
         try:
-            secure_name = secure_filename(filename)
-            filepath = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], secure_name))
-            if not filepath.startswith(os.path.abspath(app.config['UPLOAD_FOLDER'])):
-                errors.append(f'Invalid file path: {filename}')
-                continue
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             if not os.path.isfile(filepath):
                 errors.append(f'File not found: {filename}')
                 continue
@@ -753,12 +732,6 @@ def resize_batch():
             if not command:
                 app.logger.error(f"Error preparing resize command for {filename}")
                 continue
-
-            # Validate command against allowlist
-            for cmd in command:
-                if cmd not in ALLOWED_COMMANDS.values() and not cmd.startswith('-'):
-                    app.logger.error(f"Invalid command detected: {cmd}")
-                    continue
 
             # Exécuter la commande
             try:
@@ -821,22 +794,16 @@ def resize_batch():
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
-    filename = secure_filename(filename)
     zip_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
-    if not zip_path.startswith(app.config['OUTPUT_FOLDER']):
-        abort(403)  # Forbidden
     return send_file(zip_path, as_attachment=True)
 
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    safe_filename = secure_filename(filename)
-    filepath = os.path.normpath(os.path.join(app.config['OUTPUT_FOLDER'], safe_filename))
-    if not filepath.startswith(os.path.abspath(app.config['OUTPUT_FOLDER'])):
-        abort(400, "Invalid file path")
+    filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
     with open(filepath, 'rb') as f:
         response = Response(f.read(), mimetype='application/octet-stream')
-        response.headers['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
 if __name__ == '__main__':
