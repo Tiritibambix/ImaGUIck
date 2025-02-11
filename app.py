@@ -8,6 +8,7 @@ from PIL import Image
 import requests
 import logging
 import re
+from urllib.parse import urlparse
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -24,6 +25,8 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB max
+app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw']
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
 
@@ -31,7 +34,7 @@ def allowed_file(filename):
     """Allow all image file types supported by ImageMagick, but block potentially dangerous extensions."""
     BLOCKED_EXTENSIONS = {'php', 'php3', 'php4', 'php5', 'phtml', 'exe', 'js', 'jsp', 'html', 'htm', 'sh', 'bash', 'py', 'pl'}
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-    return ext and ext not in BLOCKED_EXTENSIONS
+    return ext and ext not in BLOCKED_EXTENSIONS and f'.{ext}' in app.config['UPLOAD_EXTENSIONS']
 
 def secure_path(filepath):
     """Ensure the filepath is secure and within allowed directories."""
@@ -39,8 +42,14 @@ def secure_path(filepath):
         abs_path = os.path.abspath(filepath)
         base_path = os.path.abspath(os.path.join(app.config['UPLOAD_FOLDER'], ''))
         output_path = os.path.abspath(os.path.join(app.config['OUTPUT_FOLDER'], ''))
+        
         if not (abs_path.startswith(base_path) or abs_path.startswith(output_path)):
             return None
+        
+        real_path = os.path.realpath(abs_path)
+        if not (real_path.startswith(base_path) or real_path.startswith(output_path)):
+            return None
+            
         return abs_path
     except Exception:
         return None
@@ -56,7 +65,7 @@ def get_image_dimensions(filepath):
             app.logger.info(f"Getting dimensions for ARW file: {filepath}")
             cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', secure_file_path]
             app.logger.info(f"Running exiftool command")
-            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
             
             if result.returncode == 0 and result.stdout.strip():
                 app.logger.info(f"Exiftool output received")
@@ -65,18 +74,20 @@ def get_image_dimensions(filepath):
                     try:
                         height = int(dimensions[0])
                         width = int(dimensions[1])
+                        if not (0 < width < 100000 and 0 < height < 100000):
+                            raise ValueError("Invalid dimensions")
                         app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
                         return width, height
                     except ValueError:
                         app.logger.warning("Could not parse dimensions from exiftool output")
                         pass
             
-            return 7008, 4672  # Dimensions connues pour Sony A7 IV
+            return 7008, 4672
         else:
             app.logger.info(f"Getting dimensions for non-ARW file")
             cmd = ['magick', 'identify', secure_file_path]
             app.logger.info(f"Running ImageMagick command")
-            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
             if result.returncode != 0:
                 raise Exception(f"Error getting image dimensions: {result.stderr}")
             
@@ -84,6 +95,8 @@ def get_image_dimensions(filepath):
             if match:
                 width = int(match.group(1))
                 height = int(match.group(2))
+                if not (0 < width < 100000 and 0 < height < 100000):
+                    raise ValueError("Invalid dimensions")
                 app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
                 return width, height
             else:
@@ -419,47 +432,43 @@ def upload_url():
     """Handle image upload from a URL."""
     if request.method == 'POST':
         url = request.form.get('url', '').strip()
+        
         if not url:
-            flash('No URL provided')
+            flash('No URL provided', 'error')
             return redirect(url_for('index'))
-
+            
+        if not is_safe_url(url):
+            flash('Invalid or unsafe URL', 'error')
+            return redirect(url_for('index'))
+            
         try:
-            # Validate URL
-            if not url.startswith(('http://', 'https://')):
-                flash('Invalid URL scheme. Only HTTP and HTTPS are allowed.')
-                return redirect(url_for('index'))
-
-            # Set timeout and size limits
-            response = requests.get(url, stream=True, timeout=10, verify=True)
-            content_type = response.headers.get('content-type', '')
+            response = requests.get(url, timeout=30, stream=True)
+            response.raise_for_status()
             
+            content_type = response.headers.get('content-type', '').lower()
             if not content_type.startswith('image/'):
-                flash('URL does not point to a valid image')
-                return redirect(url_for('index'))
-
-            # Limit file size to 50MB
-            content_length = response.headers.get('content-length', 0)
-            if content_length and int(content_length) > 50 * 1024 * 1024:
-                flash('Image file too large (max 50MB)')
-                return redirect(url_for('index'))
-
-            # Create a secure filename
-            filename = secure_filename(os.path.basename(url.split('?')[0]))
-            if not filename:
-                filename = 'downloaded_image.jpg'
-            
+                raise ValueError('Not an image file')
+                
+            content_length = int(response.headers.get('content-length', 0))
+            if content_length > app.config['MAX_CONTENT_LENGTH']:
+                raise ValueError('File too large')
+                
+            filename = secure_filename(os.path.basename(url))
+            if not allowed_file(filename):
+                raise ValueError('Invalid file type')
+                
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
             with open(filepath, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-
+                    f.write(chunk)
+                    
             return redirect(url_for('resize_options', filename=filename))
-
-        except requests.exceptions.RequestException as e:
-            flash(f'Error downloading image: {str(e)}')
+            
+        except Exception as e:
+            flash(f'Error downloading image: {str(e)}', 'error')
             return redirect(url_for('index'))
+            
+    return redirect(url_for('index'))
 
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
@@ -779,6 +788,32 @@ def download(filename):
         response = Response(f.read(), mimetype='application/octet-stream')
         response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+def is_safe_url(url):
+    """Validate if URL is safe to download from."""
+    try:
+        ALLOWED_SCHEMES = {'http', 'https'}
+        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp'}
+        
+        parsed = urlparse(url)
+        
+        if parsed.scheme.lower() not in ALLOWED_SCHEMES:
+            return False
+            
+        path = parsed.path.lower()
+        if not any(path.endswith(ext) for ext in ALLOWED_EXTENSIONS):
+            return False
+            
+        hostname = parsed.hostname.lower()
+        if (hostname in ('localhost', '127.0.0.1', '::1') or
+            hostname.startswith('192.168.') or
+            hostname.startswith('10.') or
+            hostname.startswith('172.')):
+            return False
+            
+        return True
+    except:
+        return False
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
