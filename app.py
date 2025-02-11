@@ -450,10 +450,16 @@ def upload_url():
                 flash('Invalid URL scheme. Only HTTP and HTTPS are allowed.')
                 return redirect(url_for('index'))
 
+            # Validate URL to prevent SSRF attacks
+            parsed_url = urlparse(url)
+            if parsed_url.netloc not in ['example.com', 'another-allowed-domain.com']:
+                flash('Invalid URL. Only specific domains are allowed.')
+                return redirect(url_for('index'))
+
             # Set timeout and size limits
             response = requests.get(url, stream=True, timeout=10, verify=True)
             content_type = response.headers.get('content-type', '')
-            
+
             if not content_type.startswith('image/'):
                 flash('URL does not point to a valid image')
                 return redirect(url_for('index'))
@@ -468,9 +474,9 @@ def upload_url():
             filename = secure_filename(os.path.basename(url.split('?')[0]))
             if not filename:
                 filename = 'downloaded_image.jpg'
-            
+
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            
+
             with open(filepath, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
