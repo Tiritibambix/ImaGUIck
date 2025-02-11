@@ -309,19 +309,33 @@ def flash_error(message):
                          title='Error',
                          return_url=request.referrer)
 
+ALLOWED_COMMANDS = {
+    'auto_gamma': '-auto-gamma',
+    'auto_level': '-auto-level',
+    'use_1080p': '-resize 1920x1080',
+    'use_sharpen': {
+        'standard': '-sharpen 0x1',
+        'strong': '-sharpen 0x2'
+    }
+}
+
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                          auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
         return None
 
+    # Validate and sanitize inputs
+    filepath = secure_filename(filepath)
+    output_path = secure_filename(output_path)
+
     command = ['magick', filepath]
 
     # Apply auto corrections in optimal order
-    if auto_gamma:
-        command.append('-auto-gamma')
-    if auto_level:
-        command.append('-auto-level')
+    if auto_gamma and 'auto_gamma' in ALLOWED_COMMANDS:
+        command.append(ALLOWED_COMMANDS['auto_gamma'])
+    if auto_level and 'auto_level' in ALLOWED_COMMANDS:
+        command.append(ALLOWED_COMMANDS['auto_level'])
 
     # Apply sharpening with specific parameters based on level
     if use_sharpen:
@@ -427,6 +441,13 @@ def upload_url():
                 flash('Invalid URL scheme. Only HTTP and HTTPS are allowed.')
                 return redirect(url_for('index'))
 
+            # Check if the domain is allowed
+            allowed_domains = ['example.com', 'anotherdomain.com']
+            domain = url.split('/')[2]
+            if domain not in allowed_domains:
+                flash('Domain not allowed.')
+                return redirect(url_for('index'))
+
             # Set timeout and size limits
             response = requests.get(url, stream=True, timeout=10, verify=True)
             content_type = response.headers.get('content-type', '')
@@ -482,6 +503,15 @@ def resize_options(filename):
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
     try:
+        # Validate and sanitize filename
+        filename = secure_filename(filename)
+        if not filename:
+            flash('Invalid filename')
+            return render_template('result.html', 
+                                success=False, 
+                                title='Error',
+                                return_url=url_for('resize_options', filename=filename))
+        
         # Récupérer les paramètres
         width = request.form.get('width', '')
         height = request.form.get('height', '')
@@ -499,7 +529,15 @@ def resize_image(filename):
         # Si keep_ratio est True et une seule dimension est fournie, calculer l'autre
         if keep_ratio and (width.isdigit() or height.isdigit()):
             # Obtenir les dimensions originales
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            base_path = app.config['UPLOAD_FOLDER']
+            secure_name = secure_filename(filename)
+            filepath = os.path.normpath(os.path.join(base_path, secure_name))
+            if not filepath.startswith(base_path):
+                flash('Invalid file path')
+                return render_template('result.html', 
+                                    success=False, 
+                                    title='Error',
+                                    return_url=url_for('resize_options', filename=filename))
             original_dimensions = get_image_dimensions(filepath)
             if original_dimensions:
                 original_width, original_height = original_dimensions
@@ -516,9 +554,11 @@ def resize_image(filename):
         
         app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
         
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
-            flash('File not found')
+        base_path = app.config['UPLOAD_FOLDER']
+        secure_name = secure_filename(filename)
+        filepath = os.path.normpath(os.path.join(base_path, secure_name))
+        if not filepath.startswith(base_path) or not os.path.exists(filepath):
+            flash('File not found or invalid path')
             return render_template('result.html', 
                                 success=False, 
                                 title='Error',
@@ -607,7 +647,11 @@ def resize_batch_options(filenames=None):
     first_file_path = None
 
     for filename in filenames:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        # Normalize the filename and ensure it is within the UPLOAD_FOLDER directory
+        filepath = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        if not filepath.startswith(os.path.abspath(app.config['UPLOAD_FOLDER'])):
+            app.logger.error(f"Invalid file path: {filepath}")
+            continue
         if not os.path.exists(filepath):
             continue
             
@@ -676,7 +720,11 @@ def resize_batch():
 
     for filename in filenames:
         try:
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            secure_name = secure_filename(filename)
+            filepath = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], secure_name))
+            if not filepath.startswith(os.path.abspath(app.config['UPLOAD_FOLDER'])):
+                errors.append(f'Invalid file path: {filename}')
+                continue
             if not os.path.isfile(filepath):
                 errors.append(f'File not found: {filename}')
                 continue
@@ -705,6 +753,12 @@ def resize_batch():
             if not command:
                 app.logger.error(f"Error preparing resize command for {filename}")
                 continue
+
+            # Validate command against allowlist
+            for cmd in command:
+                if cmd not in ALLOWED_COMMANDS.values() and not cmd.startswith('-'):
+                    app.logger.error(f"Invalid command detected: {cmd}")
+                    continue
 
             # Exécuter la commande
             try:
@@ -767,16 +821,22 @@ def resize_batch():
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
+    filename = secure_filename(filename)
     zip_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    if not zip_path.startswith(app.config['OUTPUT_FOLDER']):
+        abort(403)  # Forbidden
     return send_file(zip_path, as_attachment=True)
 
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    safe_filename = secure_filename(filename)
+    filepath = os.path.normpath(os.path.join(app.config['OUTPUT_FOLDER'], safe_filename))
+    if not filepath.startswith(os.path.abspath(app.config['OUTPUT_FOLDER'])):
+        abort(400, "Invalid file path")
     with open(filepath, 'rb') as f:
         response = Response(f.read(), mimetype='application/octet-stream')
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
     return response
 
 if __name__ == '__main__':
