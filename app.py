@@ -708,7 +708,11 @@ def resize_batch():
 
     for filename in filenames:
         try:
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            secure_name = secure_filename(filename)
+            filepath = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], secure_name))
+            if not filepath.startswith(os.path.abspath(app.config['UPLOAD_FOLDER'])):
+                errors.append(f'Invalid file path: {filename}')
+                continue
             if not os.path.isfile(filepath):
                 errors.append(f'File not found: {filename}')
                 continue
