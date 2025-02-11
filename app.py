@@ -534,7 +534,15 @@ def resize_image(filename):
         # Si keep_ratio est True et une seule dimension est fournie, calculer l'autre
         if keep_ratio and (width.isdigit() or height.isdigit()):
             # Obtenir les dimensions originales
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            base_path = app.config['UPLOAD_FOLDER']
+            secure_name = secure_filename(filename)
+            filepath = os.path.normpath(os.path.join(base_path, secure_name))
+            if not filepath.startswith(base_path):
+                flash('Invalid file path')
+                return render_template('result.html', 
+                                    success=False, 
+                                    title='Error',
+                                    return_url=url_for('resize_options', filename=filename))
             original_dimensions = get_image_dimensions(filepath)
             if original_dimensions:
                 original_width, original_height = original_dimensions
@@ -551,9 +559,11 @@ def resize_image(filename):
         
         app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
         
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
-            flash('File not found')
+        base_path = app.config['UPLOAD_FOLDER']
+        secure_name = secure_filename(filename)
+        filepath = os.path.normpath(os.path.join(base_path, secure_name))
+        if not filepath.startswith(base_path) or not os.path.exists(filepath):
+            flash('File not found or invalid path')
             return render_template('result.html', 
                                 success=False, 
                                 title='Error',
@@ -816,16 +826,22 @@ def resize_batch():
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
+    filename = secure_filename(filename)
     zip_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    if not zip_path.startswith(app.config['OUTPUT_FOLDER']):
+        abort(403)  # Forbidden
     return send_file(zip_path, as_attachment=True)
 
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    safe_filename = secure_filename(filename)
+    filepath = os.path.normpath(os.path.join(app.config['OUTPUT_FOLDER'], safe_filename))
+    if not filepath.startswith(os.path.abspath(app.config['OUTPUT_FOLDER'])):
+        abort(400, "Invalid file path")
     with open(filepath, 'rb') as f:
         response = Response(f.read(), mimetype='application/octet-stream')
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
     return response
 
 if __name__ == '__main__':
