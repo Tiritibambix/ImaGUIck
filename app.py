@@ -518,6 +518,12 @@ def resize_image(filename):
         app.logger.info(f"Sharpening: enabled={use_sharpen}, level={sharpen_level}")
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
 
+        # Sanitize user input
+        width = sanitize_input(width)
+        height = sanitize_input(height)
+        percentage = sanitize_input(request.form.get('percentage', DEFAULTS["percentage"]))
+        quality = sanitize_input(request.form.get('quality', DEFAULTS["quality"]))
+
         # Si keep_ratio est True et une seule dimension est fournie, calculer l'autre
         if keep_ratio and (width.isdigit() or height.isdigit()):
             # Obtenir les dimensions originales
@@ -562,8 +568,8 @@ def resize_image(filename):
             output_path=output_path,
             width=width,
             height=height,
-            percentage=request.form.get('percentage', DEFAULTS["percentage"]),
-            quality=request.form.get('quality', DEFAULTS["quality"]),
+            percentage=percentage,
+            quality=quality,
             keep_ratio=keep_ratio,
             auto_level=auto_level,
             auto_gamma=auto_gamma,
@@ -611,6 +617,12 @@ def resize_image(filename):
         app.logger.info(f"File path: {filepath}")
         app.logger.info(f"Output path: {output_path}")
         app.logger.info(f"Command: {' '.join(command)}")
+
+def sanitize_input(value):
+    """Sanitize user input to ensure it is safe for command execution."""
+    if value.isdigit():
+        return value
+    return ""
 
 @app.route('/resize_batch_options')
 def resize_batch_options(filenames=None):
