@@ -819,10 +819,13 @@ def download_batch(filename):
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    filepath = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    safe_filename = secure_filename(filename)
+    filepath = os.path.normpath(os.path.join(app.config['OUTPUT_FOLDER'], safe_filename))
+    if not filepath.startswith(os.path.abspath(app.config['OUTPUT_FOLDER'])):
+        abort(400, "Invalid file path")
     with open(filepath, 'rb') as f:
         response = Response(f.read(), mimetype='application/octet-stream')
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Disposition'] = f'attachment; filename="{safe_filename}"'
     return response
 
 if __name__ == '__main__':
