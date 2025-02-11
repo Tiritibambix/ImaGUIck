@@ -768,7 +768,10 @@ def resize_batch():
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
+    filename = secure_filename(filename)
     zip_path = os.path.join(app.config['OUTPUT_FOLDER'], filename)
+    if not zip_path.startswith(app.config['OUTPUT_FOLDER']):
+        abort(403)  # Forbidden
     return send_file(zip_path, as_attachment=True)
 
 @app.route('/download/<filename>')
