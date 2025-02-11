@@ -464,7 +464,12 @@ def upload_url():
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    base_path = app.config['UPLOAD_FOLDER']
+    secure_name = secure_filename(filename)
+    filepath = os.path.normpath(os.path.join(base_path, secure_name))
+    if not filepath.startswith(base_path):
+        flash('Invalid file path')
+        return redirect(url_for('index'))
     dimensions = get_image_dimensions(filepath)
     if not dimensions:
         return redirect(url_for('index'))
@@ -500,7 +505,15 @@ def resize_image(filename):
         # Si keep_ratio est True et une seule dimension est fournie, calculer l'autre
         if keep_ratio and (width.isdigit() or height.isdigit()):
             # Obtenir les dimensions originales
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            base_path = app.config['UPLOAD_FOLDER']
+            secure_name = secure_filename(filename)
+            filepath = os.path.normpath(os.path.join(base_path, secure_name))
+            if not filepath.startswith(base_path):
+                flash('Invalid file path')
+                return render_template('result.html', 
+                                    success=False, 
+                                    title='Error',
+                                    return_url=url_for('resize_options', filename=filename))
             original_dimensions = get_image_dimensions(filepath)
             if original_dimensions:
                 original_width, original_height = original_dimensions
@@ -517,9 +530,11 @@ def resize_image(filename):
         
         app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
         
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
-            flash('File not found')
+        base_path = app.config['UPLOAD_FOLDER']
+        secure_name = secure_filename(filename)
+        filepath = os.path.normpath(os.path.join(base_path, secure_name))
+        if not filepath.startswith(base_path) or not os.path.exists(filepath):
+            flash('File not found or invalid path')
             return render_template('result.html', 
                                 success=False, 
                                 title='Error',
