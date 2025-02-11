@@ -55,6 +55,7 @@ def get_image_dimensions(filepath):
         if filepath.lower().endswith('.arw'):
             app.logger.info(f"Getting dimensions for ARW file: {filepath}")
             cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', secure_file_path]
+            cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', shlex.quote(secure_file_path)]
             app.logger.info(f"Running exiftool command")
             result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
             
@@ -62,7 +63,6 @@ def get_image_dimensions(filepath):
                 app.logger.info(f"Exiftool output received")
                 dimensions = result.stdout.strip().split('\n')
                 if len(dimensions) == 2:
-                    try:
                         height = int(dimensions[0])
                         width = int(dimensions[1])
                         app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
@@ -71,10 +71,8 @@ def get_image_dimensions(filepath):
                         app.logger.warning("Could not parse dimensions from exiftool output")
                         pass
             
-            return 7008, 4672  # Dimensions connues pour Sony A7 IV
-        else:
             app.logger.info(f"Getting dimensions for non-ARW file")
-            cmd = ['magick', 'identify', secure_file_path]
+            cmd = ['magick', 'identify', shlex.quote(secure_file_path)]
             app.logger.info(f"Running ImageMagick command")
             result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
             if result.returncode != 0:
@@ -324,7 +322,282 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         
     # Normaliser le chemin pour ImageMagick
     normalized_path = os.path.normpath(filepath).replace('\\', '/')
-    command = ['magick', normalized_path]
+    command = ['magick', shlex.quote(normalized_path)]
+
+    # Apply auto corrections in optimal order
+    if auto_gamma:
+        command.append('-auto-gamma')
+            cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', shlex.quote(secure_file_path)]
+            app.logger.info(f"Running exiftool command")
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
+            
+            if result.returncode == 0 and result.stdout.strip():
+                app.logger.info(f"Exiftool output received")
+                dimensions = result.stdout.strip().split('\n')
+                if len(dimensions) == 2:
+                    try:
+                        height = int(dimensions[0])
+                        width = int(dimensions[1])
+                        app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
+                        return width, height
+                    except ValueError:
+                        app.logger.warning("Could not parse dimensions from exiftool output")
+                        pass
+            
+            return 7008, 4672  # Dimensions connues pour Sony A7 IV
+        else:
+            app.logger.info(f"Getting dimensions for non-ARW file")
+            cmd = ['magick', 'identify', shlex.quote(secure_file_path)]
+            app.logger.info(f"Running ImageMagick command")
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
+            if result.returncode != 0:
+                raise Exception(f"Error getting image dimensions: {result.stderr}")
+            
+            match = re.search(r'\s(\d+)x(\d+)\s', result.stdout)
+            if match:
+                width = int(match.group(1))
+                height = int(match.group(2))
+                app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
+                return width, height
+            else:
+                raise Exception("Could not parse image dimensions")
+    except Exception as e:
+        app.logger.error(f"Error getting image dimensions: {str(e)}")
+        return None, None
+
+def get_format_categories():
+    """Categorize image formats by their typical usage."""
+    return {
+        'photo': {
+            'name': 'Photography & Print',
+            'formats': [
+                'JPEG', 'JPG', 'TIFF', 'ARW', 'CR2', 'CR3', 'NEF', 'RAF',
+                'DNG', 'HEIC', 'BMP', 'PPM', 'PGM', 'PNM'
+            ]
+        },
+        'web': {
+            'name': 'Web & Mobile',
+            'formats': ['WEBP', 'AVIF', 'JPEG', 'JPG', 'PNG', 'GIF']
+        },
+        'graphics': {
+            'name': 'Graphics & Design',
+            'formats': [
+                'PNG', 'SVG', 'AI', 'EPS', 'PS', 'PDF', 'EMF', 'WMF',
+                'PCX', 'TGA'
+            ]
+        },
+        'icons': {
+            'name': 'Icons & UI',
+            'formats': ['ICO', 'CUR', 'ICON', 'PICON', 'XBM', 'XPM']
+        },
+        'animation': {
+            'name': 'Animation & Video',
+            'formats': ['GIF', 'APNG', 'MNG', 'WEBP', 'JIF', 'MP4']
+        },
+        'archive': {
+            'name': 'Archive & Storage',
+            'formats': [
+                'PSD', 'XCF', 'PDF', 'PSB', 'TIFF', 'DPX', 'EXR',
+                'HDR', 'MIFF'
+            ]
+        }
+    }
+
+def get_recommended_formats_for_image(image_type, original_format):
+    """Get recommended formats based on image characteristics."""
+    recommended = set()
+    
+    # PNG est toujours recommandé car c'est un excellent format sans perte
+    recommended.add('PNG')
+    
+    if image_type.get('has_transparency'):
+        recommended.update(['WEBP', 'AVIF'])
+    
+    if image_type.get('is_photo'):
+        recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC', 'DNG'])
+    else:
+        # Pour les graphiques, logos, etc.
+        recommended.update(['WEBP', 'SVG'])
+    
+    # Cas spéciaux basés sur le format original
+    if original_format:
+        original_format = original_format.upper()
+        if original_format in ['ARW', 'CR2', 'CR3', 'NEF', 'RAF', 'RW2', 'DNG']:
+            # Format RAW - on ajoute les formats de haute qualité
+            recommended.update(['TIFF', 'DNG'])
+        elif original_format in ['GIF', 'WEBP', 'MNG', 'APNG']:
+            # Format d'animation
+            recommended.update(['GIF', 'WEBP', 'APNG'])
+        elif original_format in ['ICO', 'CUR', 'ICON']:
+            # Format d'icône
+            recommended.add('ICO')
+        elif original_format in ['SVG', 'EPS', 'AI', 'PDF']:
+            # Format vectoriel
+            recommended.update(['SVG', 'PDF', 'EPS'])
+        elif original_format in ['PSD', 'XCF', 'PSB']:
+            # Format d'édition
+            recommended.update(['PSD', 'TIFF'])
+        elif original_format in ['TIFF']:
+            # Formats de haute qualité
+            recommended.add('TIFF')
+    
+    return sorted(list(recommended))
+
+def get_available_formats(filepath=None):
+    """Get all formats supported by ImageMagick and organize them by category."""
+    try:
+        # Liste des formats vidéo à exclure
+        VIDEO_FORMATS = {'3G2', '3GP', 'AVI', 'FLV', 'M4V', 'MKV', 'MOV', 'MP4', 'MPG', 'MPEG', 'OGV', 'SWF', 'VOB', 'WMV'}
+        
+        # Obtenir la liste des formats depuis ImageMagick
+        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            raise Exception("Erreur lors de la récupération des formats")
+            
+        # Parser la sortie pour extraire les formats
+        available_formats = set()
+        for line in result.stdout.split('\n'):
+            if not line.strip() or line.startswith('Format') or line.startswith('--'):
+                continue
+                
+            parts = line.split()
+            if len(parts) >= 2:
+                format_name = parts[0].strip('* ')
+                format_flags = parts[1].lower()
+                if 'r' in format_flags or 'w' in format_flags:
+                    if format_name.upper() not in VIDEO_FORMATS:  # Exclure les formats vidéo
+                        available_formats.add(format_name.upper())
+        
+        if not available_formats:
+            raise Exception("Aucun format n'a été trouvé dans la sortie de ImageMagick")
+            
+        app.logger.info(f"Formats détectés : {available_formats}")
+        
+        # Organiser les formats disponibles par catégorie
+        categories = get_format_categories()
+        categorized_formats = {}
+        
+        # Créer un ensemble de tous les formats catégorisés
+        all_categorized = set()
+        for cat_info in categories.values():
+            all_categorized.update(cat_info['formats'])
+            
+        # Ajouter les catégories dans l'ordre spécifié
+        ordered_categories = ['recommended', 'photo', 'web', 'icons', 'animation', 'graphics', 'archive', 'other']
+        
+        # Si un fichier est spécifié, ajouter les formats recommandés
+        if filepath and os.path.exists(filepath):
+            image_type = analyze_image_type(filepath)
+            if image_type:
+                original_format = os.path.splitext(filepath)[1][1:].upper()
+                recommended = get_recommended_formats_for_image(image_type, original_format)
+                if recommended:
+                    categorized_formats['recommended'] = {
+                        'name': 'Recommended Formats',
+                        'formats': [fmt for fmt in recommended if fmt in available_formats]
+                    }
+        
+        for cat_key in ordered_categories:
+            if cat_key == 'recommended' and 'recommended' in categorized_formats:
+                continue  # Déjà ajouté si présent
+            elif cat_key == 'other':
+                # Traiter les formats non catégorisés
+                uncategorized = sorted(list(available_formats - all_categorized))
+                if uncategorized:
+                    categorized_formats['other'] = {
+                        'name': 'Other Available Formats',
+                        'formats': uncategorized
+                    }
+            elif cat_key in categories:
+                # Traiter les catégories prédéfinies
+                matching_formats = sorted(list(available_formats.intersection(categories[cat_key]['formats'])))
+                if matching_formats:
+                    categorized_formats[cat_key] = {
+                        'name': categories[cat_key]['name'],
+                        'formats': matching_formats
+                    }
+            
+        return categorized_formats
+        
+    except Exception as e:
+        app.logger.error(f"Erreur lors de la récupération des formats : {e}")
+        # En cas d'erreur, retourner au moins la catégorie "Other" avec des formats de base
+        return {
+            'other': {
+                'name': 'Available Formats',
+                'formats': sorted([
+                    'PNG', 'JPEG', 'JPG', 'GIF', 'TIFF', 'BMP', 'WEBP',
+                    'ICO', 'CUR', 'ICON', 'PICON',
+                    'PDF', 'SVG', 'PSD',
+                    'HEIC', 'AVIF'
+                ])
+            }
+        }
+
+def analyze_image_type(filepath):
+    """Analyze image to determine its type and best suitable formats."""
+    try:
+        # Vérifier si c'est un fichier RAW
+        if filepath.lower().endswith('.arw'):
+            app.logger.info(f"Analyzing RAW file: {filepath}")
+            return {
+                'has_transparency': False,
+                'is_photo': True,
+                'original_format': 'ARW'
+            }
+            
+        # Pour les autres formats, utiliser PIL
+        with Image.open(filepath) as img:
+            has_transparency = 'A' in img.getbands()
+            is_photo = True
+            
+            # Check if image is more like a photo or graphic
+            if img.mode in ('P', '1', 'L'):
+                is_photo = False
+            elif img.mode in ('RGB', 'RGBA'):
+                # Sample pixels to determine if it's likely a photo
+                pixels = list(img.getdata())
+                unique_colors = len(set(pixels[:1000]))  # Sample first 1000 pixels
+                is_photo = unique_colors > 100  # If many unique colors, likely a photo
+            
+            return {
+                'has_transparency': has_transparency,
+                'is_photo': is_photo,
+                'original_format': img.format
+            }
+    except Exception as e:
+        app.logger.error(f"Error analyzing image: {e}")
+        # En cas d'erreur, supposer que c'est une photo sans transparence
+        return {
+            'has_transparency': False,
+            'is_photo': True,
+            'original_format': None
+        }
+
+def flash_error(message):
+    """Flash error message and log if needed."""
+    app.logger.error(message)
+    flash(message)
+    return render_template('result.html', 
+                         success=False, 
+                         title='Error',
+                         return_url=request.referrer)
+
+def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
+                         auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
+    """Build ImageMagick command for resizing and formatting."""
+    if not secure_path(filepath) or not secure_path(output_path):
+        return None
+
+    # Vérifier l'existence du fichier avant de construire la commande
+    if not os.path.exists(filepath):
+        app.logger.error(f"Fichier introuvable : {filepath}")
+        return None
+        
+    # Normaliser le chemin pour ImageMagick
+    normalized_path = os.path.normpath(filepath).replace('\\', '/')
+    command = ['magick', shlex.quote(normalized_path)]
 
     # Apply auto corrections in optimal order
     if auto_gamma:
