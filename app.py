@@ -464,7 +464,11 @@ def upload_url():
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    filename = secure_filename(filename)
+    filepath = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    if not filepath.startswith(app.config['UPLOAD_FOLDER']):
+        flash('Invalid file path')
+        return redirect(url_for('index'))
     dimensions = get_image_dimensions(filepath)
     if not dimensions:
         return redirect(url_for('index'))
