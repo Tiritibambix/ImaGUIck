@@ -317,6 +317,10 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     if not secure_path(filepath) or not secure_path(output_path):
         return None
 
+    # Validate and sanitize inputs
+    filepath = secure_filename(filepath)
+    output_path = secure_filename(output_path)
+
     command = ['magick', filepath]
 
     # Apply auto corrections in optimal order
@@ -483,6 +487,15 @@ def resize_options(filename):
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
     try:
+        # Validate and sanitize filename
+        filename = secure_filename(filename)
+        if not filename:
+            flash('Invalid filename')
+            return render_template('result.html', 
+                                success=False, 
+                                title='Error',
+                                return_url=url_for('resize_options', filename=filename))
+        
         # Récupérer les paramètres
         width = request.form.get('width', '')
         height = request.form.get('height', '')
