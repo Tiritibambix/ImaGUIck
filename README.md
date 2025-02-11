@@ -3,9 +3,11 @@
 </p>
 
 <p align="center">
+  Platform Support
   <img src="https://img.shields.io/badge/Platform-amd64%20%7C%20arm64-blue" alt="Platform Support" />
   [![CodeQL](https://github.com/tiritibambix/ImaGUIck/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/tiritibambix/ImaGUIck/actions/workflows/github-code-scanning/codeql)
 </p>
+
 
 
 ImaGUIck is a simple and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
