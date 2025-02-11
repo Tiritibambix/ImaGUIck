@@ -608,7 +608,11 @@ def resize_batch_options(filenames=None):
     first_file_path = None
 
     for filename in filenames:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        # Normalize the filename and ensure it is within the UPLOAD_FOLDER directory
+        filepath = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        if not filepath.startswith(os.path.abspath(app.config['UPLOAD_FOLDER'])):
+            app.logger.error(f"Invalid file path: {filepath}")
+            continue
         if not os.path.exists(filepath):
             continue
             
