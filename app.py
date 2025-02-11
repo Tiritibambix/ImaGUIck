@@ -311,6 +311,16 @@ def flash_error(message):
                          title='Error',
                          return_url=request.referrer)
 
+ALLOWED_COMMANDS = {
+    'auto_gamma': '-auto-gamma',
+    'auto_level': '-auto-level',
+    'use_1080p': '-resize 1920x1080',
+    'use_sharpen': {
+        'standard': '-sharpen 0x1',
+        'strong': '-sharpen 0x2'
+    }
+}
+
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                          auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
@@ -320,10 +330,10 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     command = ['magick', filepath]
 
     # Apply auto corrections in optimal order
-    if auto_gamma:
-        command.append('-auto-gamma')
-    if auto_level:
-        command.append('-auto-level')
+    if auto_gamma and 'auto_gamma' in ALLOWED_COMMANDS:
+        command.append(ALLOWED_COMMANDS['auto_gamma'])
+    if auto_level and 'auto_level' in ALLOWED_COMMANDS:
+        command.append(ALLOWED_COMMANDS['auto_level'])
 
     # Apply sharpening with specific parameters based on level
     if use_sharpen:
@@ -706,6 +716,12 @@ def resize_batch():
             if not command:
                 app.logger.error(f"Error preparing resize command for {filename}")
                 continue
+
+            # Validate command against allowlist
+            for cmd in command:
+                if cmd not in ALLOWED_COMMANDS.values() and not cmd.startswith('-'):
+                    app.logger.error(f"Invalid command detected: {cmd}")
+                    continue
 
             # Exécuter la commande
             try:
