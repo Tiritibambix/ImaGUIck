@@ -55,31 +55,29 @@ def get_image_dimensions(filepath):
         if filepath.lower().endswith('.arw'):
             app.logger.info(f"Getting dimensions for ARW file: {filepath}")
             cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', secure_file_path]
-            app.logger.info(f"Running exiftool command")
-            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
-            
-            if result.returncode == 0 and result.stdout.strip():
-                app.logger.info(f"Exiftool output received")
-                dimensions = result.stdout.strip().split('\n')
-                if len(dimensions) == 2:
-                    try:
-                        height = int(dimensions[0])
-                        width = int(dimensions[1])
-                        app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
-                        return width, height
-                    except ValueError:
-                        app.logger.warning("Could not parse dimensions from exiftool output")
-                        pass
-            
-            return 7008, 4672  # Dimensions connues pour Sony A7 IV
         else:
             app.logger.info(f"Getting dimensions for non-ARW file")
             cmd = ['magick', 'identify', secure_file_path]
-            app.logger.info(f"Running ImageMagick command")
-            result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
-            if result.returncode != 0:
-                raise Exception(f"Error getting image dimensions: {result.stderr}")
-            
+
+        app.logger.info(f"Running command: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
+        
+        if result.returncode != 0:
+            raise Exception(f"Error getting image dimensions: {result.stderr}")
+
+        if filepath.lower().endswith('.arw'):
+            dimensions = result.stdout.strip().split('\n')
+            if len(dimensions) == 2:
+                try:
+                    height = int(dimensions[0])
+                    width = int(dimensions[1])
+                    app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
+                    return width, height
+                except ValueError:
+                    app.logger.warning("Could not parse dimensions from exiftool output")
+                    pass
+            return 7008, 4672  # Dimensions connues pour Sony A7 IV
+        else:
             match = re.search(r'\s(\d+)x(\d+)\s', result.stdout)
             if match:
                 width = int(match.group(1))
