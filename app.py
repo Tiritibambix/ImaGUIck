@@ -443,6 +443,13 @@ def upload_url():
                 flash('Invalid URL scheme. Only HTTP and HTTPS are allowed.')
                 return redirect(url_for('index'))
 
+            # Check if the domain is allowed
+            allowed_domains = ['example.com', 'anotherdomain.com']
+            domain = url.split('/')[2]
+            if domain not in allowed_domains:
+                flash('Domain not allowed.')
+                return redirect(url_for('index'))
+
             # Set timeout and size limits
             response = requests.get(url, stream=True, timeout=10, verify=True)
             content_type = response.headers.get('content-type', '')
