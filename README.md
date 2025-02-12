@@ -54,14 +54,13 @@ This application is designed for local usage only. While it can be exposed to th
 - 🔍 **Automatic Image Type Analysis**
 - 🔍 **Intelligent Format Recommendations**
 
-## 🚀 Installation
-
 ### Screenshots
 
 ![Landing page](screenshots/ImaGUIck_1.png)
 
 ![Resize](screenshots/ImaGUIck_2.png)
 
+## 🚀 Installation
 
 ### Prerequisites
 
