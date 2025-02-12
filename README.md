@@ -56,6 +56,16 @@ This application is designed for local usage only. While it can be exposed to th
 
 ## 🚀 Installation
 
+### Screenshots
+
+```markdown
+![Landing page](screenshots/ImaGUIck_1.png)
+```
+
+```markdown
+![Resize](screenshots/ImaGUIck_2.png)
+```
+
 ### Prerequisites
 
 - Python 3.9+
