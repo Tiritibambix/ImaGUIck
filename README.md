@@ -56,9 +56,9 @@ This application is designed for local usage only. While it can be exposed to th
 
 ### Screenshots
 
-![Landing page](screenshots/ImaGUIck_1.png)
+![Landing page](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_1.png)
 
-![Resize](screenshots/ImaGUIck_2.png)
+![Resize](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_2.png)
 
 ## 🚀 Installation
 
