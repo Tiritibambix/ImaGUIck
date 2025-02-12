@@ -58,13 +58,10 @@ This application is designed for local usage only. While it can be exposed to th
 
 ### Screenshots
 
-```markdown
 ![Landing page](screenshots/ImaGUIck_1.png)
-```
 
-```markdown
 ![Resize](screenshots/ImaGUIck_2.png)
-```
+
 
 ### Prerequisites
 
