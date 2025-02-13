@@ -290,7 +290,7 @@ def analyze_image_type(filepath):
         # Pour les autres formats, utiliser PIL
         if filepath.lower().endswith('.jxl'):
             # Utiliser djxl pour décoder JXL
-            cmd = ['djxl', filepath, '-o', '/tmp/decoded_image.png']
+            cmd = ['djxl', secure_filename(filepath), '-o', '/tmp/decoded_image.png']
             subprocess.run(cmd, check=True)
             filepath = '/tmp/decoded_image.png'
         with Image.open(filepath) as img:
@@ -483,6 +483,7 @@ def upload_url():
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
+    filename = secure_filename(filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     dimensions = get_image_dimensions(filepath)
     if not dimensions:
