@@ -334,6 +334,8 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
         return None
+    filepath = secure_filename(filepath)
+    output_path = secure_filename(output_path)
 
     if filepath.lower().endswith('.jxl'):
         # Utiliser djxl pour décoder JXL
@@ -502,6 +504,7 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
+    filename = secure_filename(filename)
     try:
         # Récupérer les paramètres
         width = request.form.get('width', '')
