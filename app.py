@@ -26,7 +26,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB max
-app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw']
+app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw', '.jxl']
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
 
@@ -117,7 +117,7 @@ def get_format_categories():
         },
         'web': {
             'name': 'Web & Mobile',
-            'formats': ['WEBP', 'AVIF', 'JPEG', 'JPG', 'PNG', 'GIF']
+            'formats': ['WEBP', 'AVIF', 'JPEG', 'JPG', 'PNG', 'GIF', 'JXL']
         },
         'graphics': {
             'name': 'Graphics & Design',
@@ -154,10 +154,10 @@ def get_recommended_formats_for_image(image_type, original_format):
         recommended.update(['WEBP', 'AVIF'])
     
     if image_type.get('is_photo'):
-        recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC', 'DNG'])
+        recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC', 'DNG', 'JXL'])
     else:
         # Pour les graphiques, logos, etc.
-        recommended.update(['WEBP', 'SVG'])
+        recommended.update(['WEBP', 'SVG', 'JXL'])
     
     # Cas spéciaux basés sur le format original
     if original_format:
@@ -288,6 +288,11 @@ def analyze_image_type(filepath):
             }
             
         # Pour les autres formats, utiliser PIL
+        if filepath.lower().endswith('.jxl'):
+            # Utiliser djxl pour décoder JXL
+            cmd = ['djxl', filepath, '-o', '/tmp/decoded_image.png']
+            subprocess.run(cmd, check=True)
+            filepath = '/tmp/decoded_image.png'
         with Image.open(filepath) as img:
             has_transparency = 'A' in img.getbands()
             is_photo = True
@@ -330,6 +335,11 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     if not secure_path(filepath) or not secure_path(output_path):
         return None
 
+    if filepath.lower().endswith('.jxl'):
+        # Utiliser djxl pour décoder JXL
+        cmd = ['djxl', filepath, '-o', '/tmp/decoded_image.png']
+        subprocess.run(cmd, check=True)
+        filepath = '/tmp/decoded_image.png'
     command = ['magick', filepath]
 
     # Apply auto corrections in optimal order
@@ -481,6 +491,7 @@ def resize_options(filename):
     # Récupérer les formats disponibles déjà catégorisés
     formats = get_available_formats(filepath)
 
+    app.logger.info(f"Formats passed to template: {formats}")
     return render_template('resize.html',
                          filename=filename,
                          width=dimensions[0],

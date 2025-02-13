@@ -21,11 +21,17 @@ RUN apt-get update && apt-get install -y \
     libxt-dev \
     libmagickcore-dev \
     libmagickwand-dev \
+    libjxl-tools \
+    libjxl-dev \
     exiftool \
-    zip unzip \
+    zip \
+    unzip \
     cron \
     procps \
+    && cjxl --version \
+    && djxl --version \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Cas particulier pour ARM64 : utiliser une version pré-compilée d'ImageMagick
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
@@ -36,7 +42,7 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
         wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.1-41.tar.gz -O /tmp/imagemagick.tar.gz && \
         tar -xvzf /tmp/imagemagick.tar.gz -C /tmp && \
         cd /tmp/ImageMagick-7.1.1-41 && \
-        ./configure --prefix=/usr/local --disable-shared --without-x --disable-openmp && \
+        ./configure --prefix=/usr/local --disable-shared --without-x --disable-openmp --with-jxl && \
         make -j$(nproc) && \
         make install && \
         rm -rf /tmp/*; \

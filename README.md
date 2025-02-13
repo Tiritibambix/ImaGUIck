@@ -30,7 +30,7 @@ This application is designed for local usage only. While it can be exposed to th
 - 🔄 **Smart Format Support**:
   - Common formats (JPG, PNG, GIF, etc.)
   - RAW formats (ARW, CR2, CR3, NEF, RAF, RW2, DNG)
-  - Modern formats (WEBP, AVIF, HEIC)
+  - Modern formats (WEBP, AVIF, HEIC, JXL)
   - Animation formats (GIF, WEBP, APNG)
   - Vector formats (SVG, PDF, EPS)
 - ✨ **Automatic Image Enhancement**:
