@@ -25,7 +25,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024  # 30 MB max
+app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024  # 10 MB max
 app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw', '.jxl']
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
@@ -332,10 +332,10 @@ def flash_error(message):
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                          auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
-    filepath = secure_filename(filepath)
-    output_path = secure_filename(output_path)
     if not secure_path(filepath) or not secure_path(output_path):
         return None
+    filepath = secure_filename(filepath)
+    output_path = secure_filename(output_path)
 
     if filepath.lower().endswith('.jxl'):
         # Utiliser djxl pour décoder JXL
@@ -486,13 +486,7 @@ def upload_url():
 def resize_options(filename):
     """Resize options page for a single image."""
     filename = secure_filename(filename)
-    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'tiff', 'bmp', 'webp'}
-    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    else:
-        flash("Invalid file format.")
-        return redirect(url_for('index'))
-
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     dimensions = get_image_dimensions(filepath)
     if not dimensions:
         return redirect(url_for('index'))
