@@ -25,7 +25,7 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB max
+app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024  # 10 MB max
 app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw', '.jxl']
 app.secret_key = 'supersecretkey'
 app.logger.setLevel(logging.INFO)
