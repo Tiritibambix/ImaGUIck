@@ -290,7 +290,7 @@ def analyze_image_type(filepath):
         # Pour les autres formats, utiliser PIL
         if filepath.lower().endswith('.jxl'):
             # Utiliser djxl pour décoder JXL
-            cmd = ['djxl', filepath, '-o', '/tmp/decoded_image.png']
+            cmd = ['djxl', secure_filename(filepath), '-o', '/tmp/decoded_image.png']
             subprocess.run(cmd, check=True)
             filepath = '/tmp/decoded_image.png'
         with Image.open(filepath) as img:
@@ -332,6 +332,8 @@ def flash_error(message):
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                          auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
+    filepath = secure_filename(filepath)
+    output_path = secure_filename(output_path)
     if not secure_path(filepath) or not secure_path(output_path):
         return None
 
@@ -483,7 +485,14 @@ def upload_url():
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    filename = secure_filename(filename)
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'tiff', 'bmp', 'webp'}
+    if '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    else:
+        flash("Invalid file format.")
+        return redirect(url_for('index'))
+
     dimensions = get_image_dimensions(filepath)
     if not dimensions:
         return redirect(url_for('index'))
@@ -502,6 +511,7 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
+    filename = secure_filename(filename)
     try:
         # Récupérer les paramètres
         width = request.form.get('width', '')
