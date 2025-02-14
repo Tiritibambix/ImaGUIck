@@ -332,6 +332,8 @@ def flash_error(message):
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                          auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
+    filepath = secure_filename(filepath)
+    output_path = secure_filename(output_path)
     if not secure_path(filepath) or not secure_path(output_path):
         return None
 
@@ -502,6 +504,7 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
+    filename = secure_filename(filename)
     try:
         # Récupérer les paramètres
         width = request.form.get('width', '')
