@@ -42,14 +42,14 @@ def secure_path(filepath):
         abs_path = os.path.abspath(filepath)
         base_path = os.path.abspath(os.path.join(app.config['UPLOAD_FOLDER'], ''))
         output_path = os.path.abspath(os.path.join(app.config['OUTPUT_FOLDER'], ''))
-        
+
         if not (abs_path.startswith(base_path) or abs_path.startswith(output_path)):
             return None
-        
+
         real_path = os.path.realpath(abs_path)
         if not (real_path.startswith(base_path) or real_path.startswith(output_path)):
             return None
-            
+
         return abs_path
     except Exception:
         return None
@@ -66,7 +66,7 @@ def get_image_dimensions(filepath):
             cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', secure_file_path]
             app.logger.info(f"Running exiftool command")
             result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
-            
+
             if result.returncode == 0 and result.stdout.strip():
                 app.logger.info(f"Exiftool output received")
                 dimensions = result.stdout.strip().split('\n')
@@ -81,7 +81,7 @@ def get_image_dimensions(filepath):
                     except ValueError:
                         app.logger.warning("Could not parse dimensions from exiftool output")
                         pass
-            
+
             return 7008, 4672
         else:
             app.logger.info(f"Getting dimensions for non-ARW file")
@@ -90,7 +90,7 @@ def get_image_dimensions(filepath):
             result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
             if result.returncode != 0:
                 raise Exception(f"Error getting image dimensions: {result.stderr}")
-            
+
             match = re.search(r'\s(\d+)x(\d+)\s', result.stdout)
             if match:
                 width = int(match.group(1))
@@ -146,19 +146,19 @@ def get_format_categories():
 def get_recommended_formats_for_image(image_type, original_format):
     """Get recommended formats based on image characteristics."""
     recommended = set()
-    
+
     # PNG est toujours recommandé car c'est un excellent format sans perte
     recommended.add('PNG')
-    
+
     if image_type.get('has_transparency'):
         recommended.update(['WEBP', 'AVIF'])
-    
+
     if image_type.get('is_photo'):
         recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC', 'DNG', 'JXL'])
     else:
         # Pour les graphiques, logos, etc.
         recommended.update(['WEBP', 'SVG', 'JXL'])
-    
+
     # Cas spéciaux basés sur le format original
     if original_format:
         original_format = original_format.upper()
@@ -180,7 +180,7 @@ def get_recommended_formats_for_image(image_type, original_format):
         elif original_format in ['TIFF']:
             # Formats de haute qualité
             recommended.add('TIFF')
-    
+
     return sorted(list(recommended))
 
 def get_available_formats(filepath=None):
@@ -188,19 +188,19 @@ def get_available_formats(filepath=None):
     try:
         # Liste des formats vidéo à exclure
         VIDEO_FORMATS = {'3G2', '3GP', 'AVI', 'FLV', 'M4V', 'MKV', 'MOV', 'MP4', 'MPG', 'MPEG', 'OGV', 'SWF', 'VOB', 'WMV'}
-        
+
         # Obtenir la liste des formats depuis ImageMagick
         result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
-        
+
         if result.returncode != 0:
             raise Exception("Erreur lors de la récupération des formats")
-            
+
         # Parser la sortie pour extraire les formats
         available_formats = set()
         for line in result.stdout.split('\n'):
             if not line.strip() or line.startswith('Format') or line.startswith('--'):
                 continue
-                
+
             parts = line.split()
             if len(parts) >= 2:
                 format_name = parts[0].strip('* ')
@@ -208,24 +208,24 @@ def get_available_formats(filepath=None):
                 if 'r' in format_flags or 'w' in format_flags:
                     if format_name.upper() not in VIDEO_FORMATS:  # Exclure les formats vidéo
                         available_formats.add(format_name.upper())
-        
+
         if not available_formats:
             raise Exception("Aucun format n'a été trouvé dans la sortie de ImageMagick")
-            
+
         app.logger.info(f"Formats détectés : {available_formats}")
-        
+
         # Organiser les formats disponibles par catégorie
         categories = get_format_categories()
         categorized_formats = {}
-        
+
         # Créer un ensemble de tous les formats catégorisés
         all_categorized = set()
         for cat_info in categories.values():
             all_categorized.update(cat_info['formats'])
-            
+
         # Ajouter les catégories dans l'ordre spécifié
         ordered_categories = ['recommended', 'photo', 'web', 'icons', 'animation', 'graphics', 'archive', 'other']
-        
+
         # Si un fichier est spécifié, ajouter les formats recommandés
         if filepath and os.path.exists(filepath):
             image_type = analyze_image_type(filepath)
@@ -237,7 +237,7 @@ def get_available_formats(filepath=None):
                         'name': 'Recommended Formats',
                         'formats': [fmt for fmt in recommended if fmt in available_formats]
                     }
-        
+
         for cat_key in ordered_categories:
             if cat_key == 'recommended' and 'recommended' in categorized_formats:
                 continue  # Déjà ajouté si présent
@@ -257,9 +257,9 @@ def get_available_formats(filepath=None):
                         'name': categories[cat_key]['name'],
                         'formats': matching_formats
                     }
-            
+
         return categorized_formats
-        
+
     except Exception as e:
         app.logger.error(f"Erreur lors de la récupération des formats : {e}")
         # En cas d'erreur, retourner au moins la catégorie "Other" avec des formats de base
@@ -286,7 +286,7 @@ def analyze_image_type(filepath):
                 'is_photo': True,
                 'original_format': 'ARW'
             }
-            
+
         # Pour les autres formats, utiliser PIL
         if filepath.lower().endswith('.jxl'):
             # Utiliser djxl pour décoder JXL
@@ -296,7 +296,7 @@ def analyze_image_type(filepath):
         with Image.open(filepath) as img:
             has_transparency = 'A' in img.getbands()
             is_photo = True
-            
+
             # Check if image is more like a photo or graphic
             if img.mode in ('P', '1', 'L'):
                 is_photo = False
@@ -305,7 +305,7 @@ def analyze_image_type(filepath):
                 pixels = list(img.getdata())
                 unique_colors = len(set(pixels[:1000]))  # Sample first 1000 pixels
                 is_photo = unique_colors > 100  # If many unique colors, likely a photo
-            
+
             return {
                 'has_transparency': has_transparency,
                 'is_photo': is_photo,
@@ -324,13 +324,13 @@ def flash_error(message):
     """Flash error message and log if needed."""
     app.logger.error(message)
     flash(message)
-    return render_template('result.html', 
-                         success=False, 
+    return render_template('result.html',
+                         success=False,
                          title='Error',
                          return_url=request.referrer)
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
-                         auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
+                             auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
         return None
@@ -377,7 +377,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
                     width = int(width)
                 if height:
                     height = int(height)
-                
+
                 resize_value = ''
                 if width and height:
                     resize_value = f"{width}x{height}"
@@ -387,7 +387,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
                     resize_value = f"{width}"
                 elif height:
                     resize_value = f"x{height}"
-                
+
                 if resize_value:
                     command.extend(['-resize', resize_value])
             except ValueError:
@@ -416,12 +416,12 @@ def upload_file():
     if 'file' not in request.files:
         flash('Aucun fichier sélectionné', 'error')
         return redirect(url_for('index'))
-        
+
     files = request.files.getlist('file')
     if not files or all(file.filename == '' for file in files):
         flash('Veuillez sélectionner au moins un fichier', 'error')
         return redirect(url_for('index'))
-        
+
     uploaded_files = []
     for file in files:
         if file and allowed_file(file.filename):
@@ -442,42 +442,42 @@ def upload_url():
     """Handle image upload from a URL."""
     if request.method == 'POST':
         url = request.form.get('url', '').strip()
-        
+
         if not url:
             flash('No URL provided', 'error')
             return redirect(url_for('index'))
-            
+
         if not is_safe_url(url):
             flash('Invalid or unsafe URL', 'error')
             return redirect(url_for('index'))
-            
+
         try:
             response = requests.get(url, timeout=30, stream=True)
             response.raise_for_status()
-            
+
             content_type = response.headers.get('content-type', '').lower()
             if not content_type.startswith('image/'):
                 raise ValueError('Not an image file')
-                
+
             content_length = int(response.headers.get('content-length', 0))
             if content_length > app.config['MAX_CONTENT_LENGTH']:
                 raise ValueError('File too large')
-                
+
             filename = secure_filename(os.path.basename(url))
             if not allowed_file(filename):
                 raise ValueError('Invalid file type')
-                
+
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             with open(filepath, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
-                    
+
             return redirect(url_for('resize_options', filename=filename))
-            
+
         except Exception as e:
             flash(f'Error downloading image: {str(e)}', 'error')
             return redirect(url_for('index'))
-            
+
     return redirect(url_for('index'))
 
 @app.route('/resize_options/<filename>')
@@ -512,11 +512,11 @@ def resize_image(filename):
         auto_gamma = request.form.get('auto_gamma') == 'on'
         use_sharpen = request.form.get('use_sharpen') == 'on'
         sharpen_level = request.form.get('sharpen_level', 'standard')
-        
+
         app.logger.info(f"Processing resize request for {filename}")
         app.logger.info(f"Sharpening: enabled={use_sharpen}, level={sharpen_level}")
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
-        
+
         # Si keep_ratio est True et une seule dimension est fournie, calculer l'autre
         if keep_ratio and (width.isdigit() or height.isdigit()):
             # Obtenir les dimensions originales
@@ -534,14 +534,14 @@ def resize_image(filename):
                     new_height = int(height)
                     width = str(round(new_height * original_width / original_height))
                     app.logger.info(f"Calculated proportional width: {width}")
-        
+
         app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
-        
+
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if not os.path.exists(filepath):
             flash('File not found')
-            return render_template('result.html', 
-                                success=False, 
+            return render_template('result.html',
+                                success=False,
                                 title='Error',
                                 return_url=url_for('resize_options', filename=filename))
 
@@ -551,10 +551,10 @@ def resize_image(filename):
             output_filename = f"{base_name}_imaGUIck.{output_format.lower()}"
         else:
             output_filename = f"{base_name}_imaGUIck{os.path.splitext(filename)[1]}"
-            
+
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         app.logger.info(f"Output path: {output_path}")
-        
+
         # Préparer la commande
         command = build_imagemagick_command(
             filepath=filepath,
@@ -570,14 +570,14 @@ def resize_image(filename):
             use_sharpen=request.form.get('use_sharpen') == 'on',
             sharpen_level=request.form.get('sharpen_level', 'standard')
         )
-        
+
         if not command:
             flash('Error preparing resize command')
-            return render_template('result.html', 
-                                success=False, 
+            return render_template('result.html',
+                                success=False,
                                 title='Error',
                                 return_url=url_for('resize_options', filename=filename))
-            
+
         # Exécuter la commande
         try:
             app.logger.info(f"Executing command: {' '.join(command)}")
@@ -586,11 +586,11 @@ def resize_image(filename):
             error_message = f"Error during image processing: {e.stderr}"
             app.logger.error(error_message)
             flash(error_message)
-            return render_template('result.html', 
-                                success=False, 
+            return render_template('result.html',
+                                success=False,
                                 title='Error',
                                 return_url=url_for('resize_options', filename=filename))
-                
+
         flash('Image processed successfully!')
         return render_template('result.html',
                             success=True,
@@ -611,7 +611,7 @@ def resize_batch_options(filenames=None):
     """Resize options page for batch processing."""
     if not filenames:
         filenames = request.args.get('filenames', '').split(',')
-    
+
     if not filenames or not filenames[0]:
         return redirect(url_for('index'))
 
@@ -631,10 +631,10 @@ def resize_batch_options(filenames=None):
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if not os.path.exists(filepath):
             continue
-            
+
         if first_file_path is None:
             first_file_path = filepath
-            
+
         image_type = analyze_image_type(filepath)
         if image_type:
             # Mettre à jour les informations du batch
@@ -644,7 +644,7 @@ def resize_batch_options(filenames=None):
                 batch_info['has_photos'] = True
             if not image_type.get('is_photo'):
                 batch_info['has_graphics'] = True
-            
+
             # Ajouter les informations détaillées de l'image
             image_types.append({
                 'filename': filename,
@@ -758,19 +758,19 @@ def resize_batch():
     # Créer le fichier ZIP
     zip_filename = f'ImaGUIck_{timestamp}.zip'
     zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
-    
+
     try:
         with ZipFile(zip_path, 'w') as zipf:
             for file in output_files:
                 zipf.write(file, os.path.basename(file))
-        
+
         if errors:
             flash('Some files were processed with errors:')
             for error in errors:
                 flash(error)
         else:
             flash('All files processed successfully!')
-            
+
         return render_template('result.html',
                             success=True,
                             title='Batch Processing Complete',
@@ -805,23 +805,23 @@ def is_safe_url(url):
     try:
         ALLOWED_SCHEMES = {'http', 'https'}
         ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp'}
-        
+
         parsed = urlparse(url)
-        
+
         if parsed.scheme.lower() not in ALLOWED_SCHEMES:
             return False
-            
+
         path = parsed.path.lower()
         if not any(path.endswith(ext) for ext in ALLOWED_EXTENSIONS):
             return False
-            
+
         hostname = parsed.hostname.lower()
         if (hostname in ('localhost', '127.0.0.1', '::1') or
             hostname.startswith('192.168.') or
             hostname.startswith('10.') or
             hostname.startswith('172.')):
             return False
-            
+
         return True
     except:
         return False

@@ -1,0 +1,38 @@
+#CompleteButton {border-width:2px;background:#aaaaaa; color:#324351;font-weight:bold;}
+#More_Message {display:none}
+#Description { display:inline }
+#View_Audience { display:inline }
+#Alternate_Terms { display:inline }
+#Applicable_Platforms { display:inline }
+#Modes_Of_Introduction { display:inline }
+#Common_Consequences { display:inline }
+#Likelihood_Of_Exploit { display:inline }
+#Enabling_Factors_for_Exploitation { display:inline }
+#Detection_Methods { display:inline }
+#Demonstrative_Examples { display:inline }
+#Observed_Examples { display:inline }
+#Potential_Mitigations { display:inline }
+#Background_Details { display:inline }
+#Notes { display:inline }
+.Applicable_Platform_Note { display:inline}
+.Maintenance_Note { display:inline }
+.Mapping_Note { display:inline}
+.Relationship_Note { display:inline}
+.Research_Gap_Note { display:inline }
+.Terminology_Note { display:inline}
+.Theoretical_Note { display:inline }
+.Other_Note { display:inline }
+#Weakness_Ordinalities { display:inline }
+#Memberships { display:inline }
+#Relationships { display:inline }
+#Research_Gaps { display:inline }
+#Affected_Resources { display:inline }
+#Relevant_Properties { display:inline }
+#Functional_Areas { display:inline }
+#Causal_Nature { display:inline }
+#Taxonomy_Mappings { display:inline }
+#Related_Attack_Patterns { display:inline }
+#White_Box_Definitions { display:inline }
+#Black_Box_Definitions { display:inline }
+#References { display:inline }
+#Content_History { display:inline }

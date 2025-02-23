@@ -1,0 +1,32 @@
+﻿/*
+Version 1.0
+*/
+/* table show/hide */
+table.viewtable tr {display:none;}
+#CWEDefinition table.viewtable.Detail tr td p {padding:5px 10px;}
+table.viewtable.view1000 tr.view1000 {display:table-row;}
+table.viewtable.view1194 tr.view1194 {display:table-row;}
+table.viewtable.view699 tr.view699 {display:table-row;}
+
+ul.cb_grid {padding:0px 30px 10px 30px; margin:0px;}
+.cb_grid li {display:inline;margin-left:0px;}
+.cb_grid li div#linker{display:none;}
+.cb_grid li input[type="checkbox"] {position:absolute;opacity:0;}
+
+/* checkbox unselected */
+.cb_grid li label{display:inline-block;background-color:#CCC;color:#4D5566;font-weight:normal;border:2px solid #AAA;border-radius:25px;white-space:nowrap;margin:3px 0px;padding:1px 10px;}
+/* checkbox selected  */
+.cb_grid li input[type="checkbox"]:checked + label{background-color:#FFF;color:#32498D;border:2px solid #32498D}
+
+#Custom_Filter button {height:25px;border-radius:12px;padding:2px; width:250px; margin:10px 0px;}
+
+div.operator {border-radius:25px; display:inline-block; overflow:hidden; border:1px solid #DDD;}
+select.operator {width:84px;height:25px;border:0px; outline:none;padding:2px 5px;}
+
+div.submitcustom {width:100%; text-align:center;}
+
+
+
+
+
+
