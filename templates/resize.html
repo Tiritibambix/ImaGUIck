@@ -140,8 +140,8 @@
         .compact-select {
             margin-left: 4px;
             padding: 0 16px 0 4px;
-            height: 16px;  /* Réduit la hauteur */
-            line-height: 16px;  /* Alignement vertical du texte */
+            height: 24px;  /* Réduit la hauteur */
+            line-height: 24px;  /* Alignement vertical du texte */
             background-color: var(--clr-surface-a20);
             border: 1px solid var(--clr-surface-a30);
             border-radius: var(--border-radius-sm);
@@ -331,22 +331,21 @@
                     <input type="text" name="quality" id="quality" value="100">
                 </div>
 
-                <div class="form-group-horizontal">
-                    <div style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: nowrap;">
-                        <label>
-                            <input type="checkbox" name="auto_level" id="auto_level">
-                            Auto-Level
-                            <span class="tooltip" title="Optimizes image levels for better dynamic range and contrast">?</span>
-                        </label>
-                        <label>
-                            <input type="checkbox" name="auto_gamma" id="auto_gamma">
-                            Auto-Gamma
-                            <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
-                        </label>
-                        <div class="label-with-select">
+                <div class="form-group-horizontal" style="flex-wrap: wrap;">
+                    <label style="flex: 1 1 45%;">
+                        <input type="checkbox" name="auto_level" id="auto_level">
+                        Auto-Level
+                        <span class="tooltip" title="Optimizes image levels for better dynamic range and contrast">?</span>
+                    </label>
+                    <label style="flex: 1 1 45%;">
+                        <input type="checkbox" name="auto_gamma" id="auto_gamma">
+                        Auto-Gamma
+                        <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
+                    </label>
+                    <div class="label-with-select" style="flex: 1 1 100%; display: flex; align-items: center; gap: 4px;">
                         <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen for: screen
                         <span class="tooltip" title="Optimize sharpness for screen display">?</span>
-                        <select name="sharpen_level" id="sharpen_level" class="compact-select">
+                        <select name="sharpen_level" id="sharpen_level" class="compact-select" style="flex: 1;">
                             <option value="low">Low</option>
                             <option value="standard" selected>Standard</option>
                             <option value="high">High</option>
