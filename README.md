@@ -27,6 +27,7 @@ This application is designed for local usage only. While it can be exposed to th
   - By percentage
   - With or without aspect ratio preservation
   - One-click 1080p option for social media optimization (resizes longest edge to 1080px while preserving aspect ratio)
+  - One-click 1920p option for websites optimization (resizes longest edge to 1920px while preserving aspect ratio)
 - 🔄 **Smart Format Support**:
   - Common formats (JPG, PNG, GIF, etc.)
   - RAW formats (ARW, CR2, CR3, NEF, RAF, RW2, DNG)
