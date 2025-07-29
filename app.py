@@ -330,7 +330,7 @@ def flash_error(message):
                          return_url=request.referrer)
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
-                         auto_level=False, auto_gamma=False, use_1080p=False, use_sharpen=False, sharpen_level='standard'):
+                         auto_level=False, auto_gamma=False, use_1080p=False, use_1920p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
         return None
@@ -358,6 +358,11 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         sharpen_value = sharpen_params.get(sharpen_level, '1x0.5+0.02+0.0')
         app.logger.info(f"Applying sharpening with level {sharpen_level}: -unsharp {sharpen_value}")
         command.extend(['-unsharp', sharpen_value])
+
+    # Handle 1920p resizing
+    if use_1920p:
+        # Force keep_ratio to True for 1920p
+        command.extend(['-resize', '1920x1920>'])
 
     # Handle 1080p resizing
     if use_1080p:
