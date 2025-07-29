@@ -572,6 +572,7 @@ def resize_image(filename):
             auto_level=auto_level,
             auto_gamma=auto_gamma,
             use_1080p=request.form.get('use_1080p') == 'on',
+            use_1920p=request.form.get('use_1920p') == 'on',
             use_sharpen=request.form.get('use_sharpen') == 'on',
             sharpen_level=request.form.get('sharpen_level', 'standard')
         )
@@ -724,6 +725,7 @@ def resize_batch():
                 auto_level=auto_level,
                 auto_gamma=auto_gamma,
                 use_1080p=request.form.get('use_1080p') == 'on',
+                use_1920p=request.form.get('use_1920p') == 'on',
                 use_sharpen=request.form.get('use_sharpen') == 'on',
                 sharpen_level=request.form.get('sharpen_level', 'standard')
             )
