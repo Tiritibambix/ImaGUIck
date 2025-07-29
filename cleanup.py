@@ -1,71 +1,44 @@
 #!/usr/bin/env python3
 import os
 import time
-import argparse
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 
-# Configuration du logging
+# Configuration
+UPLOAD_FOLDER = 'uploads'
+OUTPUT_FOLDER = 'output'
+MAX_AGE_HOURS = 48
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='/var/log/cleanup.log',
+    filemode='a'
 )
 
-def cleanup_old_files(directory, hours=48):
-    """
-    Nettoie les fichiers plus vieux que le nombre d'heures spécifié
-    """
-    if not os.path.exists(directory):
-        logging.warning(f"Le répertoire {directory} n'existe pas")
-        return
-
-    cutoff = time.time() - (hours * 3600)
-    total_size_freed = 0
-    files_removed = 0
-
-    logging.info(f"Début du nettoyage de {directory}")
+def cleanup_folders():
+    """Remove files older than MAX_AGE_HOURS from uploads and output folders."""
+    now = datetime.now()
+    folders = [UPLOAD_FOLDER, OUTPUT_FOLDER]
     
-    for root, dirs, files in os.walk(directory, topdown=False):
-        # D'abord nettoyer les fichiers
-        for name in files:
-            filepath = os.path.join(root, name)
-            try:
-                stats = os.stat(filepath)
-                if stats.st_mtime < cutoff:
-                    size = stats.st_size
-                    os.remove(filepath)
-                    total_size_freed += size
-                    files_removed += 1
-                    logging.info(f"Supprimé: {filepath}")
-            except Exception as e:
-                logging.error(f"Erreur lors de la suppression de {filepath}: {e}")
+    for folder in folders:
+        if not os.path.exists(folder):
+            logging.warning(f"Folder {folder} does not exist")
+            continue
+            
+        logging.info(f"Starting cleanup of {folder}")
+        for filename in os.listdir(folder):
+            filepath = os.path.join(folder, filename)
+            if os.path.isfile(filepath):
+                mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
+                age = now - mtime
+                
+                if age > timedelta(hours=MAX_AGE_HOURS):
+                    try:
+                        os.remove(filepath)
+                        logging.info(f"Removed {filepath} (age: {age})")
+                    except Exception as e:
+                        logging.error(f"Error removing {filepath}: {e}")
 
-        # Ensuite essayer de supprimer les répertoires vides
-        for name in dirs:
-            dirpath = os.path.join(root, name)
-            try:
-                if not os.listdir(dirpath):  # Si le répertoire est vide
-                    os.rmdir(dirpath)
-                    logging.info(f"Supprimé répertoire vide: {dirpath}")
-            except Exception as e:
-                logging.error(f"Erreur lors de la suppression du répertoire {dirpath}: {e}")
-
-    logging.info(f"Nettoyage terminé: {files_removed} fichiers supprimés, "
-                f"{total_size_freed / (1024*1024):.2f} MB libérés")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Nettoie les fichiers anciens des dossiers uploads et output')
-    parser.add_argument('--now', action='store_true', help='Nettoie tous les fichiers immédiatement')
-    args = parser.parse_args()
-
-    # Si --now est utilisé, on met hours=0 pour tout nettoyer
-    hours = 0 if args.now else 48
-    
-    if args.now:
-        logging.info("Mode nettoyage immédiat activé")
-    else:
-        logging.info(f"Nettoyage des fichiers plus vieux que {hours} heures")
-
-    # Nettoyer les dossiers uploads et output
-    cleanup_old_files("uploads", hours=hours)
-    cleanup_old_files("output", hours=hours)
+if __name__ == '__main__':
+    cleanup_folders()

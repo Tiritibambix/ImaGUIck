@@ -337,6 +337,7 @@
                         <span class="tooltip" title="Resize image to max 1080 pixels on longest edge">?</span>
                     </label>
                 </div>
+
             </fieldset>
 
             <fieldset>
@@ -354,21 +355,23 @@
                     <input type="text" name="quality" id="quality" value="100">
                 </div>
 
-                <div class="form-group-horizontal" style="flex-wrap: wrap;">
-                    <label style="flex: 1 1 45%;">
+                <div class="form-group-horizontal">
+                    <label>
                         <input type="checkbox" name="auto_level" id="auto_level">
                         Auto-Level
                         <span class="tooltip" title="Optimizes image levels for better dynamic range and contrast">?</span>
                     </label>
-                    <label style="flex: 1 1 45%;">
+
+                    <label>
                         <input type="checkbox" name="auto_gamma" id="auto_gamma">
                         Auto-Gamma
                         <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
                     </label>
-                    <div class="label-with-select" style="flex: 1 1 100%; display: flex; align-items: center; gap: 4px;">
+
+                    <div class="label-with-select">
                         <input type="checkbox" name="use_sharpen" id="batch_use_sharpen"> Sharpen for: screen
                         <span class="tooltip" title="Optimize sharpness for screen display">?</span>
-                        <select name="sharpen_level" id="batch_sharpen_level" class="compact-select" style="flex: 1;">
+                        <select name="sharpen_level" id="batch_sharpen_level" class="compact-select">
                             <option value="low">Low</option>
                             <option value="standard" selected>Standard</option>
                             <option value="high">High</option>
@@ -379,17 +382,16 @@
                 <style>
                 .label-with-select {
                     font-size: 0.85rem;  /* Même taille que les autres labels */
-                    display: flex;
+                    display: inline-flex;
                     align-items: center;
                     gap: 4px;
-                    flex-wrap: wrap;
                 }
-
+        
                 .compact-select {
                     margin-left: 4px;
                     padding: 0 16px 0 4px;
-                    height: 24px;  /* Réduit la hauteur */
-                    line-height: 24px;  /* Alignement vertical du texte */
+                    height: 16px;  /* Réduit la hauteur */
+                    line-height: 16px;  /* Alignement vertical du texte */
                     background-color: var(--clr-surface-a20);
                     border: 1px solid var(--clr-surface-a30);
                     border-radius: var(--border-radius-sm);
@@ -442,13 +444,13 @@
                                     </ul>
                                 </div>
                             {% endif %}
-
+                            
                             {% if image_types %}
                                 <div class="info-section">
                                     <span class="info-title">Details for each image:</span>
                                     <ul>
                                         {% for img in image_types %}
-                                            <li>{{ img.filename }}:
+                                            <li>{{ img.filename }}: 
                                                 {% if img.type.has_transparency %}
                                                     Contains transparency,
                                                 {% endif %}
@@ -465,6 +467,7 @@
                         </small>
                     </div>
                 {% endif %}
+                
             </fieldset>
 
             <button type="submit" class="btn-primary">Resize Batch</button>
