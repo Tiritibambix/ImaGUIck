@@ -177,6 +177,12 @@ networks: {}
   ```
   Replace `<container_name>` with your container name (e.g., `imaguick`)
 
+- To manually trigger a cleanup of all files, including those older than 48 hours:
+  ```bash
+  docker exec <container_name> /app/cleanup.sh --all
+  ```
+  Replace `<container_name>` with your container name (e.g., `imaguick`)
+
 ## 🛠️ Technical Architecture
 
 ### Technologies Used

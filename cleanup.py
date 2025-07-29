@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
+import argparse
+
 MAX_AGE_HOURS = 48
 
 logging.basicConfig(
@@ -16,7 +18,7 @@ logging.basicConfig(
     filemode='a'
 )
 
-def cleanup_folders():
+def cleanup_folders(remove_all=False):
     """Remove files older than MAX_AGE_HOURS from uploads and output folders."""
     now = datetime.now()
     folders = [UPLOAD_FOLDER, OUTPUT_FOLDER]
@@ -33,7 +35,7 @@ def cleanup_folders():
                 mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
                 age = now - mtime
                 
-                if age > timedelta(hours=MAX_AGE_HOURS):
+                if remove_all or age > timedelta(hours=MAX_AGE_HOURS):
                     try:
                         os.remove(filepath)
                         logging.info(f"Removed {filepath} (age: {age})")
@@ -41,4 +43,8 @@ def cleanup_folders():
                         logging.error(f"Error removing {filepath}: {e}")
 
 if __name__ == '__main__':
-    cleanup_folders()
+    parser = argparse.ArgumentParser(description='Cleanup old files from uploads and output folders.')
+    parser.add_argument('--all', action='store_true', help='Remove all files, regardless of age.')
+    args = parser.parse_args()
+
+    cleanup_folders(remove_all=args.all)
