@@ -337,11 +337,12 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
                          auto_level=False, auto_gamma=False, use_1080p=False, use_1920p=False, use_sharpen=False, sharpen_level='standard'):
     """Build ImageMagick command for resizing and formatting."""
     if not secure_path(filepath) or not secure_path(output_path):
+        app.logger.error("Insecure file path detected")
         return None
 
     if filepath.lower().endswith('.jxl'):
         # Utiliser djxl pour décoder JXL
-        cmd = ['djxl', filepath, '-o', '/tmp/decoded_image.png']
+        cmd = ['djxl', os.path.abspath(filepath), '-o', '/tmp/decoded_image.png']
         subprocess.run(cmd, check=True)
         filepath = '/tmp/decoded_image.png'
     command = ['magick', filepath]
@@ -516,6 +517,13 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
+    # Validate filename to ensure it contains only safe characters
+    if not re.match(r'^[\w\-.]+$', filename):
+        flash('Invalid filename')
+        return render_template('result.html', 
+                             success=False, 
+                             title='Error',
+                             return_url=url_for('index'))
     try:
         # Récupérer les paramètres
         width = request.form.get('width', '')
