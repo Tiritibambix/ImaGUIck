@@ -1,2 +1,0 @@
-0 0 */5 * * /app/cleanup.sh
-# An empty line is required at the end of this file for a valid cron file
