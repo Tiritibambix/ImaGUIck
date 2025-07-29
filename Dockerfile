@@ -61,11 +61,6 @@ COPY . /app
 # Rendre les scripts exécutables
 RUN chmod +x /app/cleanup.py /app/cleanup.sh
 
-# Configurer le cron job
-RUN echo "0 */12 * * * /usr/local/bin/python /app/cleanup.py 2>&1" > /etc/cron.d/cleanup-cron
-RUN chmod 0644 /etc/cron.d/cleanup-cron
-RUN crontab /etc/cron.d/cleanup-cron
-
 # Installer les dépendances Python
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
@@ -81,5 +76,15 @@ RUN chmod +x /app/start.sh
 # Exposer le port
 EXPOSE 5000
 
-# Utiliser le script de démarrage
-CMD ["/app/start.sh"]
+# Installer cron
+RUN apt-get update && apt-get install -y cron
+
+# Ajouter le fichier crontab
+COPY crontab.txt /etc/cron.d/cleanup-cron
+RUN chmod 0644 /etc/cron.d/cleanup-cron
+
+# Appliquer le job cron
+RUN crontab /etc/cron.d/cleanup-cron
+
+# Démarrer le service cron
+CMD service cron start && python app.py

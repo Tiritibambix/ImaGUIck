@@ -169,7 +169,7 @@ networks: {}
 
 ### Automatic Cleanup
 
-- Uploaded and processed files are automatically cleaned up after 48 hours
+- Uploaded and processed files are automatically cleaned up every 5 days
 - To manually trigger an immediate cleanup:
   ```bash
   docker exec <container_name> /app/cleanup.sh
