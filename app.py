@@ -278,9 +278,13 @@ def get_available_formats(filepath=None):
 def analyze_image_type(filepath):
     """Analyze image to determine its type and best suitable formats."""
     try:
+        sanitized_filepath = secure_filename(filepath)
+        if not os.path.exists(sanitized_filepath):
+            raise ValueError("File does not exist.")
+
         # Vérifier si c'est un fichier RAW
-        if filepath.lower().endswith('.arw'):
-            app.logger.info(f"Analyzing RAW file: {filepath}")
+        if sanitized_filepath.lower().endswith('.arw'):
+            app.logger.info(f"Analyzing RAW file: {sanitized_filepath}")
             return {
                 'has_transparency': False,
                 'is_photo': True,
@@ -288,12 +292,12 @@ def analyze_image_type(filepath):
             }
             
         # Pour les autres formats, utiliser PIL
-        if filepath.lower().endswith('.jxl'):
+        if sanitized_filepath.lower().endswith('.jxl'):
             # Utiliser djxl pour décoder JXL
-            cmd = ['djxl', filepath, '-o', '/tmp/decoded_image.png']
+            cmd = ['djxl', sanitized_filepath, '-o', '/tmp/decoded_image.png']
             subprocess.run(cmd, check=True)
-            filepath = '/tmp/decoded_image.png'
-        with Image.open(filepath) as img:
+            sanitized_filepath = '/tmp/decoded_image.png'
+        with Image.open(sanitized_filepath) as img:
             has_transparency = 'A' in img.getbands()
             is_photo = True
             
@@ -488,7 +492,12 @@ def upload_url():
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    sanitized_filename = secure_filename(filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], sanitized_filename)
+    if not os.path.exists(filepath):
+        flash_error("File not found.")
+        return redirect(url_for('index'))
+
     dimensions = get_image_dimensions(filepath)
     if not dimensions:
         return redirect(url_for('index'))
@@ -498,7 +507,7 @@ def resize_options(filename):
 
     app.logger.info(f"Formats passed to template: {formats}")
     return render_template('resize.html',
-                         filename=filename,
+                         filename=sanitized_filename,
                          width=dimensions[0],
                          height=dimensions[1],
                          formats=formats,
