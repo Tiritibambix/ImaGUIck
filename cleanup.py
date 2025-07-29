@@ -29,18 +29,26 @@ def cleanup_folders(remove_all=False):
             continue
             
         logging.info(f"Starting cleanup of {folder}")
-        for filename in os.listdir(folder):
-            filepath = os.path.join(folder, filename)
-            if os.path.isfile(filepath):
+        for root, dirs, files in os.walk(folder, topdown=False):
+            for name in files:
+                filepath = os.path.join(root, name)
                 mtime = datetime.fromtimestamp(os.path.getmtime(filepath))
                 age = now - mtime
-                
+
                 if remove_all or age > timedelta(hours=MAX_AGE_HOURS):
                     try:
                         os.remove(filepath)
                         logging.info(f"Removed {filepath} (age: {age})")
                     except Exception as e:
                         logging.error(f"Error removing {filepath}: {e}")
+
+            for name in dirs:
+                dirpath = os.path.join(root, name)
+                try:
+                    os.rmdir(dirpath)
+                    logging.info(f"Removed directory {dirpath}")
+                except OSError as e:
+                    logging.error(f"Error removing directory {dirpath}: {e}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Cleanup old files from uploads and output folders.')
