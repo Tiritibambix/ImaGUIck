@@ -342,7 +342,12 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
 
     if filepath.lower().endswith('.jxl'):
         # Utiliser djxl pour décoder JXL
-        cmd = ['djxl', os.path.abspath(filepath), '-o', '/tmp/decoded_image.png']
+        sanitized_filepath = os.path.abspath(filepath)
+        if not secure_path(sanitized_filepath):
+            app.logger.error("Insecure file path detected")
+            return None
+        intermediate_file = '/tmp/decoded_image.png'
+        cmd = ['djxl', sanitized_filepath, '-o', intermediate_file]
         subprocess.run(cmd, check=True)
         filepath = '/tmp/decoded_image.png'
     command = ['magick', filepath]
@@ -518,7 +523,7 @@ def resize_options(filename):
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
     # Validate filename to ensure it contains only safe characters
-    if not re.match(r'^[\w\-.]+$', filename):
+    if not re.match(r'^[\w\-.]+$', filename) or '..' in filename or filename.startswith('/'):
         flash('Invalid filename')
         return render_template('result.html', 
                              success=False, 
