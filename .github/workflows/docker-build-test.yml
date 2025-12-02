@@ -28,7 +28,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Extract version from Git
         id: version
@@ -45,7 +45,7 @@ jobs:
     needs: setup
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check dependencies with pip-audit
         run: |
@@ -61,7 +61,7 @@ jobs:
     needs: [setup, audit]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -97,7 +97,7 @@ jobs:
     needs: build-and-push
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Update Docker Hub description
         uses: peter-evans/dockerhub-description@v4
