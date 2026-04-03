@@ -21,6 +21,12 @@
 
 ---
 
+## ⚠️ Security notice
+
+This application has been vibe coded and is designed for **local or trusted-network use only**. It has no built-in authentication. Exposing it to the public internet without an additional access-control layer (reverse proxy with auth, VPN, etc.) is done at your own risk.
+
+---
+
 ## Features
 
 - **Single and batch processing** — handle one image or hundreds at once
@@ -56,12 +62,6 @@
 | Concurrent ImageMagick workers | 4 (semaphore-controlled) |
 
 Batch uploads are processed **asynchronously** — the browser redirects to a live progress page immediately after the transfer completes. Each file shows its own status (queued / processing / done / error) via SSE. A ZIP archive is created automatically once all files finish.
-
----
-
-## ⚠️ Security notice
-
-This application is designed for **local or trusted-network use only**. It has no built-in authentication. Exposing it to the public internet without an additional access-control layer (reverse proxy with auth, VPN, etc.) is done at your own risk.
 
 ---
 
