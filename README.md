@@ -13,7 +13,7 @@
   <a href="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build-AMD64.yml">
     <img src="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build-AMD64.yml/badge.svg" alt="Build and Push Docker Image">
   </a>
-</div>
+</p>
 
 
 ImaGUIck is a simple and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
