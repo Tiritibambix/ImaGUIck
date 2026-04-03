@@ -45,4 +45,4 @@ fi
 echo "Using Gunicorn at: $GUNICORN_PATH"
 
 # Démarrer l'application avec Gunicorn
-exec $GUNICORN_PATH --bind 0.0.0.0:5000 --workers 4 --worker-class gthread --threads 8 --timeout 600 app:app
+exec $GUNICORN_PATH --bind 0.0.0.0:5000 --workers 4 --worker-class gthread --threads 8 --timeout 600 --limit-request-line 8190 app:app

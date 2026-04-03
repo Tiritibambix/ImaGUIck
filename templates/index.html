@@ -680,7 +680,7 @@
 
         xhr.addEventListener('load', function () {
             uploadProgressFill.style.width = '100%';
-            uploadProgressText.textContent = 'Upload terminé…';
+            uploadProgressText.textContent = 'Envoi terminé, chargement des options…';
             try {
                 const data = JSON.parse(xhr.responseText);
                 if (data.redirect) { window.location.href = data.redirect; return; }

@@ -18,6 +18,17 @@
 
 ImaGUIck is a simple and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
 
+## Upload limits
+
+| Limit | Value |
+|---|---|
+| Total request size | 2 GB |
+| Per-file maximum | 200 MB |
+| Maximum image dimension | 10 000 px per side |
+| Concurrent ImageMagick workers | 4 (semaphore-controlled) |
+
+Batch uploads are processed asynchronously — the browser is redirected to a real-time progress page immediately after transfer completes. Processing status is streamed via Server-Sent Events (SSE) with per-file indicators (queued / processing / done / error). A ZIP archive is generated automatically when all files are done.
+
 ## ⚠️ Security Notice
 
 This application is designed for local usage only. While it can be exposed to the internet, doing so is at your own risk and not recommended without implementing additional security measures. The application does not include built-in authentication or advanced security features.
@@ -72,7 +83,7 @@ This application is designed for local usage only. While it can be exposed to th
 ### Prerequisites
 
 - Python 3.9+
-- [`ImageMagick 7.1.1-41`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.1-41) or newer
+- [`ImageMagick 7.1.2-18`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-18) or newer
   - Windows users: Add ImageMagick to your system's PATH during installation
   - Linux users: Install development headers (e.g., `libmagickwand-dev`)
 - ExifTool for metadata handling
@@ -156,6 +167,14 @@ services:
     ports:
       - 5000:5000
     image: tiritibambix/imaguick:latest
+    environment:
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-dev-insecure-key-change-in-prod}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 networks: {}
 ```
 
@@ -218,6 +237,7 @@ imaguick/
 ├── templates                   # HTML templates for the web interface
 |     ├── base.html             # Base template with common styling
 |     ├── index.html            # Main upload and import page
+|     ├── progress.html         # Real-time batch processing progress (SSE)
 |     ├── resize.html           # Single image processing options
 |     ├── resize_batch.html     # Batch processing configuration
 |     ├── result.html           # Success/Error feedback display

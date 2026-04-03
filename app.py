@@ -44,6 +44,11 @@ jobs_lock = threading.Lock()
 _processing_semaphore = threading.BoundedSemaphore(4)
 executor = ThreadPoolExecutor(max_workers=16)
 
+# Server-side upload sessions: maps a short key -> list of saved filenames.
+# Avoids embedding long filename lists in redirect URLs (Gunicorn 4094-char limit).
+upload_sessions = {}
+upload_sessions_lock = threading.Lock()
+
 
 @app.errorhandler(413)
 def file_too_large(e):
@@ -642,7 +647,11 @@ def upload_file():
     if len(uploaded_files) == 1:
         redirect_url = url_for('resize_options', filename=uploaded_files[0])
     else:
-        redirect_url = url_for('resize_batch_options', filenames=','.join(uploaded_files))
+        # Store filenames server-side to avoid URL length limit (Gunicorn 4094 chars)
+        upload_key = uuid.uuid4().hex
+        with upload_sessions_lock:
+            upload_sessions[upload_key] = uploaded_files
+        redirect_url = url_for('resize_batch_options', upload_key=upload_key)
 
     if is_xhr:
         return {'redirect': redirect_url}
@@ -766,11 +775,13 @@ def resize_image(filename):
                                    title='Error',
                                    return_url=url_for('resize_options', filename=filename))
 
-        base_name = os.path.splitext(filename)[0]
+        # Strip UUID prefix (32 hex chars + underscore) to restore original filename
+        clean_name = re.sub(r'^[a-f0-9]{32}_', '', filename)
+        base_name = os.path.splitext(clean_name)[0]
         if output_format:
             output_filename = f"{base_name}_imaGUIck.{output_format.lower()}"
         else:
-            output_filename = f"{base_name}_imaGUIck{os.path.splitext(filename)[1]}"
+            output_filename = f"{base_name}_imaGUIck{os.path.splitext(clean_name)[1]}"
 
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         app.logger.info(f"Output path: {output_path}")
@@ -833,7 +844,13 @@ def resize_image(filename):
 def resize_batch_options(filenames=None):
     """Resize options page for batch processing."""
     if not filenames:
-        filenames = request.args.get('filenames', '').split(',')
+        upload_key = request.args.get('upload_key')
+        if upload_key:
+            with upload_sessions_lock:
+                filenames = upload_sessions.get(upload_key, [])
+        else:
+            # Legacy fallback: filenames in query string
+            filenames = [f for f in request.args.get('filenames', '').split(',') if f]
 
     if not filenames or not filenames[0]:
         return redirect(url_for('index'))
@@ -907,8 +924,10 @@ def resize_batch():
     for fname in filenames:
         fpath = os.path.join(app.config['UPLOAD_FOLDER'], fname)
         if os.path.isfile(fpath):
+            # Strip UUID prefix (32 hex chars + underscore) to restore original filename
+            original_name = re.sub(r'^[a-f0-9]{32}_', '', fname)
             file_list.append({
-                'original': fname,
+                'original': original_name,
                 'path': fpath,
                 'output': None,
                 'status': 'queued',
