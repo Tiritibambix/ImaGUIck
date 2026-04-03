@@ -19,7 +19,8 @@ from urllib.parse import urlparse
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
 MAX_DIMENSION = 10000
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024   # 2 GB — total request limit (MAX_CONTENT_LENGTH)
+PER_FILE_MAX_SIZE = 200 * 1024 * 1024    # 200 MB — per individual file
 DEFAULTS = {
     "quality": "100",
     "width": "",
@@ -46,8 +47,11 @@ executor = ThreadPoolExecutor(max_workers=16)
 
 @app.errorhandler(413)
 def file_too_large(e):
-    flash('Fichier trop volumineux (50 Mo maximum par image)', 'error')
-    return redirect(url_for('index')), 413
+    msg = 'Requête trop volumineuse. Réduisez le nombre ou la taille des images.'
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return {'error': msg}, 413
+    flash(msg, 'error')
+    return redirect(url_for('index'))
 
 
 def allowed_file(filename):
@@ -591,31 +595,58 @@ def health():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handle file uploads."""
-    if 'file' not in request.files:
-        flash('Aucun fichier sélectionné', 'error')
+    """Handle file uploads. Supports both regular form POST and XHR (returns JSON)."""
+    is_xhr = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def _error(msg, status=400):
+        if is_xhr:
+            return {'error': msg}, status
+        flash(msg, 'error')
         return redirect(url_for('index'))
+
+    if 'file' not in request.files:
+        return _error('Aucun fichier sélectionné')
 
     files = request.files.getlist('file')
-    if not files or all(file.filename == '' for file in files):
-        flash('Veuillez sélectionner au moins un fichier', 'error')
-        return redirect(url_for('index'))
+    if not files or all(f.filename == '' for f in files):
+        return _error('Veuillez sélectionner au moins un fichier')
 
     uploaded_files = []
+    errors = []
     for file in files:
-        if file and file.filename and allowed_file(file.filename):
-            unique_name = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
-            file.save(filepath)
-            uploaded_files.append(unique_name)
-        elif file and file.filename:
-            flash(f"Format non supporté : {secure_filename(file.filename)}", 'error')
+        if not file or not file.filename:
+            continue
+        if not allowed_file(file.filename):
+            errors.append(f"Format non supporté : {secure_filename(file.filename)}")
+            continue
+        unique_name = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+        file.save(filepath)
+        # Per-file size check after saving
+        if os.path.getsize(filepath) > PER_FILE_MAX_SIZE:
+            os.remove(filepath)
+            errors.append(
+                f"{secure_filename(file.filename)} dépasse la limite de "
+                f"{PER_FILE_MAX_SIZE // 1024 // 1024} Mo par image"
+            )
+            continue
+        uploaded_files.append(unique_name)
+
+    for err in errors:
+        flash(err, 'error')
+
+    if not uploaded_files:
+        msg = errors[0] if errors else 'Aucun fichier valide'
+        return _error(msg)
 
     if len(uploaded_files) == 1:
-        return redirect(url_for('resize_options', filename=uploaded_files[0]))
-    if len(uploaded_files) > 1:
-        return redirect(url_for('resize_batch_options', filenames=','.join(uploaded_files)))
-    return redirect(url_for('index'))
+        redirect_url = url_for('resize_options', filename=uploaded_files[0])
+    else:
+        redirect_url = url_for('resize_batch_options', filenames=','.join(uploaded_files))
+
+    if is_xhr:
+        return {'redirect': redirect_url}
+    return redirect(redirect_url)
 
 
 @app.route('/upload_url', methods=['POST'])

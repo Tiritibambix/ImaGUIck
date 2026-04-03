@@ -424,7 +424,13 @@
                     <div class="file-list-container"></div>
                 </div>
                 <div class="form-group">
-                    <button type="submit">Upload</button>
+                    <button type="submit" id="upload-submit-btn">Upload</button>
+                </div>
+                <div id="upload-progress-wrap" style="display:none; width:100%; margin-top:8px;">
+                    <div style="background-color:var(--clr-surface-a20);border-radius:8px;height:14px;overflow:hidden;">
+                        <div id="upload-progress-fill" style="height:100%;width:0%;background-color:var(--clr-primary-a0);border-radius:8px;transition:width 0.2s ease;"></div>
+                    </div>
+                    <p id="upload-progress-text" style="text-align:center;font-size:0.75rem;color:var(--clr-primary-a40);margin-top:4px;">0%</p>
                 </div>
             </fieldset>
         </form>
@@ -625,7 +631,77 @@
     });
 
     dropZone.addEventListener('drop', handleDrop);
-    
+
+    // --- XHR upload with progress tracking ---
+    const uploadForm = document.getElementById('upload-form');
+    const uploadSubmitBtn = document.getElementById('upload-submit-btn');
+    const uploadProgressWrap = document.getElementById('upload-progress-wrap');
+    const uploadProgressFill = document.getElementById('upload-progress-fill');
+    const uploadProgressText = document.getElementById('upload-progress-text');
+
+    function showUploadError(msg) {
+        uploadSubmitBtn.disabled = false;
+        uploadSubmitBtn.textContent = 'Upload';
+        uploadProgressWrap.style.display = 'none';
+        uploadProgressFill.style.width = '0%';
+        let container = document.querySelector('.flash-messages');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'flash-messages';
+            uploadForm.parentNode.insertBefore(container, uploadForm);
+        }
+        const div = document.createElement('div');
+        div.className = 'flash-message error';
+        div.textContent = msg;
+        container.appendChild(div);
+        setTimeout(() => div.remove(), 6000);
+    }
+
+    uploadForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showUploadError('Veuillez sélectionner au moins un fichier.');
+            return;
+        }
+        const formData = new FormData(this);
+        uploadSubmitBtn.disabled = true;
+        uploadSubmitBtn.textContent = 'Uploading…';
+        uploadProgressWrap.style.display = 'block';
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', function (e) {
+            if (e.lengthComputable) {
+                const pct = Math.round(e.loaded / e.total * 100);
+                uploadProgressFill.style.width = pct + '%';
+                uploadProgressText.textContent = pct + '%';
+            }
+        });
+
+        xhr.addEventListener('load', function () {
+            uploadProgressFill.style.width = '100%';
+            uploadProgressText.textContent = 'Upload terminé…';
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (data.redirect) { window.location.href = data.redirect; return; }
+                if (data.error)    { showUploadError(data.error); return; }
+            } catch (_) {}
+            if (xhr.status === 413) {
+                showUploadError('Requête trop volumineuse. Réduisez le nombre ou la taille des images.');
+                return;
+            }
+            window.location.href = '/';
+        });
+
+        xhr.addEventListener('error', function () {
+            showUploadError('Erreur réseau. Veuillez réessayer.');
+        });
+
+        xhr.open('POST', '/upload');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.send(formData);
+    });
+
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files).map(file => ({
             name: file.name,

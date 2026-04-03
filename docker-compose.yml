@@ -11,8 +11,9 @@ services:
     environment:
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-dev-insecure-key-change-in-prod}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
 networks: {}
