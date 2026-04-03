@@ -481,7 +481,7 @@
         </form>
 <div id="nav-overlay">
     <div class="nav-spinner"></div>
-    <p class="nav-overlay-text" id="nav-overlay-text">Analysing your images&hellip;</p>
+    <p class="nav-overlay-text" id="nav-overlay-text">Analysing your images. This may take a moment&hellip;</p>
 </div>
 <script>
     let uploadedItems = [];
@@ -724,7 +724,7 @@
                 if (data.redirect) {
                     const isBatch = data.redirect.indexOf('resize_batch_options') !== -1;
                     navOverlayText.textContent = isBatch
-                        ? 'Analysing your images\u2026'
+                        ? 'Analysing your images. This may take a moment\u2026'
                         : 'Loading options\u2026';
                     navOverlay.classList.add('visible');
                     window.location.href = data.redirect;
