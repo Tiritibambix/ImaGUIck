@@ -4,14 +4,9 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-amd64%20%7C%20arm64-blue" alt="Platform Support" />
-  <a href="https://github.com/tiritibambix/ImaGUIck/actions/workflows/github-code-scanning/codeql">
-    <img src="https://github.com/tiritibambix/ImaGUIck/actions/workflows/github-code-scanning/codeql/badge.svg" alt="CodeQL">
   </a>
   <a href="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build.yml">
     <img src="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build.yml/badge.svg" alt="Build and Push Docker Image">
-  </a>
-  <a href="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build-AMD64.yml">
-    <img src="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build-AMD64.yml/badge.svg" alt="Build and Push Docker Image (AMD64)">
   </a>
 </p>
 

@@ -25,11 +25,6 @@
             --spacing-medium: 20px;
             --spacing-large: 40px;
 
-            --input-width: 300px;
-            --input-height: 32px;
-
-            --header-font-size: 1.8rem;
-
             --border-radius-sm: 4px;
             --border-radius-md: 8px;
             --border-radius-lg: 12px;
@@ -37,34 +32,52 @@
             --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             font-family: 'Poppins', Arial, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: var(--spacing-large) var(--spacing-medium);
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
             background-color: var(--clr-surface-a0);
             color: var(--clr-primary-a50);
-            overflow-x: hidden;
-            width: 100%;
         }
 
         .container {
-            width: 90%;
-            max-width: 500px;
+            width: 100%;
+            max-width: 960px;
             background-color: var(--clr-surface-a10);
-            padding: var(--spacing-small);
+            padding: var(--spacing-medium);
             border-radius: var(--border-radius-lg);
             box-shadow: var(--box-shadow);
+        }
+
+        .file-info-text {
             text-align: center;
-            box-sizing: border-box;
-            overflow-x: hidden;
+            margin-bottom: var(--spacing-medium);
+        }
+
+        /* Two-column grid on desktop */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+
+        @media (min-width: 768px) {
+            .container { padding: var(--spacing-large); }
+
+            .form-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: var(--spacing-large);
+                align-items: start;
+            }
+
+            .col-left  { grid-column: 1; }
+            .col-right { grid-column: 2; grid-row: 1 / span 2; }
         }
 
         form fieldset {
@@ -73,25 +86,22 @@
             padding: 0;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: stretch;
         }
 
         legend {
-            text-align: center;
             font-weight: bold;
             color: var(--clr-primary-a40);
             margin-bottom: var(--spacing-medium);
             width: 100%;
-            font-size: 1.2rem;
-            padding: 0 var(--spacing-small);
-            border-bottom: 0.5px solid var(--clr-surface-a20);
+            font-size: 1.1rem;
             padding-bottom: 8px;
+            border-bottom: 0.5px solid var(--clr-surface-a20);
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
-            align-items: center;
             width: 100%;
             margin-bottom: var(--spacing-medium);
         }
@@ -101,75 +111,50 @@
             gap: var(--spacing-medium);
             margin-bottom: var(--spacing-medium);
             flex-wrap: wrap;
-            justify-content: center;
         }
 
         .form-group-horizontal label {
             display: flex;
             align-items: center;
             gap: var(--spacing-xs);
-            white-space: nowrap;
         }
 
-        .form-group-horizontal .tooltip {
-            margin-left: 4px;
+        label {
+            margin-bottom: 4px;
+            font-size: 0.85rem;
         }
 
-        input[type="file"],
+        small {
+            margin-top: 4px;
+            font-size: 0.75rem;
+            color: var(--clr-primary-a40);
+        }
+
         input[type="text"],
-        select,
-        button {
-            padding: var(--spacing-small);
-            margin-top: var(--spacing-small);
+        select {
+            width: 100%;
+            height: 36px;
+            padding: 0 var(--spacing-small);
+            margin-top: 4px;
             border: 1px solid var(--clr-surface-a30);
-            border-radius: 4px;
-            width: var(--input-width);
-            height: 32px;
+            border-radius: var(--border-radius-md);
             background-color: var(--clr-surface-a20);
             color: var(--clr-primary-a50);
-            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color var(--transition-speed) ease,
+                        box-shadow var(--transition-speed) ease;
         }
 
-        .label-with-select {
-            font-size: 0.85rem;  /* Même taille que les autres labels */
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .compact-select {
-            margin-left: 4px;
-            padding: 0 16px 0 4px;
-            height: 16px;  /* Réduit la hauteur */
-            line-height: 16px;  /* Alignement vertical du texte */
-            background-color: var(--clr-surface-a20);
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: var(--border-radius-sm);
-            color: var(--clr-primary-a50);
-            font-size: 0.8rem;  /* Légèrement plus petit */
-            cursor: pointer;
-            position: relative;
-            top: -5px;  /* Ajustement plus subtil */
-            width: auto;
-            min-width: 0;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 2px center;
-            background-size: 10px;  /* Flèche plus petite */
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--clr-primary-a40);
+            box-shadow: 0 0 0 2px rgba(169,169,169,0.25);
         }
 
         select {
-            padding: 0 var(--spacing-large) 0 var(--spacing-small);
-            margin-top: var(--spacing-small);
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: 4px;
-            width: var(--input-width);
-            height: 32px;
-            line-height: 32px;
-            background-color: var(--clr-surface-a20);
-            color: var(--clr-primary-a50);
-            box-sizing: border-box;
+            padding-right: var(--spacing-large);
             cursor: pointer;
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -178,119 +163,90 @@
             background-size: 16px;
         }
 
-        button {
+        button[type="submit"] {
+            display: block;
+            width: 100%;
+            height: 44px;
+            margin-top: var(--spacing-medium);
             border: none;
+            border-radius: var(--border-radius-md);
             background-color: var(--clr-primary-a30);
             color: var(--clr-surface-a0);
-            cursor: pointer;
+            font-family: inherit;
             font-size: 1rem;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: var(--clr-primary-a20);
-        }
-
-        button[type="submit"] {
-            width: 100% !important;
-            margin-top: 0;
-            height: 40px;
-            border-radius: var(--border-radius-md);
             font-weight: bold;
             letter-spacing: 0.5px;
             text-transform: uppercase;
+            cursor: pointer;
+            transition: background-color var(--transition-speed) ease,
+                        transform var(--transition-speed) ease;
         }
 
         button[type="submit"]:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--box-shadow);
+            background-color: var(--clr-primary-a20);
+            transform: translateY(-1px);
         }
 
-        input[type="text"] {
-            width: 100%;
-            height: 32px;
-            border-radius: var(--border-radius-md);
-            padding: 0 var(--spacing-medium);
-            transition: all var(--transition-speed) ease;
-        }
-
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--clr-primary-a40);
-            box-shadow: 0 0 0 2px var(--clr-primary-a30);
-        }
-
-        @media (max-width: 480px) {
-            :root { --input-width: 100%; }
-            input[type="text"], select { width: 100%; }
-            .container { padding: var(--spacing-small); }
-        }
-
-        @media (min-width: 768px) {
-            .container {
-                max-width: 600px;
-                padding: var(--spacing-large);
-            }
-
-            .title-large {
-                font-size: 2rem;
-            }
-
-            button {
-                font-size: 1.1rem;
-            }
-        }
-
-        label {
-            margin-bottom: 2px;
+        .label-with-select {
             font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        small {
-            margin-top: 2px;
-            font-size: 0.75rem;
+        .compact-select {
+            height: 20px;
+            padding: 0 18px 0 4px;
+            background-color: var(--clr-surface-a20);
+            border: 1px solid var(--clr-surface-a30);
+            border-radius: var(--border-radius-sm);
+            color: var(--clr-primary-a50);
+            font-size: 0.78rem;
+            cursor: pointer;
+            width: auto;
+            min-width: 0;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 2px center;
+            background-size: 10px;
         }
 
         .tooltip {
             position: relative;
             display: inline-block;
+            cursor: help;
         }
 
         .tooltip .tooltiptext {
             visibility: hidden;
-            width: 120px;
-            background-color: #555;
+            width: 180px;
+            background-color: #333;
             color: #fff;
-            text-align: center;
-            padding: 5px 0;
+            font-size: 0.78rem;
+            text-align: left;
+            padding: 6px 8px;
             border-radius: 6px;
-
-            /* Position the tooltip */
             position: absolute;
-            z-index: 1;
-            bottom: 125%;
+            z-index: 10;
+            bottom: 130%;
             left: 50%;
-            margin-left: -60px;
-
-            /* Fade in tooltip */
+            transform: translateX(-50%);
             opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .tooltip .tooltiptext::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #555 transparent transparent transparent;
+            transition: opacity 0.2s;
+            pointer-events: none;
         }
 
         .tooltip:hover .tooltiptext {
             visibility: visible;
             opacity: 1;
+        }
+
+        .format-info {
+            margin-top: var(--spacing-small);
+            padding: var(--spacing-small);
+            background-color: var(--clr-surface-a20);
+            border-radius: var(--border-radius-md);
         }
     </style>
 </head>
@@ -300,7 +256,8 @@
             <small>Current file: {{ filename }}</small>
         </div>
         <form action="/resize/{{ filename }}" method="post">
-            <fieldset>
+            <div class="form-grid">
+            <fieldset class="col-left">
                 <legend>Resize by Pixels</legend>
                 <div class="form-group">
                     <label for="width">Width:</label>
@@ -326,7 +283,7 @@
                 <small>Original dimensions: {{ width }} x {{ height }} pixels</small>
             </fieldset>
 
-            <fieldset>
+            <fieldset class="col-left">
                 <legend>Resize by Percentage</legend>
                 <div class="form-group">
                     <label for="percentage">Percentage:</label>
@@ -334,7 +291,7 @@
                 </div>
             </fieldset>
 
-            <fieldset>
+            <fieldset class="col-right">
                 <legend>Additional Options</legend>
                 <div class="form-group">
                     <label for="quality">Quality (1-100):</label>
@@ -395,6 +352,7 @@
                     </div>
                 {% endif %}
             </fieldset>
+            </div><!-- /.form-grid -->
 
             <button type="submit">Resize</button>
         </form>

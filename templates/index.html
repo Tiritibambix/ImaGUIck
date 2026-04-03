@@ -53,28 +53,23 @@
         body {
             font-family: 'Poppins', Arial, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: var(--spacing-large) var(--spacing-medium);
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
             background-color: var(--clr-surface-a0);
             color: var(--clr-primary-a50);
-            overflow-x: hidden;
-            width: 100%;
         }
 
         .container {
-            width: 90%;
-            max-width: 500px;
+            width: 100%;
+            max-width: 640px;
             background-color: var(--clr-surface-a10);
-            padding: var(--spacing-xs);
-            padding-top: 0;
+            padding: var(--spacing-medium);
             border-radius: var(--border-radius-lg);
             box-shadow: var(--box-shadow);
             text-align: center;
-            box-sizing: border-box;
-            overflow-x: hidden;
         }
 
         form fieldset {
@@ -110,17 +105,26 @@
         }
 
         input[type="file"],
-        input[type="text"],
-        button {
+        input[type="text"] {
+            width: 100%;
             padding: var(--spacing-small);
             margin-top: var(--spacing-small);
             border: 1px solid var(--clr-surface-a30);
-            border-radius: 4px;
-            width: var(--input-width);
-            height: 32px;
+            border-radius: var(--border-radius-md);
+            height: 36px;
             background-color: var(--clr-surface-a20);
             color: var(--clr-primary-a50);
+            font-family: inherit;
+            font-size: 0.9rem;
             box-sizing: border-box;
+            transition: border-color var(--transition-speed) ease,
+                        box-shadow var(--transition-speed) ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--clr-primary-a40);
+            box-shadow: 0 0 0 2px rgba(169,169,169,0.25);
         }
 
         button {
@@ -128,8 +132,9 @@
             background-color: var(--clr-primary-a30);
             color: var(--clr-surface-a0);
             cursor: pointer;
+            font-family: inherit;
             font-size: 1rem;
-            transition: background-color 0.3s ease;
+            transition: background-color var(--transition-speed) ease;
         }
 
         button:hover {
@@ -137,7 +142,12 @@
         }
 
         button[type="submit"] {
-            height: 40px;
+            width: 100%;
+            height: 44px;
+            border-radius: var(--border-radius-md);
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         .drop-zone {
@@ -340,20 +350,6 @@
             box-shadow: var(--box-shadow);
         }
 
-        input[type="text"] {
-            width: 100%;
-            height: 32px;
-            border-radius: var(--border-radius-md);
-            padding: 0 var(--spacing-medium);
-            transition: all var(--transition-speed) ease;
-        }
-
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--clr-primary-a40);
-            box-shadow: 0 0 0 2px var(--clr-primary-a30);
-        }
-
         .banner-container {
             margin: 0;
             margin-top: calc(var(--spacing-medium) / 4);
@@ -370,25 +366,14 @@
         }
 
         @media (max-width: 480px) {
-            :root { --input-width: 100%; }
-            input[type="text"], input[type="file"] { width: 100%; }
-            .container { padding: var(--spacing-small); }
+            body { padding: var(--spacing-medium) var(--spacing-small); }
             .drop-zone { height: 100px; }
         }
 
         @media (min-width: 768px) {
-            .container {
-                max-width: 600px;
-                padding: var(--spacing-large);
-            }
-
-            .title-large {
-                font-size: 2rem;
-            }
-
-            button {
-                font-size: 1.1rem;
-            }
+            .container { padding: var(--spacing-large); }
+            .title-large { font-size: 2rem; }
+            button { font-size: 1.1rem; }
         }
 
         /* Full-page overlay shown while browser navigates to options page */
