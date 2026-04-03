@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/static/media/imaguick-banner-opacity.png" width="400" />
+  <img src="https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/static/media/imaguick-banner-opacity.png" width="400" alt="ImaGUIck" />
 </p>
 
 <p align="center">
@@ -11,12 +11,40 @@
     <img src="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build.yml/badge.svg" alt="Build and Push Docker Image">
   </a>
   <a href="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build-AMD64.yml">
-    <img src="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build-AMD64.yml/badge.svg" alt="Build and Push Docker Image">
+    <img src="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build-AMD64.yml/badge.svg" alt="Build and Push Docker Image (AMD64)">
   </a>
 </p>
 
+<p align="center">
+  A self-hosted web interface for batch image resizing and format conversion, powered by ImageMagick.
+</p>
 
-ImaGUIck is a simple and intuitive web application for batch image processing, providing a user-friendly graphical interface to resize and convert your images.
+---
+
+## Features
+
+- **Single and batch processing** — handle one image or hundreds at once
+- **Flexible resizing** — by exact dimensions, percentage, or one-click presets (1080p / 1920p) with optional aspect-ratio lock
+- **Wide format support**
+  - Common: JPG, PNG, GIF, BMP, TIFF, WEBP
+  - RAW: ARW, CR2, CR3, NEF, RAF, RW2, DNG
+  - Modern: AVIF, HEIC, JXL
+  - Animation: GIF, WEBP, APNG
+  - Vector / document: SVG, PDF, EPS
+- **Image enhancement** — auto-level, auto-gamma, and three-level unsharp masking (low / standard / high)
+- **Smart format recommendations** — context-aware suggestions based on image type and transparency
+- **URL import** — fetch and process an image directly from a URL
+- **Real-time progress** — per-file status streamed via Server-Sent Events (SSE) during batch jobs
+- **Automatic ZIP export** — processed batch files packaged and ready to download
+- **Automatic cleanup** — uploaded and output files purged after 48 hours
+
+## Screenshots
+
+![Landing page](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_1.png)
+
+![Resize](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_2.png)
+
+---
 
 ## Upload limits
 
@@ -27,134 +55,32 @@ ImaGUIck is a simple and intuitive web application for batch image processing, p
 | Maximum image dimension | 10 000 px per side |
 | Concurrent ImageMagick workers | 4 (semaphore-controlled) |
 
-Batch uploads are processed asynchronously — the browser is redirected to a real-time progress page immediately after transfer completes. Processing status is streamed via Server-Sent Events (SSE) with per-file indicators (queued / processing / done / error). A ZIP archive is generated automatically when all files are done.
+Batch uploads are processed **asynchronously** — the browser redirects to a live progress page immediately after the transfer completes. Each file shows its own status (queued / processing / done / error) via SSE. A ZIP archive is created automatically once all files finish.
 
-## ⚠️ Security Notice
+---
 
-This application is designed for local usage only. While it can be exposed to the internet, doing so is at your own risk and not recommended without implementing additional security measures. The application does not include built-in authentication or advanced security features.
+## ⚠️ Security notice
 
-## ✨ Features
+This application is designed for **local or trusted-network use only**. It has no built-in authentication. Exposing it to the public internet without an additional access-control layer (reverse proxy with auth, VPN, etc.) is done at your own risk.
 
-- 🖼️ **Single or Batch Image Processing**:
-  - Process individual images
-  - Batch process multiple images with ZIP export
-  - Clear success/error feedback for each operation
-- 📏 **Flexible Resizing Options**:
-  - By specific dimensions (width x height)
-  - By percentage
-  - With or without aspect ratio preservation
-  - One-click 1080p option for social media optimization (resizes longest edge to 1080px while preserving aspect ratio)
-  - One-click 1920p option for website optimization (resizes longest edge to 1920px while preserving aspect ratio)
-- 🔄 **Smart Format Support**:
-  - Common formats (JPG, PNG, GIF, etc.)
-  - RAW formats (ARW, CR2, CR3, NEF, RAF, RW2, DNG)
-  - Modern formats (WEBP, AVIF, HEIC, JXL)
-  - Animation formats (GIF, WEBP, APNG)
-  - Vector formats (SVG, PDF, EPS)
-- ✨ **Automatic Image Enhancement**:
-  - Auto-level for dynamic range optimization
-  - Auto-gamma for balanced exposure correction
-  - Screen-optimized sharpening with three levels (low, standard, high)
-- 🌐 **Image Import from URL**
-- 📦 **Enhanced Batch Processing**:
-  - ZIP export with organized structure
-  - Detailed processing status for each image
-  - Error handling with specific feedback
-- 🎨 **Advanced Image Analysis**:
-  - Automatic transparency detection
-  - Photo vs. graphic type detection
-  - Format-specific optimizations
-- 💾 **Smart Format Recommendations**:
-  - Context-aware format suggestions
-  - Quality-preserving options (PNG, DNG)
-  - Format-specific optimizations
-  - Support for modern compression formats
-- 🔍 **Automatic Image Type Analysis**
-- 🔍 **Intelligent Format Recommendations**
+---
 
-### Screenshots
-
-![Landing page](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_1.png)
-
-![Resize](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_2.png)
-
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
-- Python 3.9+
-- [`ImageMagick 7.1.2-18`](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-18) or newer
-  - Windows users: Add ImageMagick to your system's PATH during installation
-  - Linux users: Install development headers (e.g., `libmagickwand-dev`)
-- ExifTool for metadata handling
-- Docker (recommended for easier deployment)
+| Dependency | Version | Notes |
+|---|---|---|
+| Python | 3.9+ | |
+| [ImageMagick](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-18) | 7.1.2-18+ | Add to PATH on Windows; install `libmagickwand-dev` on Linux |
+| ExifTool | any | Required for RAW metadata |
+| Docker | any | Recommended deployment method |
 
-### Local Installation
+### Docker (recommended)
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/tiritibambix/ImaGUIck.git
-   cd ImaGUIck
-   ```
+**Option 1 — Docker Compose**
 
-2. Create required directories:
-   ```bash
-   mkdir -p uploads output
-   ```
-
-3. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Verify installations:
-   ```bash
-   # Verify ImageMagick
-   magick -version
-   
-   # Verify ExifTool
-   exiftool -ver
-   ```
-
-5. Run the application:
-   ```bash
-   python app.py
-   ```
-
-   The application will be available at `http://localhost:5000`
-
-> **Note**: The local installation includes automatic cleanup of files older than 48 hours. 
-> To manually trigger cleanup, run:
-> ```bash
-> python cleanup.py --now
-> ```
-
-### Docker Installation (Recommended)
-
-1. Clone the repository
-
-   ```bash
-   git clone https://github.com/tiritibambix/ImaGUIck.git
-   cd ImaGUIck
-   ```
-
-2. Build the Docker image
-
-   ```bash
-   docker build -t imaguick .
-   ```
-
-3. Run the application
-
-   ```bash
-   docker run -it --rm \
-       -v $(pwd)/uploads:/app/uploads \
-       -v $(pwd)/output:/app/output \
-       -p 5000:5000 \
-       imaguick
-   ```
- 
-#### Alternatively, you can use docker-compose to run the application:
+Create a `docker-compose.yml`:
 
 ```yaml
 services:
@@ -168,7 +94,7 @@ services:
       - 5000:5000
     image: tiritibambix/imaguick:latest
     environment:
-      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-dev-insecure-key-change-in-prod}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-change-me-in-production}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=5)"]
       interval: 30s
@@ -178,105 +104,162 @@ services:
 networks: {}
 ```
 
-## 🖥️ Usage
+Then run:
 
-1. Access the application via your browser: `http://localhost:5000`
-
-2. Choose your import method:
-   - Upload file(s) from your computer
-   - Import from a URL
-
-3. Configure your processing options:
-   - Output dimensions
-   - Image quality
-   - Output format
-
-4. Start processing and download your images.
-
-### Automatic Cleanup
-
-- Uploaded and processed files are automatically cleaned up after 48 hours
-- To manually trigger an immediate cleanup:
-  ```bash
-  docker exec <container_name> /app/cleanup.sh
-  ```
-  Replace `<container_name>` with your container name (e.g., `imaguick`)
-
-- To manually trigger a cleanup of all files, including those older than 48 hours:
-  ```bash
-  docker exec <container_name> /app/cleanup.sh --all
-  ```
-  Replace `<container_name>` with your container name (e.g., `imaguick`)
-
-## 🛠️ Technical Architecture
-
-### Technologies Used
-
-- **Backend**: Flask (Python)
-- **Image Processing**: 
-  - ImageMagick 7.1.1-41
-  - ExifTool
-  - Pillow
-- **Frontend**: HTML/CSS/JavaScript
-- **Containerization**: Docker
-
-### Project Structure
-
-```
-imaguick/
-├── Dockerfile                  # Container configuration and build instructions
-├── LICENSE                     # Project and ImageMagick licenses
-├── README.md                   # Project documentation
-├── TODO.md                     # Development roadmap and planned features
-├── app.py                      # Main application logic and routes
-├── cleanup.py                  # Automatic file cleanup script
-├── cleanup.sh                  # Shell script for manual cleanup
-├── docker-compose.yml          # Docker Compose configuration
-├── requirements.txt            # Python package dependencies
-├── start.sh                    # Container startup script
-├── templates                   # HTML templates for the web interface
-|     ├── base.html             # Base template with common styling
-|     ├── index.html            # Main upload and import page
-|     ├── progress.html         # Real-time batch processing progress (SSE)
-|     ├── resize.html           # Single image processing options
-|     ├── resize_batch.html     # Batch processing configuration
-|     ├── result.html           # Success/Error feedback display
+```bash
+docker compose up -d
 ```
 
-The application follows a clean and modular structure:
-- Core application files at the root level for easy deployment
-- Separate cleanup scripts for automated and manual file management
-- Containerization support with Docker and Docker Compose
-- Modular template system for the web interface
+**Option 2 — docker run**
 
-## 🤝 Contribution
+```bash
+docker run -it --rm \
+    -v $(pwd)/uploads:/app/uploads \
+    -v $(pwd)/output:/app/output \
+    -e FLASK_SECRET_KEY=change-me-in-production \
+    -p 5000:5000 \
+    tiritibambix/imaguick:latest
+```
 
-Contributions are welcome! To contribute:
+**Option 3 — build from source**
 
-1. Fork the project
-2. Create a branch for your feature (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+```bash
+git clone https://github.com/tiritibambix/ImaGUIck.git
+cd ImaGUIck
+docker build -t imaguick .
+docker run -it --rm \
+    -v $(pwd)/uploads:/app/uploads \
+    -v $(pwd)/output:/app/output \
+    -p 5000:5000 \
+    imaguick
+```
 
-## 📝 License
+### Local installation
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details. 
-**ImageMagick's** license can be found [HERE](https://imagemagick.org/script/license.php).
+```bash
+git clone https://github.com/tiritibambix/ImaGUIck.git
+cd ImaGUIck
+mkdir -p uploads output
+pip install -r requirements.txt
+```
 
+Verify dependencies:
 
-### Customization
+```bash
+magick -version    # ImageMagick 7.1.2-18 or newer
+exiftool -ver
+```
 
-- Modify supported formats: See the `get_available_formats()` function in `app.py`
-- Add new processing features: Extend the `build_imagemagick_command()` function in `app.py`
+Start the server:
 
-## 📫 Contact
+```bash
+python app.py
+```
 
-For any questions or suggestions, feel free to:
-- Open an issue on GitHub
-- Submit a pull request
-- Contact the project maintainer
+The application is available at `http://localhost:5000`.
+
+> **Note:** The local installation runs a cleanup task that removes files older than 48 hours. Trigger it manually with `python cleanup.py --now`.
 
 ---
 
-Made with ❤️ in Python
+## Usage
+
+1. Open `http://localhost:5000` in your browser.
+2. Select your import method:
+   - **Upload** — drag-and-drop or file picker (single file or batch)
+   - **URL** — paste a direct image URL
+3. Configure processing options:
+   - Output format
+   - Resize mode (dimensions, percentage, or preset)
+   - Enhancement options (auto-level, auto-gamma, sharpening)
+4. Submit — for batches, a live progress page tracks each file in real time.
+5. Download the result or ZIP archive when processing completes.
+
+---
+
+## File cleanup
+
+| Method | Command |
+|---|---|
+| Automatic (every 12 h, files > 48 h) | Runs via cron inside the container |
+| Manual — files older than 48 h | `docker exec <container> /app/cleanup.sh` |
+| Manual — all files immediately | `docker exec <container> /app/cleanup.sh --all` |
+
+---
+
+## Technical architecture
+
+### Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Flask (Python 3.9+), Gunicorn (gthread, 4 workers × 8 threads) |
+| Image processing | ImageMagick 7.1.2-18, ExifTool, Pillow |
+| Async pipeline | `ThreadPoolExecutor` + `BoundedSemaphore(4)` — no external queue required |
+| Progress streaming | Server-Sent Events (SSE) via `/job/<id>/status` |
+| Frontend | Vanilla HTML / CSS / JavaScript |
+| Container | Docker (multi-arch: amd64 + arm64) |
+
+### Project structure
+
+```
+imaguick/
+├── Dockerfile                  # Multi-arch container build
+├── docker-compose.yml          # Compose deployment example
+├── start.sh                    # Container entrypoint (cron + Gunicorn)
+├── app.py                      # Flask application — routes and processing logic
+├── cleanup.py                  # File cleanup script (stdout logging, Docker-compatible)
+├── cleanup.sh                  # Manual cleanup helper
+├── requirements.txt            # Python dependencies
+├── templates/
+│   ├── base.html               # Shared layout
+│   ├── index.html              # Upload page
+│   ├── resize.html             # Single-image options
+│   ├── resize_batch.html       # Batch options
+│   ├── progress.html           # Real-time batch progress (SSE)
+│   └── result.html             # Success / error feedback
+└── static/                     # CSS, images, favicon
+```
+
+### Batch processing pipeline
+
+```
+Browser                     Flask (Gunicorn)              ThreadPoolExecutor
+  │                               │                              │
+  ├─ POST /upload ──────────────> │                              │
+  │                               │  save files, create job      │
+  │ <─ {redirect: /progress} ─── │  submit tasks ─────────────> │
+  │                               │                              │ acquire semaphore (max 4)
+  ├─ GET /job/<id>/status (SSE) > │                              │ run ImageMagick
+  │ <─ {file, status, pct} ────── │ <── update job dict ──────── │ release semaphore
+  │ <─ {complete, zip} ─────────  │                              │
+  ├─ GET /download_batch/<zip> ─> │                              │
+```
+
+### Customisation
+
+- **Supported formats** — edit `get_available_formats()` in `app.py`
+- **Processing options** — extend `build_imagemagick_command()` in `app.py`
+- **Secret key** — set the `FLASK_SECRET_KEY` environment variable (required in production)
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Commit your changes: `git commit -m 'Add my feature'`
+4. Push: `git push origin feature/my-feature`
+5. Open a pull request
+
+---
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
+
+ImageMagick is licensed separately — see the [ImageMagick license](https://imagemagick.org/script/license.php).
+
+---
+
+<p align="center">Made with ❤️ in Python</p>

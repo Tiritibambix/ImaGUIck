@@ -376,12 +376,48 @@
             }
 
             .title-large {
-                font-size: 2rem; /* Taille légèrement augmentée pour les écrans larges */
+                font-size: 2rem;
             }
 
             button {
                 font-size: 1.1rem;
             }
+        }
+
+        /* Full-page overlay shown while browser navigates to options page */
+        #nav-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(18, 18, 18, 0.93);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        #nav-overlay.visible {
+            display: flex;
+        }
+
+        .nav-spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid var(--clr-surface-a30);
+            border-top-color: var(--clr-primary-a50);
+            border-radius: 50%;
+            animation: navSpin 0.75s linear infinite;
+        }
+
+        @keyframes navSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        .nav-overlay-text {
+            color: var(--clr-primary-a40);
+            font-size: 0.9rem;
+            margin: 0;
         }
     </style>
 </head>
@@ -411,14 +447,14 @@
                 <div class="form-group">
                     <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click();">
                         <input type="file" id="file-input" name="file" multiple style="display: none;">
-                        <p>Glissez vos fichiers ici ou cliquez pour sélectionner</p>
+                        <p>Drop your files here or click to select</p>
                     </div>
                 </div>
                 <div id="file-list" class="form-group">
                     <div class="file-list-header">
-                        <h3 class="file-list-title">Fichiers sélectionnés :</h3>
+                        <h3 class="file-list-title">Selected files:</h3>
                         <button type="button" class="clear-all-button" onclick="clearAllFiles()">
-                            Effacer la sélection
+                            Clear selection
                         </button>
                     </div>
                     <div class="file-list-container"></div>
@@ -443,12 +479,14 @@
                 </div>
             </fieldset>
         </form>
+<div id="nav-overlay">
+    <div class="nav-spinner"></div>
+    <p class="nav-overlay-text" id="nav-overlay-text">Analysing your images&hellip;</p>
+</div>
 <script>
-    // Variables globales pour la gestion des fichiers
     let uploadedItems = [];
     let dragActive = false;
 
-    // Fonction principale de traitement des fichiers et dossiers
     async function processFilesAndFolders(items) {
         const files = [];
         
@@ -504,7 +542,6 @@
         return files;
     }
 
-    // Fonction de formatage de la taille des fichiers
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -540,15 +577,14 @@
             if (files.length > 0) {
                 uploadedItems = [...uploadedItems, ...files];
                 updateFileList();
-                // Mettre à jour l'input file avec les fichiers
-                const dataTransfer = new DataTransfer();
+                    const dataTransfer = new DataTransfer();
                 uploadedItems.forEach(item => {
                     dataTransfer.items.add(item.file);
                 });
                 fileInput.files = dataTransfer.files;
             }
         } catch (error) {
-            console.error('Erreur lors du traitement des fichiers:', error);
+            console.error('Error processing files:', error);
         }
     }
 
@@ -583,7 +619,7 @@
             removeButton.type = 'button';
             removeButton.textContent = '✕';
             removeButton.className = 'remove-button';
-            removeButton.title = 'Retirer';
+            removeButton.title = 'Remove';
             removeButton.onclick = () => removeFile(index);
 
             fileInfo.appendChild(fileName);
@@ -638,6 +674,8 @@
     const uploadProgressWrap = document.getElementById('upload-progress-wrap');
     const uploadProgressFill = document.getElementById('upload-progress-fill');
     const uploadProgressText = document.getElementById('upload-progress-text');
+    const navOverlay = document.getElementById('nav-overlay');
+    const navOverlayText = document.getElementById('nav-overlay-text');
 
     function showUploadError(msg) {
         uploadSubmitBtn.disabled = false;
@@ -660,7 +698,7 @@
     uploadForm.addEventListener('submit', function (e) {
         e.preventDefault();
         if (!fileInput.files || fileInput.files.length === 0) {
-            showUploadError('Veuillez sélectionner au moins un fichier.');
+            showUploadError('Please select at least one file.');
             return;
         }
         const formData = new FormData(this);
@@ -680,21 +718,29 @@
 
         xhr.addEventListener('load', function () {
             uploadProgressFill.style.width = '100%';
-            uploadProgressText.textContent = 'Envoi terminé, chargement des options…';
+            uploadProgressText.textContent = 'Upload complete';
             try {
                 const data = JSON.parse(xhr.responseText);
-                if (data.redirect) { window.location.href = data.redirect; return; }
-                if (data.error)    { showUploadError(data.error); return; }
+                if (data.redirect) {
+                    const isBatch = data.redirect.indexOf('resize_batch_options') !== -1;
+                    navOverlayText.textContent = isBatch
+                        ? 'Analysing your images\u2026'
+                        : 'Loading options\u2026';
+                    navOverlay.classList.add('visible');
+                    window.location.href = data.redirect;
+                    return;
+                }
+                if (data.error) { showUploadError(data.error); return; }
             } catch (_) {}
             if (xhr.status === 413) {
-                showUploadError('Requête trop volumineuse. Réduisez le nombre ou la taille des images.');
+                showUploadError('Request too large. Reduce the number or size of your images.');
                 return;
             }
             window.location.href = '/';
         });
 
         xhr.addEventListener('error', function () {
-            showUploadError('Erreur réseau. Veuillez réessayer.');
+            showUploadError('Network error. Please try again.');
         });
 
         xhr.open('POST', '/upload');
@@ -712,7 +758,6 @@
         }));
         uploadedItems = [...uploadedItems, ...files];
         updateFileList();
-        // Mettre à jour l'input file avec tous les fichiers
         const dataTransfer = new DataTransfer();
         uploadedItems.forEach(item => {
             dataTransfer.items.add(item.file);

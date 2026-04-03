@@ -1,0 +1,22 @@
+name: Export Security Alerts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: GitHub Security Alert Export
+        uses: austenstone/security-export@v1.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          secret-scanning: false
+          dependabot: false
+          code-scanning: true
+          create-artifact: true
+          artifact-name: code-scanning-alerts

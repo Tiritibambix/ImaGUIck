@@ -52,7 +52,7 @@ upload_sessions_lock = threading.Lock()
 
 @app.errorhandler(413)
 def file_too_large(e):
-    msg = 'Requête trop volumineuse. Réduisez le nombre ou la taille des images.'
+    msg = 'Request too large. Reduce the number or size of your images.'
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return {'error': msg}, 413
     flash(msg, 'error')
@@ -242,7 +242,7 @@ def get_available_formats(filepath=None):
         result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
 
         if result.returncode != 0:
-            raise Exception("Erreur lors de la récupération des formats")
+            raise Exception("Failed to retrieve format list from ImageMagick")
 
         available_formats = set()
         for line in result.stdout.split('\n'):
@@ -258,9 +258,9 @@ def get_available_formats(filepath=None):
                         available_formats.add(format_name.upper())
 
         if not available_formats:
-            raise Exception("Aucun format n'a été trouvé dans la sortie de ImageMagick")
+            raise Exception("No formats found in ImageMagick output")
 
-        app.logger.info(f"Formats détectés : {available_formats}")
+        app.logger.info(f"Detected formats: {available_formats}")
 
         categories = get_format_categories()
         categorized_formats = {}
@@ -303,7 +303,7 @@ def get_available_formats(filepath=None):
         return categorized_formats
 
     except Exception as e:
-        app.logger.error(f"Erreur lors de la récupération des formats : {e}")
+        app.logger.error(f"Error retrieving format list: {e}")
         return {
             'other': {
                 'name': 'Available Formats',
@@ -578,7 +578,7 @@ def process_single_file(job_id, file_info, params, batch_folder):
             app.logger.error(f"[Job {job_id}] Error processing {fname}: {e}")
             with jobs_lock:
                 file_info['status'] = 'error'
-                file_info['error'] = 'Erreur de traitement'
+                file_info['error'] = 'Processing error'
                 jobs[job_id]['errors'] += 1
 
 
@@ -610,11 +610,11 @@ def upload_file():
         return redirect(url_for('index'))
 
     if 'file' not in request.files:
-        return _error('Aucun fichier sélectionné')
+        return _error('No file selected')
 
     files = request.files.getlist('file')
     if not files or all(f.filename == '' for f in files):
-        return _error('Veuillez sélectionner au moins un fichier')
+        return _error('Please select at least one file')
 
     uploaded_files = []
     errors = []
@@ -631,8 +631,8 @@ def upload_file():
         if os.path.getsize(filepath) > PER_FILE_MAX_SIZE:
             os.remove(filepath)
             errors.append(
-                f"{secure_filename(file.filename)} dépasse la limite de "
-                f"{PER_FILE_MAX_SIZE // 1024 // 1024} Mo par image"
+                f"{secure_filename(file.filename)} exceeds the per-file limit of "
+                f"{PER_FILE_MAX_SIZE // 1024 // 1024} MB"
             )
             continue
         uploaded_files.append(unique_name)
@@ -641,7 +641,7 @@ def upload_file():
         flash(err, 'error')
 
     if not uploaded_files:
-        msg = errors[0] if errors else 'Aucun fichier valide'
+        msg = errors[0] if errors else 'No valid file'
         return _error(msg)
 
     if len(uploaded_files) == 1:
@@ -714,7 +714,7 @@ def resize_options(filename):
 
     dimensions = get_image_dimensions(filepath)
     if not dimensions or dimensions == (None, None):
-        flash('Image trop grande ou non supportée (max 10000px par côté)', 'error')
+        flash('Image too large or unsupported (max 10000px per side)', 'error')
         return redirect(url_for('index'))
 
     formats = get_available_formats(filepath)
@@ -815,7 +815,7 @@ def resize_image(filename):
             subprocess.run(command, check=True, capture_output=True, text=True)
         except subprocess.CalledProcessError as e:
             app.logger.error(f"ImageMagick error for {filename}: {e.stderr}")
-            flash("Une erreur est survenue lors du traitement de l'image.")
+            flash('An error occurred while processing the image.')
             return render_template('result.html',
                                    success=False,
                                    title='Error',
@@ -833,7 +833,7 @@ def resize_image(filename):
 
     except Exception as e:
         app.logger.error(f"Error during resize: {str(e)}")
-        flash('Une erreur est survenue lors du traitement.')
+        flash('An error occurred during processing.')
         return render_template('result.html',
                                success=False,
                                title='Error',
@@ -935,7 +935,7 @@ def resize_batch():
             })
 
     if not file_list:
-        flash('Aucun fichier valide trouvé')
+        flash('No valid files found')
         return render_template('result.html',
                                success=False,
                                title='Error',
@@ -967,7 +967,7 @@ def job_progress(job_id):
     with jobs_lock:
         job = jobs.get(job_id)
     if not job:
-        flash('Job introuvable', 'error')
+        flash('Job not found', 'error')
         return redirect(url_for('index'))
     return render_template('progress.html', job_id=job_id, total=job['total'])
 
