@@ -51,7 +51,7 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Poppins', Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
@@ -367,6 +367,13 @@
             height: auto;
             display: block;
             margin: 0 auto;
+        }
+
+        @media (max-width: 480px) {
+            :root { --input-width: 100%; }
+            input[type="text"], input[type="file"] { width: 100%; }
+            .container { padding: var(--spacing-small); }
+            .drop-zone { height: 100px; }
         }
 
         @media (min-width: 768px) {

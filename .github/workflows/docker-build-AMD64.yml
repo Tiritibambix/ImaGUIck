@@ -24,6 +24,8 @@ env:
 jobs:
   setup:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -43,6 +45,8 @@ jobs:
   audit:
     runs-on: ubuntu-24.04
     needs: setup
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -59,6 +63,8 @@ jobs:
   build-and-push:
     runs-on: ubuntu-24.04
     needs: [setup, audit]
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -95,6 +101,8 @@ jobs:
   update-dockerhub-description:
     runs-on: ubuntu-24.04
     needs: build-and-push
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

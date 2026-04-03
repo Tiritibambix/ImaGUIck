@@ -42,7 +42,7 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Poppins', Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
@@ -220,6 +220,12 @@
             box-shadow: 0 0 0 2px var(--clr-primary-a30);
         }
 
+        @media (max-width: 480px) {
+            :root { --input-width: 100%; }
+            input[type="text"], select { width: 100%; }
+            .container { padding: var(--spacing-small); }
+        }
+
         @media (min-width: 768px) {
             .container {
                 max-width: 600px;
@@ -348,13 +354,14 @@
                             <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
                         </label>
                         <div class="label-with-select">
-                        <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen for: screen
-                        <span class="tooltip" title="Optimize sharpness for screen display">?</span>
-                        <select name="sharpen_level" id="sharpen_level" class="compact-select">
-                            <option value="low">Low</option>
-                            <option value="standard" selected>Standard</option>
-                            <option value="high">High</option>
-                        </select>
+                            <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen for: screen
+                            <span class="tooltip" title="Optimize sharpness for screen display">?</span>
+                            <select name="sharpen_level" id="sharpen_level" class="compact-select">
+                                <option value="low">Low</option>
+                                <option value="standard" selected>Standard</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 

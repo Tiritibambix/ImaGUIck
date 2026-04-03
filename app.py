@@ -13,7 +13,9 @@ import requests
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urlparse
+import socket
+import ipaddress
+from urllib.parse import urlparse, urlunparse
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -103,7 +105,7 @@ def prepare_input_file(filepath):
         if not validated:
             raise ValueError(f"Insecure JXL path: {filepath}")
         tmp_path = f'/tmp/imaguick_{uuid.uuid4().hex}.png'
-        subprocess.run(['djxl', validated, '-o', tmp_path], check=True, timeout=60)
+        subprocess.run(['djxl', '--', validated, tmp_path], check=True, timeout=60)
         return tmp_path, tmp_path
     return filepath, None
 
@@ -349,7 +351,7 @@ def analyze_image_type(filepath):
         if validated_path.lower().endswith('.jxl'):
             tmp_path = f'/tmp/imaguick_{uuid.uuid4().hex}.png'
             try:
-                subprocess.run(['djxl', validated_path, '-o', tmp_path], check=True, timeout=60)
+                subprocess.run(['djxl', '--', validated_path, tmp_path], check=True, timeout=60)
                 return _analyze_with_pil(tmp_path)
             finally:
                 if os.path.exists(tmp_path):
@@ -671,8 +673,16 @@ def upload_url():
         flash('Invalid or unsafe URL', 'error')
         return redirect(url_for('index'))
 
+    # Reconstruct URL from parsed components so that only the validated
+    # scheme/host/path are forwarded — no fragment, no unexpected schemes.
+    _parsed = urlparse(url)
+    safe_url = urlunparse((
+        _parsed.scheme.lower(), _parsed.netloc, _parsed.path,
+        _parsed.params, _parsed.query, ''
+    ))
+
     try:
-        response = requests.get(url, timeout=30, stream=True)
+        response = requests.get(safe_url, timeout=30, stream=True, allow_redirects=False)
         response.raise_for_status()
 
         content_type = response.headers.get('content-type', '').lower()
@@ -706,7 +716,7 @@ def upload_url():
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
-    sanitized_filename = secure_filename(filename)
+    sanitized_filename = secure_filename(os.path.basename(filename))
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], sanitized_filename)
     if not os.path.exists(filepath):
         flash_error("File not found.")
@@ -731,6 +741,7 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
+    filename = os.path.basename(filename)
     if not re.match(r'^[\w\-.]+$', filename) or '..' in filename or filename.startswith('/'):
         flash('Invalid filename')
         return render_template('result.html',
@@ -752,8 +763,8 @@ def resize_image(filename):
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
 
         if keep_ratio and (width.isdigit() or height.isdigit()):
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            original_dimensions = get_image_dimensions(filepath)
+            filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            original_dimensions = get_image_dimensions(filepath) if filepath else None
             if original_dimensions:
                 original_width, original_height = original_dimensions
                 if width.isdigit() and not height.isdigit():
@@ -767,8 +778,8 @@ def resize_image(filename):
 
         app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
 
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
+        filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        if not filepath or not os.path.exists(filepath):
             flash('File not found')
             return render_template('result.html',
                                    success=False,
@@ -922,8 +933,8 @@ def resize_batch():
 
     file_list = []
     for fname in filenames:
-        fpath = os.path.join(app.config['UPLOAD_FOLDER'], fname)
-        if os.path.isfile(fpath):
+        fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(fname)))
+        if fpath and os.path.isfile(fpath):
             # Strip UUID prefix (32 hex chars + underscore) to restore original filename
             original_name = re.sub(r'^[a-f0-9]{32}_', '', fname)
             file_list.append({
@@ -1012,10 +1023,11 @@ def job_status(job_id):
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
-    if not re.match(r'^[\w\-.]+$', filename) or '..' in filename:
+    safe_name = os.path.basename(filename)
+    if not re.match(r'^[\w\-.]+$', safe_name) or '..' in safe_name:
         flash('Invalid filename', 'error')
         return redirect(url_for('index'))
-    zip_path = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], filename))
+    zip_path = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], safe_name))
     if not zip_path or not os.path.exists(zip_path):
         flash('File not found', 'error')
         return redirect(url_for('index'))
@@ -1025,40 +1037,67 @@ def download_batch(filename):
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    if not re.match(r'^[\w\-.]+$', filename) or '..' in filename:
+    safe_name = os.path.basename(filename)
+    if not re.match(r'^[\w\-.]+$', safe_name) or '..' in safe_name:
         flash('Invalid filename', 'error')
         return redirect(url_for('index'))
-    filepath = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], filename))
+    filepath = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], safe_name))
     if not filepath or not os.path.exists(filepath):
         flash('File not found', 'error')
         return redirect(url_for('index'))
     with open(filepath, 'rb') as f:
         response = Response(f.read(), mimetype='application/octet-stream')
-        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response.headers['Content-Disposition'] = f'attachment; filename="{safe_name}"'
     return response
 
 
 def is_safe_url(url):
-    """Validate if URL is safe to download from."""
+    """Validate URL safety: scheme, extension, and resolved-IP range checks.
+
+    Resolves the hostname via DNS and rejects any address that falls within
+    loopback, link-local, private, multicast, or otherwise reserved ranges.
+    This prevents SSRF attacks including DNS-rebinding and cloud-metadata
+    endpoint abuse (169.254.169.254, etc.).
+    """
     try:
         ALLOWED_SCHEMES = {'http', 'https'}
-        ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp'}
+        ALLOWED_EXTENSIONS = {
+            '.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp',
+            '.avif', '.heic', '.jxl', '.arw', '.cr2', '.cr3', '.nef',
+            '.raf', '.rw2', '.dng', '.svg', '.pdf', '.eps', '.apng',
+        }
 
         parsed = urlparse(url)
 
         if parsed.scheme.lower() not in ALLOWED_SCHEMES:
             return False
 
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
         path = parsed.path.lower()
         if not any(path.endswith(ext) for ext in ALLOWED_EXTENSIONS):
             return False
 
-        hostname = parsed.hostname.lower()
-        if (hostname in ('localhost', '127.0.0.1', '::1') or
-                hostname.startswith('192.168.') or
-                hostname.startswith('10.') or
-                hostname.startswith('172.')):
+        # Resolve all DNS addresses and reject any private/reserved IP.
+        try:
+            addr_infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
+        except socket.gaierror:
             return False
+
+        if not addr_infos:
+            return False
+
+        for addr_info in addr_infos:
+            ip_str = addr_info[4][0]
+            try:
+                ip = ipaddress.ip_address(ip_str)
+            except ValueError:
+                return False
+            if (ip.is_loopback or ip.is_link_local or ip.is_multicast
+                    or ip.is_reserved or ip.is_unspecified or ip.is_private):
+                return False
 
         return True
     except Exception:

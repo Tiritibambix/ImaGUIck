@@ -1,4 +1,19 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+    body {
+        justify-content: center;
+        align-items: center;
+    }
+    .container {
+        max-width: 640px;
+        background-color: var(--clr-surface-a10);
+        border-radius: 12px;
+        padding: var(--spacing-large);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
 {% block content %}
 <div class="container">
     <div class="result-container {% if success %}success{% else %}error{% endif %}">
