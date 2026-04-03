@@ -1,4 +1,4 @@
-name: Build and Push Docker Image - Multi-Arch
+name: Build and Push Docker Image - AMD64
 
 on:
   push:
