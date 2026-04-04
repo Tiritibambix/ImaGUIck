@@ -813,6 +813,7 @@ def resize_image(filename):
         else:
             output_filename = f"{base_name}_imaGUIck{os.path.splitext(clean_name)[1]}"
 
+        output_filename = secure_filename(output_filename)
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         app.logger.info(f"Output path: {output_path}")
 
@@ -851,7 +852,7 @@ def resize_image(filename):
                                    title='Error',
                                    return_url=url_for('resize_options', filename=filename))
         finally:
-            if tmp_path and os.path.exists(tmp_path):
+            if tmp_path and is_valid_tmp_path(tmp_path) and os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
         flash('Image processed successfully!')
@@ -957,7 +958,8 @@ def resize_batch():
 
     file_list = []
     for fname in filenames:
-        fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(fname)))
+        fname = secure_filename(os.path.basename(fname))
+        fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], fname))
         if fpath and os.path.isfile(fpath):
             # Strip UUID prefix (32 hex chars + underscore) to restore original filename
             original_name = re.sub(r'^[a-f0-9]{32}_', '', fname)
@@ -1047,8 +1049,8 @@ def job_status(job_id):
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
-    safe_name = os.path.basename(filename)
-    if not re.match(r'^[\w\-.]+$', safe_name) or '..' in safe_name:
+    safe_name = secure_filename(os.path.basename(filename))
+    if not safe_name or not re.match(r'^[\w\-.]+$', safe_name) or '..' in safe_name:
         flash('Invalid filename', 'error')
         return redirect(url_for('index'))
     zip_path = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], safe_name))
@@ -1061,8 +1063,8 @@ def download_batch(filename):
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    safe_name = os.path.basename(filename)
-    if not re.match(r'^[\w\-.]+$', safe_name) or '..' in safe_name:
+    safe_name = secure_filename(os.path.basename(filename))
+    if not safe_name or not re.match(r'^[\w\-.]+$', safe_name) or '..' in safe_name:
         flash('Invalid filename', 'error')
         return redirect(url_for('index'))
     filepath = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], safe_name))

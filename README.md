@@ -41,9 +41,11 @@ This application has been vibe coded and is designed for **local or trusted-netw
 
 ## Screenshots
 
-![Landing page](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_1.png)
+![Upload](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Upload.webp)
 
-![Resize](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_2.png)
+![Options](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Options.webp)
+
+![Results](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Results.webp)
 
 ---
 
