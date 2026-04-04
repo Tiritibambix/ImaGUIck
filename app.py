@@ -29,6 +29,17 @@ DEFAULTS = {
     "height": "",
     "percentage": "",
 }
+
+# Allowlist of accepted output formats — prevents path injection via format field
+ALLOWED_OUTPUT_FORMATS = {
+    'PNG', 'JPEG', 'JPG', 'WEBP', 'AVIF', 'GIF', 'TIFF', 'BMP', 'ICO',
+    'HEIC', 'JXL', 'SVG', 'PDF', 'EPS', 'PSD', 'DNG', 'APNG', 'MNG',
+    'TGA', 'PCX', 'PPM', 'PGM', 'PNM', 'HDR', 'EXR', 'DPX', 'MIFF',
+    'XBM', 'XPM', 'PICON', 'CUR', 'ICON', 'ARW', 'CR2', 'CR3', 'NEF',
+    'RAF', 'RW2', 'AI', 'EMF', 'WMF', 'PSB', 'XCF',
+}
+
+ALLOWED_SHARPEN_LEVELS = {'low', 'standard', 'high'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -375,19 +386,25 @@ def flash_error(message):
 
 def extract_processing_params(form):
     """Extract all image processing parameters from a form."""
+    raw_format = form.get('format', '').upper().strip()
+    output_format = raw_format if raw_format in ALLOWED_OUTPUT_FORMATS else ''
+
+    raw_sharpen = form.get('sharpen_level', 'standard').strip().lower()
+    sharpen_level = raw_sharpen if raw_sharpen in ALLOWED_SHARPEN_LEVELS else 'standard'
+
     return {
         'width': form.get('width', DEFAULTS['width']),
         'height': form.get('height', DEFAULTS['height']),
         'percentage': form.get('percentage', DEFAULTS['percentage']),
         'quality': form.get('quality', DEFAULTS['quality']),
         'keep_ratio': 'keep_ratio' in form,
-        'output_format': form.get('format', '').upper(),
+        'output_format': output_format,
         'auto_level': form.get('auto_level') == 'on',
         'auto_gamma': form.get('auto_gamma') == 'on',
         'use_1080p': form.get('use_1080p') == 'on',
         'use_1920p': form.get('use_1920p') == 'on',
         'use_sharpen': form.get('use_sharpen') == 'on',
-        'sharpen_level': form.get('sharpen_level', 'standard'),
+        'sharpen_level': sharpen_level,
     }
 
 
@@ -752,11 +769,13 @@ def resize_image(filename):
         width = request.form.get('width', '')
         height = request.form.get('height', '')
         keep_ratio = request.form.get('keep_ratio') == 'on'
-        output_format = request.form.get('format', '').upper()
+        raw_format = request.form.get('format', '').upper().strip()
+        output_format = raw_format if raw_format in ALLOWED_OUTPUT_FORMATS else ''
         auto_level = request.form.get('auto_level') == 'on'
         auto_gamma = request.form.get('auto_gamma') == 'on'
         use_sharpen = request.form.get('use_sharpen') == 'on'
-        sharpen_level = request.form.get('sharpen_level', 'standard')
+        raw_sharpen = request.form.get('sharpen_level', 'standard').strip().lower()
+        sharpen_level = raw_sharpen if raw_sharpen in ALLOWED_SHARPEN_LEVELS else 'standard'
 
         app.logger.info(f"Processing resize request for {filename}")
         app.logger.info(f"Sharpening: enabled={use_sharpen}, level={sharpen_level}")
@@ -860,8 +879,12 @@ def resize_batch_options(filenames=None):
             with upload_sessions_lock:
                 filenames = upload_sessions.get(upload_key, [])
         else:
-            # Legacy fallback: filenames in query string
-            filenames = [f for f in request.args.get('filenames', '').split(',') if f]
+            # Legacy fallback: filenames in query string — sanitize each entry
+            filenames = [
+                secure_filename(os.path.basename(f.strip()))
+                for f in request.args.get('filenames', '').split(',')
+                if f.strip()
+            ]
 
     if not filenames or not filenames[0]:
         return redirect(url_for('index'))
@@ -877,6 +900,7 @@ def resize_batch_options(filenames=None):
     first_file_path = None
 
     for filename in filenames:
+        filename = secure_filename(os.path.basename(filename))
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if not os.path.exists(filepath):
             continue
