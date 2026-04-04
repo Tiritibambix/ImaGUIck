@@ -135,6 +135,25 @@
 
     .action-row.visible { display: flex; }
 
+    .completion-icon {
+        display: none;
+        font-size: 2rem;
+        margin-bottom: var(--sp-sm);
+        filter: drop-shadow(0 0 14px rgba(139, 92, 246, 0.5));
+    }
+    .completion-icon.visible { display: block; }
+
+    .page-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        padding: var(--sp-xl) var(--sp-md);
+        position: relative;
+        z-index: 1;
+    }
+    .page-wrapper.complete { align-items: center; }
+
     @media (max-width: 639px) {
         .progress-card { padding: var(--sp-lg) var(--sp-md); }
     }
@@ -142,10 +161,11 @@
 {% endblock %}
 
 {% block body %}
-<div class="page-top">
+<div class="page-wrapper" id="page-wrapper">
 <div class="card progress-card">
 
     <div class="page-header">
+        <div class="completion-icon" id="completion-icon">&#x2714;</div>
         <h1 id="page-title">Processing batch&hellip;</h1>
     </div>
 
@@ -176,14 +196,16 @@
     const jobId   = {{ job_id | tojson }};
     const total   = {{ total }};
 
-    const globalBar   = document.getElementById('global-bar');
-    const globalCtr   = document.getElementById('global-counter');
-    const globalPct   = document.getElementById('global-pct');
-    const fileListEl  = document.getElementById('file-list');
-    const statusLine  = document.getElementById('status-summary');
-    const actionArea  = document.getElementById('action-area');
-    const downloadBtn = document.getElementById('download-btn');
-    const pageTitle   = document.getElementById('page-title');
+    const globalBar      = document.getElementById('global-bar');
+    const globalCtr      = document.getElementById('global-counter');
+    const globalPct      = document.getElementById('global-pct');
+    const fileListEl     = document.getElementById('file-list');
+    const statusLine     = document.getElementById('status-summary');
+    const actionArea     = document.getElementById('action-area');
+    const downloadBtn    = document.getElementById('download-btn');
+    const pageTitle      = document.getElementById('page-title');
+    const completionIcon = document.getElementById('completion-icon');
+    const pageWrapper    = document.getElementById('page-wrapper');
 
     const ICONS = {
         queued:     '&#x23F3;',
@@ -244,7 +266,9 @@
         if (data.complete) {
             evtSource.close();
 
-            // Update page title to reflect completion
+            completionIcon.classList.add('visible');
+            pageWrapper.classList.add('complete');
+
             if (data.errors === 0) {
                 pageTitle.textContent = 'Batch complete';
                 statusLine.textContent = 'All ' + data.total + ' files processed successfully.';
