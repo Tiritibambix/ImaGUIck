@@ -1,81 +1,84 @@
 {% extends "base.html" %}
+
 {% block head %}
 <style>
-    body {
-        display: flex;
-        justify-content: flex-start;
-        align-items: center;
-        flex-direction: column;
-        min-height: 100vh;
-        padding: var(--spacing-large) var(--spacing-medium);
+    .progress-card {
+        max-width: 720px;
+        padding: var(--sp-xl);
     }
 
-    .progress-container {
-        width: 100%;
-        max-width: 860px;
-        margin: 0 auto;
-        background-color: var(--clr-surface-a10);
-        border-radius: 12px;
-        padding: var(--spacing-large);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    }
-
-    h1 {
+    .page-header {
         text-align: center;
-        margin-bottom: var(--spacing-medium);
-        font-size: 1.4rem;
+        margin-bottom: var(--sp-xl);
     }
 
-    .global-bar-wrapper {
-        background-color: var(--clr-surface-a20);
-        border-radius: 8px;
-        height: 20px;
+    .page-header h1 {
+        font-size: 1.2rem;
+        margin-bottom: var(--sp-sm);
+    }
+
+    /* Global progress */
+    .global-progress {
+        margin-bottom: var(--sp-xl);
+    }
+
+    .global-track {
+        height: 6px;
+        background: var(--surface-raised);
+        border-radius: 3px;
         overflow: hidden;
-        margin-bottom: var(--spacing-small);
+        margin-bottom: var(--sp-sm);
     }
 
-    .global-bar-fill {
+    .global-fill {
         height: 100%;
-        background-color: var(--clr-primary-a0);
         width: 0%;
+        background: linear-gradient(90deg, var(--accent-dim), var(--accent-bright));
+        border-radius: 3px;
         transition: width 0.4s ease;
-        border-radius: 8px;
     }
 
     .global-counter {
-        text-align: center;
-        font-size: 0.85rem;
-        color: var(--clr-primary-a40);
-        margin-bottom: var(--spacing-large);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        font-family: 'DM Mono', monospace;
     }
 
+    /* File list */
     .file-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        max-height: 480px;
+        gap: 4px;
+        max-height: 440px;
         overflow-y: auto;
-        padding-right: 4px;
+        padding-right: 2px;
+        margin-bottom: var(--sp-lg);
     }
 
     .file-row {
         display: flex;
         align-items: center;
-        gap: var(--spacing-small);
-        background-color: var(--clr-surface-a20);
-        border-radius: 6px;
-        padding: 8px 12px;
+        gap: var(--sp-sm);
+        padding: 8px var(--sp-md);
+        background: var(--surface-raised);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-md);
         font-size: 0.82rem;
+        transition: border-color var(--ease);
     }
 
-    .file-status-icon {
-        width: 18px;
-        height: 18px;
+    .file-row.status-processing { border-color: var(--accent); }
+    .file-row.status-done       { border-color: var(--ok-border); }
+    .file-row.status-error      { border-color: var(--err-border); }
+
+    .file-icon {
+        width: 20px;
+        text-align: center;
         flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
 
     .file-name {
@@ -83,105 +86,102 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: var(--clr-primary-a40);
+        color: var(--text-secondary);
+        font-family: 'DM Mono', monospace;
+        font-size: 0.75rem;
     }
 
     .file-badge {
-        font-size: 0.72rem;
+        font-size: 0.7rem;
+        font-weight: 600;
         padding: 2px 8px;
         border-radius: 10px;
         flex-shrink: 0;
+        letter-spacing: 0.03em;
     }
 
-    .badge-queued    { background-color: var(--clr-surface-a30); color: var(--clr-primary-a40); }
-    .badge-processing{ background-color: #3a6da8; color: #fff; }
-    .badge-done      { background-color: #2a7a3a; color: #fff; }
-    .badge-error     { background-color: #8a2a2a; color: #fff; }
+    .badge-queued     { background: var(--surface-hover);    color: var(--text-muted); }
+    .badge-processing { background: var(--accent-subtle);    color: var(--accent-bright); border: 1px solid var(--accent-glow); }
+    .badge-done       { background: var(--ok-bg);            color: var(--ok); border: 1px solid var(--ok-border); }
+    .badge-error      { background: var(--err-bg);           color: var(--err); border: 1px solid var(--err-border); }
 
+    /* Spinner */
     .spinner {
         display: inline-block;
-        width: 14px;
-        height: 14px;
-        border: 2px solid var(--clr-primary-a30);
-        border-top-color: #fff;
+        width: 12px;
+        height: 12px;
+        border: 1.5px solid var(--accent-glow);
+        border-top-color: var(--accent-bright);
         border-radius: 50%;
-        animation: spin 0.7s linear infinite;
+        animation: spin 0.6s linear infinite;
+        vertical-align: middle;
     }
 
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .action-area {
-        margin-top: var(--spacing-large);
-        display: flex;
-        gap: var(--spacing-medium);
-        justify-content: center;
-    }
-
-    .btn-primary, .btn-secondary {
-        padding: 0.6rem 1.4rem;
-        border-radius: 6px;
-        text-decoration: none;
-        font-size: 0.9rem;
-        transition: opacity 0.2s;
-        display: inline-block;
-    }
-
-    .btn-primary {
-        background-color: var(--clr-primary-a0);
-        color: white;
-    }
-
-    .btn-secondary {
-        background-color: var(--clr-surface-a20);
-        color: white;
-    }
-
-    .btn-primary:hover, .btn-secondary:hover {
-        opacity: 0.85;
-    }
-
-    .status-summary {
+    /* Status summary */
+    .status-line {
         text-align: center;
-        font-size: 0.9rem;
-        margin-top: var(--spacing-medium);
-        color: var(--clr-primary-a40);
+        font-size: 0.84rem;
+        color: var(--text-muted);
         min-height: 1.4em;
+        margin-bottom: var(--sp-lg);
     }
+
+    /* Action buttons */
+    .action-row {
+        display: none;
+        gap: var(--sp-md);
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .action-row.visible { display: flex; }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="progress-container">
-    <h1>Processing batch&hellip;</h1>
+{% block body %}
+<div class="page-top">
+<div class="card progress-card">
 
-    <div class="global-bar-wrapper">
-        <div class="global-bar-fill" id="global-bar"></div>
+    <div class="page-header">
+        <h1>Processing batch&hellip;</h1>
     </div>
-    <div class="global-counter" id="global-counter">0 / {{ total }} files</div>
+
+    <div class="global-progress">
+        <div class="global-track">
+            <div class="global-fill" id="global-bar"></div>
+        </div>
+        <div class="global-counter">
+            <span id="global-counter">0 / {{ total }}</span>
+            <span id="global-pct">0%</span>
+        </div>
+    </div>
 
     <div class="file-list" id="file-list"></div>
 
-    <div class="status-summary" id="status-summary">Initialising&hellip;</div>
+    <div class="status-line" id="status-summary">Initialising&hellip;</div>
 
-    <div class="action-area" id="action-area" style="display:none;">
-        <a id="download-btn" href="#" class="btn-primary" style="display:none;">Download ZIP</a>
-        <a href="{{ url_for('index') }}" class="btn-secondary">New Upload</a>
+    <div class="action-row" id="action-area">
+        <a id="download-btn" href="#" class="btn btn-primary" style="display:none">Download ZIP</a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">New upload</a>
     </div>
+
+</div>
 </div>
 
 <script>
 (function () {
-    const jobId = {{ job_id | tojson }};
-    const total = {{ total }};
+    const jobId   = {{ job_id | tojson }};
+    const total   = {{ total }};
 
-    const globalBar     = document.getElementById('global-bar');
-    const globalCounter = document.getElementById('global-counter');
-    const fileListEl    = document.getElementById('file-list');
-    const statusSummary = document.getElementById('status-summary');
-    const actionArea    = document.getElementById('action-area');
-    const downloadBtn   = document.getElementById('download-btn');
+    const globalBar    = document.getElementById('global-bar');
+    const globalCtr    = document.getElementById('global-counter');
+    const globalPct    = document.getElementById('global-pct');
+    const fileListEl   = document.getElementById('file-list');
+    const statusLine   = document.getElementById('status-summary');
+    const actionArea   = document.getElementById('action-area');
+    const downloadBtn  = document.getElementById('download-btn');
 
     const ICONS = {
         queued:     '&#x23F3;',
@@ -190,94 +190,76 @@
         error:      '&#x2716;'
     };
 
-    const LABELS = {
-        queued:     'Queued',
-        processing: 'Processing',
-        done:       'Done',
-        error:      'Error'
-    };
+    const LABELS = { queued: 'Queued', processing: 'Processing', done: 'Done', error: 'Error' };
 
-    // Pre-render file rows (ordered, stable)
-    let rows = {};
+    let initialised = false;
 
     function initRows(files) {
         fileListEl.innerHTML = '';
-        rows = {};
-        files.forEach(function (f) {
+        files.forEach(f => {
             const row = document.createElement('div');
-            row.className = 'file-row';
+            row.className = 'file-row status-queued';
+            row.id = 'row-' + CSS.escape(f.name);
             row.innerHTML =
-                '<div class="file-status-icon" id="icon-' + CSS.escape(f.name) + '">' + ICONS.queued + '</div>' +
+                '<div class="file-icon" id="icon-' + CSS.escape(f.name) + '">' + ICONS.queued + '</div>' +
                 '<div class="file-name" title="' + f.name + '">' + f.name + '</div>' +
                 '<span class="file-badge badge-queued" id="badge-' + CSS.escape(f.name) + '">' + LABELS.queued + '</span>';
             fileListEl.appendChild(row);
-            rows[f.name] = row;
         });
     }
 
     function updateRow(f) {
         const icon  = document.getElementById('icon-'  + CSS.escape(f.name));
         const badge = document.getElementById('badge-' + CSS.escape(f.name));
-        if (!icon || !badge) return;
-        icon.innerHTML  = ICONS[f.status]  || ICONS.queued;
-        badge.className = 'file-badge badge-' + f.status;
+        const row   = document.getElementById('row-'   + CSS.escape(f.name));
+        if (!icon || !badge || !row) return;
+        icon.innerHTML    = ICONS[f.status] || ICONS.queued;
+        row.className     = 'file-row status-' + f.status;
+        badge.className   = 'file-badge badge-' + f.status;
         badge.textContent = f.error ? f.error : (LABELS[f.status] || f.status);
     }
 
-    let initialised = false;
-
     const evtSource = new EventSource('/job/' + jobId + '/status');
 
-    evtSource.onmessage = function (e) {
+    evtSource.onmessage = function(e) {
         let data;
-        try { data = JSON.parse(e.data); } catch (_) { return; }
+        try { data = JSON.parse(e.data); } catch(_) { return; }
 
-        if (data.error) {
-            statusSummary.textContent = 'Error: ' + data.error;
-            evtSource.close();
-            return;
-        }
+        if (data.error) { statusLine.textContent = 'Error: ' + data.error; evtSource.close(); return; }
 
         if (!initialised && data.files && data.files.length) {
             initRows(data.files);
             initialised = true;
         }
 
-        // Update progress bar
-        const pct = data.total > 0 ? Math.round((data.done + data.errors) / data.total * 100) : 0;
-        globalBar.style.width = pct + '%';
-        globalCounter.textContent = (data.done + data.errors) + ' / ' + data.total + ' files';
+        const done = (data.done || 0) + (data.errors || 0);
+        const pct  = data.total > 0 ? Math.round(done / data.total * 100) : 0;
+        globalBar.style.width   = pct + '%';
+        globalCtr.textContent   = done + ' / ' + data.total;
+        globalPct.textContent   = pct + '%';
 
-        // Update individual rows
         (data.files || []).forEach(updateRow);
 
-        // Summary line
         if (data.complete) {
             evtSource.close();
-            if (data.errors === 0) {
-                statusSummary.textContent = 'All ' + data.total + ' files processed successfully.';
-            } else if (data.done === 0) {
-                statusSummary.textContent = 'Processing failed for all files.';
-            } else {
-                statusSummary.textContent = data.done + ' file(s) done, ' + data.errors + ' error(s).';
-            }
-
-            actionArea.style.display = 'flex';
-
+            statusLine.textContent = data.errors === 0
+                ? 'All ' + data.total + ' files processed successfully.'
+                : data.done + ' file(s) done, ' + data.errors + ' error(s).';
+            actionArea.classList.add('visible');
             if (data.zip) {
                 downloadBtn.href = '/download_batch/' + encodeURIComponent(data.zip);
-                downloadBtn.style.display = 'inline-block';
+                downloadBtn.style.display = 'inline-flex';
             }
         } else {
-            const processing = (data.files || []).filter(function (f) { return f.status === 'processing'; }).length;
-            statusSummary.textContent = processing > 0
+            const processing = (data.files || []).filter(f => f.status === 'processing').length;
+            statusLine.textContent = processing > 0
                 ? processing + ' file(s) processing\u2026'
                 : 'Waiting for workers\u2026';
         }
     };
 
-    evtSource.onerror = function () {
-        statusSummary.textContent = 'Connection lost. Retrying\u2026';
+    evtSource.onerror = function() {
+        statusLine.textContent = 'Connection lost. Retrying\u2026';
     };
 })();
 </script>

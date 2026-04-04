@@ -1,110 +1,114 @@
 {% extends "base.html" %}
+
 {% block head %}
 <style>
-    body {
-        justify-content: center;
-        align-items: center;
+    .result-card {
+        max-width: 480px;
+        padding: var(--sp-xl);
+        text-align: center;
     }
-    .container {
-        max-width: 640px;
-        background-color: var(--clr-surface-a10);
-        border-radius: 12px;
-        padding: var(--spacing-large);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+
+    .result-icon {
+        font-size: 2.5rem;
+        line-height: 1;
+        margin-bottom: var(--sp-lg);
+    }
+
+    .result-icon.ok  { filter: drop-shadow(0 0 16px rgba(34, 197, 94, 0.4)); }
+    .result-icon.err { filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.4)); }
+
+    .result-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: var(--sp-sm);
+    }
+
+    .result-messages {
+        margin: var(--sp-md) 0;
+    }
+
+    .result-message {
+        font-size: 0.84rem;
+        color: var(--text-secondary);
+        padding: var(--sp-sm);
+        background: var(--surface-raised);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--sp-sm);
+        border: 1px solid var(--surface-border);
+    }
+
+    .result-divider {
+        height: 1px;
+        background: var(--surface-line);
+        margin: var(--sp-xl) 0;
+    }
+
+    .action-row {
+        display: flex;
+        gap: var(--sp-md);
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .action-row .btn {
+        min-width: 140px;
     }
 </style>
 {% endblock %}
-{% block content %}
-<div class="container">
-    <div class="result-container {% if success %}success{% else %}error{% endif %}">
-        <h1>{{ title }}</h1>
-        
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="message">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
 
-        {% if success %}
-            <div class="success-actions">
-                {% if batch %}
-                    <a href="{{ url_for('download_batch', filename=filename) }}" class="btn-primary">Download ZIP</a>
-                {% else %}
-                    <a href="{{ url_for('download', filename=filename) }}" class="btn-primary">Download File</a>
-                {% endif %}
-                <a href="{{ url_for('index') }}" class="btn-secondary">Process Another Image</a>
-            </div>
-        {% else %}
-            <div class="error-actions">
-                {% if return_url %}
-                    <a href="{{ return_url }}" class="btn-primary">Try Again</a>
-                {% endif %}
-                <a href="{{ url_for('index') }}" class="btn-secondary">Start Over</a>
-            </div>
+{% block body %}
+<div class="page-center">
+<div class="card result-card">
+
+    {% if success %}
+    <div class="result-icon ok">&#x2714;&#xfe0f;</div>
+    <div class="result-title">{{ title }}</div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="result-messages">
+            {% for message in messages %}
+            <div class="result-message">{{ message }}</div>
+            {% endfor %}
+        </div>
         {% endif %}
+    {% endwith %}
+
+    <div class="result-divider"></div>
+
+    <div class="action-row">
+        {% if batch %}
+        <a href="{{ url_for('download_batch', filename=filename) }}" class="btn btn-primary">Download ZIP</a>
+        {% else %}
+        <a href="{{ url_for('download', filename=filename) }}" class="btn btn-primary">Download file</a>
+        {% endif %}
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">New upload</a>
     </div>
+
+    {% else %}
+    <div class="result-icon err">&#x274c;</div>
+    <div class="result-title">{{ title }}</div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="result-messages">
+            {% for message in messages %}
+            <div class="result-message">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="result-divider"></div>
+
+    <div class="action-row">
+        {% if return_url %}
+        <a href="{{ return_url }}" class="btn btn-primary">Try again</a>
+        {% endif %}
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Start over</a>
+    </div>
+    {% endif %}
+
 </div>
-
-<style>
-    .result-container {
-        text-align: center;
-        padding: 2rem;
-        border-radius: 8px;
-        margin: 2rem auto;
-        max-width: 600px;
-    }
-
-    .success {
-        background-color: rgba(40, 167, 69, 0.1);
-        border: 1px solid #28a745;
-    }
-
-    .error {
-        background-color: rgba(220, 53, 69, 0.1);
-        border: 1px solid #dc3545;
-    }
-
-    .messages {
-        margin: 1rem 0;
-    }
-
-    .message {
-        padding: 0.5rem;
-        margin: 0.5rem 0;
-        border-radius: 4px;
-    }
-
-    .success-actions, .error-actions {
-        margin-top: 2rem;
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-    }
-
-    .btn-primary, .btn-secondary {
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-
-    .btn-primary {
-        background-color: var(--clr-primary-a0);
-        color: white;
-    }
-
-    .btn-secondary {
-        background-color: var(--clr-surface-a20);
-        color: white;
-    }
-
-    .btn-primary:hover, .btn-secondary:hover {
-        opacity: 0.9;
-        transform: translateY(-1px);
-    }
-</style>
+</div>
 {% endblock %}

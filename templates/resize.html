@@ -1,399 +1,306 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImaGUIck</title>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='media/imaguick-favicon.ico') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --clr-primary-a0: #808080;
-            --clr-primary-a10: #8d8d8d;
-            --clr-primary-a20: #9b9b9b;
-            --clr-primary-a30: #a9a9a9;
-            --clr-primary-a40: #b6b6b6;
-            --clr-primary-a50: #ffffff;
+{% extends "base.html" %}
 
-            --clr-surface-a0: #121212;
-            --clr-surface-a10: #282828;
-            --clr-surface-a20: #3f3f3f;
-            --clr-surface-a30: #575757;
+{% block head %}
+<style>
+    .resize-card {
+        max-width: 860px;
+        padding: var(--sp-xl);
+    }
 
-            --spacing-xs: 5px;
-            --spacing-small: 10px;
-            --spacing-medium: 20px;
-            --spacing-large: 40px;
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-md);
+        margin-bottom: var(--sp-xl);
+        padding-bottom: var(--sp-lg);
+        border-bottom: 1px solid var(--surface-line);
+    }
 
-            --border-radius-sm: 4px;
-            --border-radius-md: 8px;
-            --border-radius-lg: 12px;
-            --transition-speed: 0.2s;
-            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
+    .page-header a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-md);
+        background: var(--surface-raised);
+        border: 1px solid var(--surface-border);
+        color: var(--text-muted);
+        font-size: 1rem;
+        transition: color var(--ease), background var(--ease);
+        flex-shrink: 0;
+    }
 
-        * { box-sizing: border-box; }
+    .page-header a:hover { color: var(--text-primary); background: var(--surface-hover); }
 
-        body {
-            font-family: 'Poppins', Arial, sans-serif;
-            margin: 0;
-            padding: var(--spacing-medium);
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            background-color: var(--clr-surface-a0);
-            color: var(--clr-primary-a50);
-        }
+    .page-title { flex: 1; }
+    .page-title h1 { font-size: 1.1rem; margin-bottom: 2px; }
+    .page-title small { font-family: 'DM Mono', monospace; }
 
-        .container {
-            width: 100%;
-            max-width: 960px;
-            background-color: var(--clr-surface-a10);
-            padding: var(--spacing-medium);
-            border-radius: var(--border-radius-lg);
-            box-shadow: var(--box-shadow);
-        }
+    /* Two-column layout */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: var(--sp-xl);
+    }
 
-        .file-info-text {
-            text-align: center;
-            margin-bottom: var(--spacing-medium);
-        }
-
-        /* Two-column grid on desktop */
+    @media (min-width: 640px) {
         .form-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0;
+            grid-template-columns: 1fr 1fr;
         }
+        .col-full { grid-column: 1 / -1; }
+    }
 
-        @media (min-width: 768px) {
-            .container { padding: var(--spacing-large); }
+    /* Section block */
+    .section-block {
+        background: var(--surface-raised);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-lg);
+        padding: var(--sp-lg);
+    }
 
-            .form-grid {
-                grid-template-columns: 1fr 1fr;
-                gap: var(--spacing-large);
-                align-items: start;
-            }
+    /* Dimension row */
+    .dim-row {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: var(--sp-sm);
+        align-items: end;
+        margin-bottom: var(--sp-sm);
+    }
 
-            .col-left  { grid-column: 1; }
-            .col-right { grid-column: 2; grid-row: 1 / span 2; }
-        }
+    .dim-sep {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 38px;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        padding-bottom: 0;
+    }
 
-        form fieldset {
-            margin-bottom: var(--spacing-large);
-            border: none;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-        }
+    /* Checkbox pills row */
+    .check-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-sm);
+        margin-top: var(--sp-sm);
+    }
 
-        legend {
-            font-weight: bold;
-            color: var(--clr-primary-a40);
-            margin-bottom: var(--spacing-medium);
-            width: 100%;
-            font-size: 1.1rem;
-            padding-bottom: 8px;
-            border-bottom: 0.5px solid var(--clr-surface-a20);
-        }
+    .check-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-xs);
+        padding: 4px 10px;
+        background: var(--surface-hover);
+        border: 1px solid var(--surface-border);
+        border-radius: 20px;
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        user-select: none;
+        transition: border-color var(--ease), background var(--ease), color var(--ease);
+    }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            margin-bottom: var(--spacing-medium);
-        }
+    .check-pill:has(input:checked) {
+        background: var(--accent-subtle);
+        border-color: var(--accent);
+        color: var(--accent-bright);
+    }
 
-        .form-group-horizontal {
-            display: flex;
-            gap: var(--spacing-medium);
-            margin-bottom: var(--spacing-medium);
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-        }
+    .check-pill input[type="checkbox"] {
+        width: 12px;
+        height: 12px;
+    }
 
-        .form-group-horizontal label {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-xs);
-        }
+    /* Options group — toggle row */
+    .toggle-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-md);
+        padding: var(--sp-sm) 0;
+    }
 
-        label {
-            margin-bottom: 4px;
-            font-size: 0.85rem;
-        }
+    /* Format info */
+    .format-note {
+        margin-top: var(--sp-sm);
+        padding: var(--sp-sm) var(--sp-md);
+        background: var(--surface-bg);
+        border: 1px solid var(--surface-line);
+        border-radius: var(--radius-md);
+        font-size: 0.78rem;
+        color: var(--text-muted);
+    }
 
-        small {
-            margin-top: 4px;
-            font-size: 0.75rem;
-            color: var(--clr-primary-a40);
-        }
+    /* Submit area */
+    .submit-area {
+        margin-top: var(--sp-xl);
+    }
 
-        input[type="text"],
-        select {
-            width: 100%;
-            height: 36px;
-            padding: 0 var(--spacing-small);
-            margin-top: 4px;
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: var(--border-radius-md);
-            background-color: var(--clr-surface-a20);
-            color: var(--clr-primary-a50);
-            font-family: inherit;
-            font-size: 0.9rem;
-            transition: border-color var(--transition-speed) ease,
-                        box-shadow var(--transition-speed) ease;
-        }
+    @media (max-width: 639px) {
+        .resize-card { padding: var(--sp-lg) var(--sp-md); }
+    }
+</style>
+{% endblock %}
 
-        input[type="text"]:focus,
-        select:focus {
-            outline: none;
-            border-color: var(--clr-primary-a40);
-            box-shadow: 0 0 0 2px rgba(169,169,169,0.25);
-        }
+{% block body %}
+<div class="page-top">
+<div class="card resize-card">
 
-        select {
-            padding-right: var(--spacing-large);
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right var(--spacing-small) center;
-            background-size: 16px;
-        }
-
-        button[type="submit"] {
-            display: block;
-            width: 100%;
-            height: 44px;
-            margin-top: var(--spacing-medium);
-            border: none;
-            border-radius: var(--border-radius-md);
-            background-color: var(--clr-primary-a30);
-            color: var(--clr-surface-a0);
-            font-family: inherit;
-            font-size: 1rem;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: background-color var(--transition-speed) ease,
-                        transform var(--transition-speed) ease;
-        }
-
-        button[type="submit"]:hover {
-            background-color: var(--clr-primary-a20);
-            transform: translateY(-1px);
-        }
-
-        .label-with-select {
-            font-size: 0.85rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .compact-select {
-            height: 20px;
-            padding: 0 18px 0 4px;
-            background-color: var(--clr-surface-a20);
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: var(--border-radius-sm);
-            color: var(--clr-primary-a50);
-            font-size: 0.78rem;
-            cursor: pointer;
-            position: relative;
-            top: -2px;
-            width: auto;
-            min-width: 0;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 2px center;
-            background-size: 10px;
-        }
-
-        .tooltip {
-            position: relative;
-            display: inline-block;
-            cursor: help;
-        }
-
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 180px;
-            background-color: #333;
-            color: #fff;
-            font-size: 0.78rem;
-            text-align: left;
-            padding: 6px 8px;
-            border-radius: 6px;
-            position: absolute;
-            z-index: 10;
-            bottom: 130%;
-            left: 50%;
-            transform: translateX(-50%);
-            opacity: 0;
-            transition: opacity 0.2s;
-            pointer-events: none;
-        }
-
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        .format-info {
-            margin-top: var(--spacing-small);
-            padding: var(--spacing-small);
-            background-color: var(--clr-surface-a20);
-            border-radius: var(--border-radius-md);
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="file-info-text">
-            <small>Current file: {{ filename }}</small>
+    <div class="page-header">
+        <a href="{{ url_for('index') }}" title="Back">&#8592;</a>
+        <div class="page-title">
+            <h1>Resize options</h1>
+            <small>{{ filename }}</small>
         </div>
-        <form action="/resize/{{ filename }}" method="post">
-            <div class="form-grid">
-            <fieldset class="col-left">
-                <legend>Resize by Pixels</legend>
-                <div class="form-group">
-                    <label for="width">Width:</label>
-                    <input type="text" name="width" id="width" placeholder="Enter width" data-original-width="{{ width }}" data-original-height="{{ height }}">
-                </div>
-                <div class="form-group">
-                    <label for="height">Height:</label>
-                    <input type="text" name="height" id="height" placeholder="Enter height" data-original-width="{{ width }}" data-original-height="{{ height }}">
-                </div>
-                <div class="form-group-horizontal">
-                    <label>
-                        <input type="checkbox" name="keep_ratio" id="keep_ratio"> Keep Aspect Ratio
-                    </label>
-                    <label>
-                        <input type="checkbox" name="use_1080p" id="use_1080p"> 1080p
-                        <span class="tooltip" title="Resize image to max 1080 pixels on longest edge. Ideal for social media.">?</span>
-                    </label>
-                    <label>
-                        <input type="checkbox" name="use_1920p" id="use_1920p"> 1920p
-                        <span class="tooltip" title="Resize image to max 1920 pixels on longest edge. Ideal for websites.">?</span>
-                    </label>
-                </div>
-                <small>Original dimensions: {{ width }} x {{ height }} pixels</small>
-            </fieldset>
+        <small>{{ width }} &times; {{ height }}px</small>
+    </div>
 
-            <fieldset class="col-left">
-                <legend>Resize by Percentage</legend>
-                <div class="form-group">
-                    <label for="percentage">Percentage:</label>
-                    <input type="text" name="percentage" id="percentage" placeholder="Enter percentage (1-100)">
-                </div>
-            </fieldset>
+    <form action="/resize/{{ filename }}" method="post">
+        <div class="form-grid">
 
-            <fieldset class="col-right">
-                <legend>Additional Options</legend>
-                <div class="form-group">
-                    <label for="quality">Quality (1-100):</label>
-                    <input type="text" name="quality" id="quality" value="100">
-                </div>
+            <!-- Resize by pixels -->
+            <div class="section-block">
+                <div class="section-title">By pixels</div>
 
-                <div class="form-group-horizontal">
-                    <div style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: nowrap;">
-                        <label>
-                            <input type="checkbox" name="auto_level" id="auto_level">
-                            Auto-Level
-                            <span class="tooltip" title="Optimizes image levels for better dynamic range and contrast">?</span>
-                        </label>
-                        <label>
-                            <input type="checkbox" name="auto_gamma" id="auto_gamma">
-                            Auto-Gamma
-                            <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
-                        </label>
-                        <div class="label-with-select">
-                            <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen for: screen
-                            <span class="tooltip" title="Optimize sharpness for screen display">?</span>
-                            <select name="sharpen_level" id="sharpen_level" class="compact-select">
-                                <option value="low">Low</option>
-                                <option value="standard" selected>Standard</option>
-                                <option value="high">High</option>
-                            </select>
-                        </div>
+                <div class="dim-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label for="width">Width</label>
+                        <input type="text" name="width" id="width"
+                               placeholder="{{ width }}"
+                               data-original-width="{{ width }}"
+                               data-original-height="{{ height }}">
+                    </div>
+                    <div class="dim-sep">×</div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label for="height">Height</label>
+                        <input type="text" name="height" id="height"
+                               placeholder="{{ height }}"
+                               data-original-width="{{ width }}"
+                               data-original-height="{{ height }}">
                     </div>
                 </div>
 
+                <div class="check-pills">
+                    <label class="check-pill">
+                        <input type="checkbox" name="keep_ratio" id="keep_ratio"> Keep ratio
+                    </label>
+                    <label class="check-pill">
+                        <input type="checkbox" name="use_1080p" id="use_1080p"> 1080p
+                        <span class="tip" data-tip="Resize to max 1080px on longest edge. Good for social media.">?</span>
+                    </label>
+                    <label class="check-pill">
+                        <input type="checkbox" name="use_1920p" id="use_1920p"> 1920p
+                        <span class="tip" data-tip="Resize to max 1920px on longest edge. Good for web.">?</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Resize by percentage -->
+            <div class="section-block">
+                <div class="section-title">By percentage</div>
                 <div class="form-group">
-                    <label for="format">Output Format:</label>
-                    <select name="format" id="format">
-                        <option value="">Keep Original Format</option>
-                        {% for category, info in formats.items() %}
-                            {% if info.formats %}
-                            <optgroup label="{{ info.name }}">
-                                {% for format in info.formats %}
-                                <option value="{{ format }}">{{ format }}</option>
-                                {% endfor %}
-                            </optgroup>
-                            {% endif %}
-                        {% endfor %}
+                    <label for="percentage">Scale (%)</label>
+                    <input type="text" name="percentage" id="percentage" placeholder="e.g. 50">
+                </div>
+                <small>Original: {{ width }} &times; {{ height }} pixels</small>
+            </div>
+
+            <!-- Additional options -->
+            <div class="section-block col-full">
+                <div class="section-title">Additional options</div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-lg);">
+                    <div class="form-group">
+                        <label for="quality">Quality (1&ndash;100)</label>
+                        <input type="text" name="quality" id="quality" value="{{ defaults.quality if defaults else '100' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="format">Output format</label>
+                        <select name="format" id="format">
+                            <option value="">Keep original format</option>
+                            {% for category, info in formats.items() %}
+                                {% if info.formats %}
+                                <optgroup label="{{ info.name }}">
+                                    {% for format in info.formats %}
+                                    <option value="{{ format }}">{{ format }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="check-pills">
+                    <label class="check-pill">
+                        <input type="checkbox" name="auto_level" id="auto_level"> Auto-Level
+                        <span class="tip" data-tip="Optimizes image levels for better dynamic range and contrast.">?</span>
+                    </label>
+                    <label class="check-pill">
+                        <input type="checkbox" name="auto_gamma" id="auto_gamma"> Auto-Gamma
+                        <span class="tip" data-tip="Intelligent gamma correction for balanced exposure.">?</span>
+                    </label>
+                    <label class="check-pill" id="sharpen-pill">
+                        <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen
+                        <span class="tip" data-tip="Apply screen-optimized sharpening after resize.">?</span>
+                    </label>
+                </div>
+
+                <div id="sharpen-level-row" style="display:none; margin-top: var(--sp-sm);">
+                    <label for="sharpen_level" style="margin-bottom: var(--sp-xs);">Sharpen intensity</label>
+                    <select name="sharpen_level" id="sharpen_level" style="max-width: 200px;">
+                        <option value="low">Low</option>
+                        <option value="standard" selected>Standard</option>
+                        <option value="high">High</option>
                     </select>
                 </div>
+
                 {% if image_type %}
-                    <div class="format-info">
-                        <small>
-                            {% if image_type.has_transparency %}
-                                This image contains transparency.
-                            {% endif %}
-                            {% if image_type.is_photo %}
-                                This appears to be a photographic image.
-                            {% else %}
-                                This appears to be a graphic image.
-                            {% endif %}
-                        </small>
-                    </div>
+                <div class="format-note">
+                    {% if image_type.has_transparency %}Contains transparency. &nbsp;{% endif %}
+                    {% if image_type.is_photo %}Photographic image detected.{% else %}Graphic image detected.{% endif %}
+                </div>
                 {% endif %}
-            </fieldset>
-            </div><!-- /.form-grid -->
+            </div>
 
-            <button type="submit">Resize</button>
-        </form>
-    </div>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const widthInput = document.getElementById('width');
-            const heightInput = document.getElementById('height');
-            const keepRatioCheckbox = document.getElementById('keep_ratio');
+        </div>
 
-            function syncDimensions(changedInput, otherInput, originalWidth, originalHeight) {
-                if (!keepRatioCheckbox.checked) return;
+        <div class="submit-area">
+            <button type="submit" class="btn btn-primary btn-full">Resize</button>
+        </div>
+    </form>
 
-                const value = parseInt(changedInput.value, 10);
-                if (!isNaN(value)) {
-                    const ratio = (changedInput.id === 'width')
-                        ? originalHeight / originalWidth
-                        : originalWidth / originalHeight;
-                    otherInput.value = Math.round(value * ratio);
-                }
-            }
+</div>
+</div>
 
-            [widthInput, heightInput].forEach(input => {
-                input.addEventListener('input', () => {
-                    const originalWidth = parseInt(widthInput.dataset.originalWidth, 10);
-                    const originalHeight = parseInt(heightInput.dataset.originalHeight, 10);
-                    syncDimensions(input, input === widthInput ? heightInput : widthInput, originalWidth, originalHeight);
-                });
-            });
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const widthInput  = document.getElementById('width');
+    const heightInput = document.getElementById('height');
+    const keepRatio   = document.getElementById('keep_ratio');
+    const sharpenBox  = document.getElementById('use_sharpen');
+    const sharpenRow  = document.getElementById('sharpen-level-row');
 
-            keepRatioCheckbox.addEventListener('change', () => {
-                if (!keepRatioCheckbox.checked) {
-                    widthInput.value = '';
-                    heightInput.value = '';
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+    function syncDimensions(changed, other) {
+        if (!keepRatio.checked) return;
+        const val = parseInt(changed.value, 10);
+        if (isNaN(val)) return;
+        const ow = parseInt(widthInput.dataset.originalWidth, 10);
+        const oh = parseInt(heightInput.dataset.originalHeight, 10);
+        const ratio = (changed.id === 'width') ? oh / ow : ow / oh;
+        other.value = Math.round(val * ratio);
+    }
+
+    widthInput.addEventListener('input',  () => syncDimensions(widthInput, heightInput));
+    heightInput.addEventListener('input', () => syncDimensions(heightInput, widthInput));
+
+    keepRatio.addEventListener('change', () => {
+        if (!keepRatio.checked) { widthInput.value = ''; heightInput.value = ''; }
+    });
+
+    sharpenBox.addEventListener('change', () => {
+        sharpenRow.style.display = sharpenBox.checked ? 'block' : 'none';
+    });
+});
+</script>
+{% endblock %}

@@ -1,445 +1,352 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImaGUIck</title>
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='media/imaguick-favicon.ico') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --clr-primary-a0: #808080;
-            --clr-primary-a10: #8d8d8d;
-            --clr-primary-a20: #9b9b9b;
-            --clr-primary-a30: #a9a9a9;
-            --clr-primary-a40: #b6b6b6;
-            --clr-primary-a50: #ffffff;
+{% extends "base.html" %}
 
-            --clr-surface-a0: #121212;
-            --clr-surface-a10: #282828;
-            --clr-surface-a20: #3f3f3f;
-            --clr-surface-a30: #575757;
+{% block head %}
+<style>
+    .resize-card {
+        max-width: 860px;
+        padding: var(--sp-xl);
+    }
 
-            --spacing-xs: 5px;
-            --spacing-small: 10px;
-            --spacing-medium: 20px;
-            --spacing-large: 40px;
+    .page-header {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-md);
+        margin-bottom: var(--sp-xl);
+        padding-bottom: var(--sp-lg);
+        border-bottom: 1px solid var(--surface-line);
+    }
 
-            --border-radius-sm: 4px;
-            --border-radius-md: 8px;
-            --border-radius-lg: 12px;
-            --transition-speed: 0.2s;
-            --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
+    .page-header a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-md);
+        background: var(--surface-raised);
+        border: 1px solid var(--surface-border);
+        color: var(--text-muted);
+        font-size: 1rem;
+        transition: color var(--ease), background var(--ease);
+        flex-shrink: 0;
+    }
 
-        * { box-sizing: border-box; }
+    .page-header a:hover { color: var(--text-primary); background: var(--surface-hover); }
 
-        body {
-            font-family: 'Poppins', Arial, sans-serif;
-            margin: 0;
-            padding: var(--spacing-medium);
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            background-color: var(--clr-surface-a0);
-            color: var(--clr-primary-a50);
-        }
+    .page-title { flex: 1; }
+    .page-title h1 { font-size: 1.1rem; margin-bottom: 2px; }
 
-        .container {
-            width: 100%;
-            max-width: 960px;
-            background-color: var(--clr-surface-a10);
-            padding: var(--spacing-medium);
-            border-radius: var(--border-radius-lg);
-            box-shadow: var(--box-shadow);
-        }
+    /* Badge */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        background: var(--accent-subtle);
+        border: 1px solid var(--accent-glow);
+        border-radius: 20px;
+        font-size: 0.75rem;
+        color: var(--accent-bright);
+        font-weight: 600;
+        font-family: 'DM Mono', monospace;
+    }
 
-        .title-large {
-            font-size: 1.6rem;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: var(--spacing-medium);
-        }
+    /* Two-column layout */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: var(--sp-xl);
+    }
 
-        /* Two-column grid on desktop */
+    @media (min-width: 640px) {
         .form-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0;
+            grid-template-columns: 1fr 1fr;
         }
+        .col-full { grid-column: 1 / -1; }
+    }
 
-        @media (min-width: 768px) {
-            .container { padding: var(--spacing-large); }
-            .title-large { font-size: 2rem; }
+    /* Section block */
+    .section-block {
+        background: var(--surface-raised);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-lg);
+        padding: var(--sp-lg);
+    }
 
-            .form-grid {
-                grid-template-columns: 1fr 1fr;
-                gap: var(--spacing-large);
-                align-items: start;
-            }
+    /* Dimension row */
+    .dim-row {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: var(--sp-sm);
+        align-items: end;
+        margin-bottom: var(--sp-sm);
+    }
 
-            .col-left  { grid-column: 1; }
-            .col-right { grid-column: 2; grid-row: 1 / span 2; }
-        }
+    .dim-sep {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 38px;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+    }
 
-        form fieldset {
-            margin-bottom: var(--spacing-large);
-            border: none;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-        }
+    /* Checkbox pills */
+    .check-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-sm);
+        margin-top: var(--sp-sm);
+    }
 
-        legend {
-            font-weight: bold;
-            color: var(--clr-primary-a40);
-            margin-bottom: var(--spacing-medium);
-            width: 100%;
-            font-size: 1.1rem;
-            padding-bottom: 8px;
-            border-bottom: 0.5px solid var(--clr-surface-a20);
-        }
+    .check-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-xs);
+        padding: 4px 10px;
+        background: var(--surface-hover);
+        border: 1px solid var(--surface-border);
+        border-radius: 20px;
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        user-select: none;
+        transition: border-color var(--ease), background var(--ease), color var(--ease);
+    }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            margin-bottom: var(--spacing-medium);
-        }
+    .check-pill:has(input:checked) {
+        background: var(--accent-subtle);
+        border-color: var(--accent);
+        color: var(--accent-bright);
+    }
 
-        .form-group-horizontal {
-            display: flex;
-            gap: var(--spacing-medium);
-            margin-bottom: var(--spacing-medium);
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-        }
+    .check-pill input[type="checkbox"] {
+        width: 12px;
+        height: 12px;
+    }
 
-        .form-group-horizontal label {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-xs);
-        }
+    /* Batch info panel */
+    .batch-info-panel {
+        background: var(--surface-bg);
+        border: 1px solid var(--surface-line);
+        border-radius: var(--radius-md);
+        padding: var(--sp-md);
+        margin-top: var(--sp-md);
+    }
 
-        label {
-            margin-bottom: 4px;
-            font-size: 0.85rem;
-        }
+    .batch-info-panel .section-title {
+        margin-bottom: var(--sp-sm);
+    }
 
-        small {
-            margin-top: 4px;
-            font-size: 0.75rem;
-            color: var(--clr-primary-a40);
-        }
+    .batch-info-panel ul {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
 
-        input[type="text"],
-        select {
-            width: 100%;
-            height: 36px;
-            padding: 0 var(--spacing-small);
-            margin-top: 4px;
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: var(--border-radius-md);
-            background-color: var(--clr-surface-a20);
-            color: var(--clr-primary-a50);
-            font-family: inherit;
-            font-size: 0.9rem;
-            transition: border-color var(--transition-speed) ease,
-                        box-shadow var(--transition-speed) ease;
-        }
+    .batch-info-panel li {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: baseline;
+        gap: var(--sp-sm);
+    }
 
-        input[type="text"]:focus,
-        select:focus {
-            outline: none;
-            border-color: var(--clr-primary-a40);
-            box-shadow: 0 0 0 2px rgba(169,169,169,0.25);
-        }
+    .batch-info-panel li::before {
+        content: '·';
+        color: var(--accent);
+        font-weight: 700;
+        flex-shrink: 0;
+    }
 
-        select {
-            padding-right: var(--spacing-large);
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right var(--spacing-small) center;
-            background-size: 16px;
-        }
+    .img-detail {
+        font-family: 'DM Mono', monospace;
+        font-size: 0.72rem;
+        color: var(--text-muted);
+    }
 
-        button[type="submit"] {
-            display: block;
-            width: 100%;
-            height: 44px;
-            margin-top: var(--spacing-medium);
-            border: none;
-            border-radius: var(--border-radius-md);
-            background-color: var(--clr-primary-a30);
-            color: var(--clr-surface-a0);
-            font-family: inherit;
-            font-size: 1rem;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: background-color var(--transition-speed) ease,
-                        transform var(--transition-speed) ease;
-        }
+    /* Format note */
+    .format-note {
+        margin-top: var(--sp-sm);
+        padding: var(--sp-sm) var(--sp-md);
+        background: var(--surface-bg);
+        border: 1px solid var(--surface-line);
+        border-radius: var(--radius-md);
+        font-size: 0.78rem;
+        color: var(--text-muted);
+    }
 
-        button[type="submit"]:hover {
-            background-color: var(--clr-primary-a20);
-            transform: translateY(-1px);
-        }
+    /* Submit */
+    .submit-area { margin-top: var(--sp-xl); }
 
-        .label-with-select {
-            font-size: 0.85rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
+    @media (max-width: 639px) {
+        .resize-card { padding: var(--sp-lg) var(--sp-md); }
+    }
+</style>
+{% endblock %}
 
-        .compact-select {
-            height: 20px;
-            padding: 0 18px 0 4px;
-            background-color: var(--clr-surface-a20);
-            border: 1px solid var(--clr-surface-a30);
-            border-radius: var(--border-radius-sm);
-            color: var(--clr-primary-a50);
-            font-size: 0.78rem;
-            cursor: pointer;
-            position: relative;
-            top: -2px;
-            width: auto;
-            min-width: 0;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a9a9a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 2px center;
-            background-size: 10px;
-        }
+{% block body %}
+<div class="page-top">
+<div class="card resize-card">
 
-        .batch-info {
-            background-color: var(--clr-surface-a0);
-            border: 1px solid var(--clr-surface-a20);
-            border-radius: var(--border-radius-md);
-            padding: var(--spacing-small);
-            margin-top: var(--spacing-small);
-            font-size: 0.85rem;
-            width: 100%;
-            text-align: left;
-        }
+    <div class="page-header">
+        <a href="{{ url_for('index') }}" title="Back">&#8592;</a>
+        <div class="page-title">
+            <h1>Batch resize</h1>
+            <small>Options applied to all selected images</small>
+        </div>
+        <span class="badge">{{ files | length }} files</span>
+    </div>
 
-        .info-section { margin-bottom: var(--spacing-small); }
-        .info-section:last-child { margin-bottom: 0; }
+    <form action="/resize_batch" method="post">
+        <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
 
-        .info-title {
-            display: block;
-            color: var(--clr-primary-a40);
-            margin-bottom: 4px;
-            font-weight: 500;
-        }
+        <div class="form-grid">
 
-        .batch-info ul {
-            margin: 4px 0 0 0;
-            padding-left: 16px;
-            list-style-type: none;
-        }
+            <!-- Resize by pixels -->
+            <div class="section-block">
+                <div class="section-title">By pixels</div>
 
-        .batch-info li {
-            margin: 2px 0;
-            color: var(--clr-primary-a30);
-            font-size: 0.82rem;
-            line-height: 1.4;
-        }
-
-        .batch-info li::before {
-            content: "•";
-            color: var(--clr-primary-a20);
-            margin-right: 6px;
-        }
-
-        .tooltip {
-            position: relative;
-            display: inline-block;
-            cursor: help;
-        }
-
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 180px;
-            background-color: #333;
-            color: #fff;
-            font-size: 0.78rem;
-            text-align: left;
-            padding: 6px 8px;
-            border-radius: 6px;
-            position: absolute;
-            z-index: 10;
-            bottom: 130%;
-            left: 50%;
-            transform: translateX(-50%);
-            opacity: 0;
-            transition: opacity 0.2s;
-            pointer-events: none;
-        }
-
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1 class="title-large">Batch Resize</h1>
-        <form action="/resize_batch" method="post">
-            <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
-            <div class="form-grid">
-            <fieldset class="col-left">
-                <legend>Resize Options</legend>
-                <div class="form-group">
-                    <label for="batch_width">Width:</label>
-                    <input type="text" name="width" id="batch_width" placeholder="Enter width">
+                <div class="dim-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label for="batch_width">Width</label>
+                        <input type="text" name="width" id="batch_width" placeholder="px">
+                    </div>
+                    <div class="dim-sep">×</div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label for="batch_height">Height</label>
+                        <input type="text" name="height" id="batch_height" placeholder="px">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="batch_height">Height:</label>
-                    <input type="text" name="height" id="batch_height" placeholder="Enter height">
-                </div>
-                <div class="form-group-horizontal">
-                    <label>
-                        <input type="checkbox" name="keep_ratio" id="batch_keep_ratio"> Keep Aspect Ratio
+
+                <div class="check-pills">
+                    <label class="check-pill">
+                        <input type="checkbox" name="keep_ratio" id="batch_keep_ratio"> Keep ratio
                     </label>
-                    <label>
+                    <label class="check-pill">
                         <input type="checkbox" name="use_1080p" id="batch_use_1080p"> 1080p
-                        <span class="tooltip" title="Resize image to max 1080 pixels on longest edge. Ideal for social media.">?</span>
+                        <span class="tip" data-tip="Resize to max 1080px on longest edge. Good for social media.">?</span>
                     </label>
-                    <label>
+                    <label class="check-pill">
                         <input type="checkbox" name="use_1920p" id="batch_use_1920p"> 1920p
-                        <span class="tooltip" title="Resize image to max 1920 pixels on longest edge. Ideal for websites.">?</span>
+                        <span class="tip" data-tip="Resize to max 1920px on longest edge. Good for web.">?</span>
                     </label>
                 </div>
+            </div>
 
-            </fieldset>
-
-            <fieldset class="col-left">
-                <legend>Resize by Percentage</legend>
+            <!-- Resize by percentage -->
+            <div class="section-block">
+                <div class="section-title">By percentage</div>
                 <div class="form-group">
-                    <label for="batch_percentage">Percentage:</label>
-                    <input type="text" name="percentage" id="batch_percentage" placeholder="Enter percentage (1-100)">
+                    <label for="batch_percentage">Scale (%)</label>
+                    <input type="text" name="percentage" id="batch_percentage" placeholder="e.g. 50">
                 </div>
-            </fieldset>
+                <small>Applies to each image individually</small>
+            </div>
 
-            <fieldset class="col-right">
-                <legend>Additional Options</legend>
-                <div class="form-group">
-                    <label for="quality">Quality (1-100):</label>
-                    <input type="text" name="quality" id="quality" value="100">
-                </div>
+            <!-- Additional options -->
+            <div class="section-block col-full">
+                <div class="section-title">Additional options</div>
 
-                <div class="form-group-horizontal">
-                    <label>
-                        <input type="checkbox" name="auto_level" id="auto_level">
-                        Auto-Level
-                        <span class="tooltip" title="Optimizes image levels for better dynamic range and contrast">?</span>
-                    </label>
-
-                    <label>
-                        <input type="checkbox" name="auto_gamma" id="auto_gamma">
-                        Auto-Gamma
-                        <span class="tooltip" title="Intelligent gamma correction for balanced exposure in shadows and highlights">?</span>
-                    </label>
-
-                    <div class="label-with-select">
-                        <input type="checkbox" name="use_sharpen" id="batch_use_sharpen"> Sharpen for: screen
-                        <span class="tooltip" title="Optimize sharpness for screen display">?</span>
-                        <select name="sharpen_level" id="batch_sharpen_level" class="compact-select">
-                            <option value="low">Low</option>
-                            <option value="standard" selected>Standard</option>
-                            <option value="high">High</option>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-lg);">
+                    <div class="form-group">
+                        <label for="quality">Quality (1&ndash;100)</label>
+                        <input type="text" name="quality" id="quality" value="{{ defaults.quality if defaults else '100' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="format">Convert all to format</label>
+                        <select name="format" id="format">
+                            <option value="">Keep original formats</option>
+                            {% for category, info in formats.items() %}
+                                {% if info.formats %}
+                                <optgroup label="{{ info.name }}">
+                                    {% for format in info.formats %}
+                                    <option value="{{ format }}">{{ format }}</option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endif %}
+                            {% endfor %}
                         </select>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="format">Convert all to format:</label>
-                    <select name="format" id="format">
-                        <option value="">Keep Original Formats</option>
-                        {% for category, info in formats.items() %}
-                            {% if info.formats %}
-                            <optgroup label="{{ info.name }}">
-                                {% for format in info.formats %}
-                                <option value="{{ format }}">{{ format }}</option>
-                                {% endfor %}
-                            </optgroup>
-                            {% endif %}
-                        {% endfor %}
+                <div class="check-pills">
+                    <label class="check-pill">
+                        <input type="checkbox" name="auto_level" id="auto_level"> Auto-Level
+                        <span class="tip" data-tip="Optimizes image levels for better dynamic range and contrast.">?</span>
+                    </label>
+                    <label class="check-pill">
+                        <input type="checkbox" name="auto_gamma" id="auto_gamma"> Auto-Gamma
+                        <span class="tip" data-tip="Intelligent gamma correction for balanced exposure.">?</span>
+                    </label>
+                    <label class="check-pill">
+                        <input type="checkbox" name="use_sharpen" id="batch_use_sharpen"> Sharpen
+                        <span class="tip" data-tip="Apply screen-optimized sharpening after resize.">?</span>
+                    </label>
+                </div>
+
+                <div id="sharpen-level-row" style="display:none; margin-top: var(--sp-sm);">
+                    <label for="batch_sharpen_level" style="margin-bottom: var(--sp-xs);">Sharpen intensity</label>
+                    <select name="sharpen_level" id="batch_sharpen_level" style="max-width: 200px;">
+                        <option value="low">Low</option>
+                        <option value="standard" selected>Standard</option>
+                        <option value="high">High</option>
                     </select>
                 </div>
+
                 {% if batch_info or image_types %}
-                    <div class="batch-info">
-                        <small>
-                            {% if batch_info %}
-                                <div class="info-section">
-                                    <span class="info-title">Your batch contains:</span>
-                                    <ul>
-                                        {% if batch_info.has_transparency %}
-                                            <li>Images with transparency</li>
-                                        {% endif %}
-                                        {% if batch_info.has_photos %}
-                                            <li>Photographic images</li>
-                                        {% endif %}
-                                        {% if batch_info.has_graphics %}
-                                            <li>Graphic images</li>
-                                        {% endif %}
-                                    </ul>
-                                </div>
-                            {% endif %}
-                            
-                            {% if image_types %}
-                                <div class="info-section">
-                                    <span class="info-title">Details for each image:</span>
-                                    <ul>
-                                        {% for img in image_types %}
-                                            <li>{{ img.filename }}: 
-                                                {% if img.type.has_transparency %}
-                                                    Contains transparency,
-                                                {% endif %}
-                                                {% if img.type.is_photo %}
-                                                    Photographic image
-                                                {% else %}
-                                                    Graphic image
-                                                {% endif %}
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            {% endif %}
-                        </small>
-                    </div>
+                <div class="batch-info-panel">
+                    {% if batch_info %}
+                    <div class="section-title">Batch contents</div>
+                    <ul>
+                        {% if batch_info.has_transparency %}<li>Images with transparency</li>{% endif %}
+                        {% if batch_info.has_photos %}<li>Photographic images</li>{% endif %}
+                        {% if batch_info.has_graphics %}<li>Graphic images</li>{% endif %}
+                    </ul>
+                    {% endif %}
+
+                    {% if image_types %}
+                    <div class="section-title" style="margin-top: var(--sp-md);">Per-image details</div>
+                    <ul>
+                        {% for img in image_types %}
+                        <li>
+                            <span class="img-detail">{{ img.filename }}</span>
+                            &mdash;
+                            {% if img.type.has_transparency %}transparency, {% endif %}
+                            {% if img.type.is_photo %}photo{% else %}graphic{% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
                 {% endif %}
-                
-            </fieldset>
-            </div><!-- /.form-grid -->
+            </div>
 
-            <button type="submit">Resize Batch</button>
-        </form>
-    </div>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const batchWidthInput = document.getElementById('batch_width');
-            const batchHeightInput = document.getElementById('batch_height');
-            const batchKeepRatioCheckbox = document.getElementById('batch_keep_ratio');
+        </div>
 
-            function resetDimensionsIfRatioNotKept() {
-                if (!batchKeepRatioCheckbox.checked) {
-                    batchWidthInput.value = '';
-                    batchHeightInput.value = '';
-                }
-            }
+        <div class="submit-area">
+            <button type="submit" class="btn btn-primary btn-full">Resize batch</button>
+        </div>
+    </form>
 
-            batchKeepRatioCheckbox.addEventListener('change', resetDimensionsIfRatioNotKept);
-        });
-    </script>
-</body>
-</html>
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const keepRatio  = document.getElementById('batch_keep_ratio');
+    const widthInput = document.getElementById('batch_width');
+    const heiInput   = document.getElementById('batch_height');
+    const sharpenBox = document.getElementById('batch_use_sharpen');
+    const sharpenRow = document.getElementById('sharpen-level-row');
+
+    keepRatio.addEventListener('change', () => {
+        if (!keepRatio.checked) { widthInput.value = ''; heiInput.value = ''; }
+    });
+
+    sharpenBox.addEventListener('change', () => {
+        sharpenRow.style.display = sharpenBox.checked ? 'block' : 'none';
+    });
+});
+</script>
+{% endblock %}
