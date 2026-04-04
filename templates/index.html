@@ -2,14 +2,11 @@
 
 {% block head %}
 <style>
-    .page-center { align-items: center; }
-
     .upload-card {
         max-width: 560px;
         padding: var(--sp-xl);
     }
 
-    /* Logo */
     .logo-wrap {
         text-align: center;
         margin-bottom: var(--sp-xl);
@@ -24,7 +21,6 @@
         opacity: 0.92;
     }
 
-    /* Drop zone */
     .drop-zone {
         display: flex;
         flex-direction: column;
@@ -42,6 +38,7 @@
         margin-bottom: var(--sp-md);
         padding: var(--sp-lg);
         text-align: center;
+        box-sizing: border-box;
     }
 
     .drop-zone:hover {
@@ -57,24 +54,10 @@
         transform: scale(1.01);
     }
 
-    .drop-icon {
-        font-size: 1.6rem;
-        line-height: 1;
-        margin-bottom: var(--sp-xs);
-        opacity: 0.6;
-    }
+    .drop-icon { font-size: 1.6rem; line-height: 1; opacity: 0.6; }
+    .drop-label { font-size: 0.88rem; font-weight: 500; }
+    .drop-hint  { font-size: 0.75rem; color: var(--text-muted); }
 
-    .drop-label {
-        font-size: 0.88rem;
-        font-weight: 500;
-    }
-
-    .drop-hint {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-
-    /* File list */
     .file-list-wrap {
         display: none;
         background: var(--surface-raised);
@@ -82,6 +65,7 @@
         border-radius: var(--radius-lg);
         overflow: hidden;
         margin-bottom: var(--sp-md);
+        min-width: 0;
     }
 
     .file-list-head {
@@ -112,15 +96,9 @@
         transition: color var(--ease), background var(--ease);
     }
 
-    .btn-clear:hover {
-        color: var(--err);
-        background: var(--err-bg);
-    }
+    .btn-clear:hover { color: var(--err); background: var(--err-bg); }
 
-    .file-list-scroll {
-        max-height: 240px;
-        overflow-y: auto;
-    }
+    .file-list-scroll { max-height: 240px; overflow-y: auto; }
 
     .file-item {
         display: flex;
@@ -129,6 +107,7 @@
         padding: 6px var(--sp-md);
         border-bottom: 1px solid var(--surface-line);
         transition: background var(--ease);
+        min-width: 0;
     }
 
     .file-item:last-child { border-bottom: none; }
@@ -137,6 +116,7 @@
     .file-item-info {
         flex: 1;
         min-width: 0;
+        overflow: hidden;
     }
 
     .file-item-name {
@@ -148,10 +128,7 @@
         font-family: 'DM Mono', monospace;
     }
 
-    .file-item-size {
-        font-size: 0.68rem;
-        color: var(--text-muted);
-    }
+    .file-item-size { font-size: 0.68rem; color: var(--text-muted); }
 
     .btn-remove {
         background: none;
@@ -170,16 +147,9 @@
         padding: 0;
     }
 
-    .btn-remove:hover {
-        color: var(--err);
-        background: var(--err-bg);
-    }
+    .btn-remove:hover { color: var(--err); background: var(--err-bg); }
 
-    /* Progress bar */
-    .progress-wrap {
-        display: none;
-        margin-top: var(--sp-sm);
-    }
+    .progress-wrap { display: none; margin-top: var(--sp-sm); }
 
     .progress-track {
         height: 4px;
@@ -204,7 +174,6 @@
         font-family: 'DM Mono', monospace;
     }
 
-    /* Divider */
     .divider {
         display: flex;
         align-items: center;
@@ -216,41 +185,31 @@
         letter-spacing: 0.08em;
     }
 
-    .divider::before,
-    .divider::after {
+    .divider::before, .divider::after {
         content: '';
         flex: 1;
         height: 1px;
         background: var(--surface-line);
     }
 
-    /* URL section */
-    .url-row {
-        display: flex;
-        gap: var(--sp-sm);
-    }
-
-    .url-row input {
-        flex: 1;
-    }
-
-    .url-row .btn {
-        flex-shrink: 0;
-        padding: 0 var(--sp-md);
-    }
+    .url-row { display: flex; gap: var(--sp-sm); }
+    .url-row input { flex: 1; min-width: 0; }
+    .url-row .btn  { flex-shrink: 0; padding: 0 var(--sp-md); }
 
     /* Nav overlay */
     #nav-overlay {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(14, 14, 17, 0.9);
+        background: rgba(14, 14, 17, 0.92);
         backdrop-filter: blur(6px);
         z-index: 9999;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: var(--sp-lg);
+        gap: var(--sp-md);
+        padding: var(--sp-lg);
+        text-align: center;
     }
 
     #nav-overlay.visible { display: flex; }
@@ -266,10 +225,17 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .nav-overlay-text {
-        font-size: 0.88rem;
-        color: var(--text-secondary);
-        text-align: center;
+    .nav-overlay-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .nav-overlay-sub {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 0;
     }
 
     @media (max-width: 480px) {
@@ -282,68 +248,67 @@
 
 {% block body %}
 <div class="page-center">
-    <div class="card upload-card">
+<div class="card upload-card">
 
-        <div class="logo-wrap">
-            <img src="{{ url_for('static', filename='media/imaguick-banner-opacity.png') }}" alt="ImaGUIck">
+    <div class="logo-wrap">
+        <img src="{{ url_for('static', filename='media/imaguick-banner-opacity.png') }}" alt="ImaGUIck">
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-list">
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
+        <div class="section-title">Upload images</div>
+
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <input type="file" id="file-input" name="file" multiple style="display:none">
+            <div class="drop-icon">⬆</div>
+            <div class="drop-label">Drop files here or click to select</div>
+            <div class="drop-hint">Supports all common image formats &middot; folders accepted</div>
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-            <div class="flash-list">
-                {% for category, message in messages %}
-                    <div class="flash {{ category }}">{{ message }}</div>
-                {% endfor %}
+        <div class="file-list-wrap" id="file-list">
+            <div class="file-list-head">
+                <span class="file-list-label">Selected files</span>
+                <button type="button" class="btn-clear" onclick="clearAllFiles()">Clear all</button>
             </div>
-            {% endif %}
-        {% endwith %}
+            <div class="file-list-scroll" id="file-list-scroll"></div>
+        </div>
 
-        <!-- Upload form -->
-        <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
-            <div class="section-title">Upload images</div>
+        <button type="submit" class="btn btn-primary btn-full" id="upload-submit-btn">Upload</button>
 
-            <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-                <input type="file" id="file-input" name="file" multiple style="display:none">
-                <div class="drop-icon">⬆</div>
-                <div class="drop-label">Drop files here or click to select</div>
-                <div class="drop-hint">Supports all common image formats &middot; folders accepted</div>
+        <div class="progress-wrap" id="upload-progress-wrap">
+            <div class="progress-track">
+                <div class="progress-fill" id="upload-progress-fill"></div>
             </div>
+            <div class="progress-label" id="upload-progress-text">0%</div>
+        </div>
+    </form>
 
-            <div class="file-list-wrap" id="file-list">
-                <div class="file-list-head">
-                    <span class="file-list-label">Selected files</span>
-                    <button type="button" class="btn-clear" onclick="clearAllFiles()">Clear all</button>
-                </div>
-                <div class="file-list-scroll" id="file-list-scroll"></div>
-            </div>
+    <div class="divider">or</div>
 
-            <button type="submit" class="btn btn-primary btn-full" id="upload-submit-btn">Upload</button>
+    <form action="/upload_url" method="post">
+        <div class="section-title">Upload from URL</div>
+        <div class="url-row">
+            <input type="text" name="url" placeholder="https://example.com/image.jpg">
+            <button type="submit" class="btn btn-secondary">Fetch</button>
+        </div>
+    </form>
 
-            <div class="progress-wrap" id="upload-progress-wrap">
-                <div class="progress-track">
-                    <div class="progress-fill" id="upload-progress-fill"></div>
-                </div>
-                <div class="progress-label" id="upload-progress-text">0%</div>
-            </div>
-        </form>
-
-        <div class="divider">or</div>
-
-        <!-- URL form -->
-        <form action="/upload_url" method="post">
-            <div class="section-title">Upload from URL</div>
-            <div class="url-row">
-                <input type="text" name="url" placeholder="https://example.com/image.jpg">
-                <button type="submit" class="btn btn-secondary">Fetch</button>
-            </div>
-        </form>
-
-    </div>
+</div>
 </div>
 
 <div id="nav-overlay">
     <div class="nav-spinner"></div>
-    <p class="nav-overlay-text" id="nav-overlay-text">Analysing your images&hellip;</p>
+    <p class="nav-overlay-title" id="nav-overlay-text">Analysing your images&hellip;</p>
+    <p class="nav-overlay-sub">This may take a moment</p>
 </div>
 
 <script>
@@ -416,7 +381,7 @@
                     <div class="file-item-name">${item.path}</div>
                     <div class="file-item-size">${formatSize(item.size)}</div>
                 </div>
-                <button type="button" class="btn-remove" title="Remove" onclick="removeFile(${i})">✕</button>`;
+                <button type="button" class="btn-remove" title="Remove" onclick="removeFile(${i})">&#x2715;</button>`;
             fileScroll.appendChild(el);
         });
     }
@@ -441,10 +406,7 @@
             let files = e.dataTransfer.items
                 ? await processFilesAndFolders(Array.from(e.dataTransfer.items))
                 : Array.from(e.dataTransfer.files).map(f => ({ name: f.name, path: `/${f.name}`, size: f.size, file: f, parentFolder: '' }));
-            if (files.length) {
-                uploadedItems = [...uploadedItems, ...files];
-                updateFileList(); syncInput();
-            }
+            if (files.length) { uploadedItems = [...uploadedItems, ...files]; updateFileList(); syncInput(); }
         } catch (err) { console.error('Drop error:', err); }
     }
 
@@ -459,14 +421,13 @@
         updateFileList(); syncInput();
     });
 
-    // XHR upload
-    const uploadForm       = document.getElementById('upload-form');
-    const uploadSubmitBtn  = document.getElementById('upload-submit-btn');
-    const uploadProgWrap   = document.getElementById('upload-progress-wrap');
-    const uploadProgFill   = document.getElementById('upload-progress-fill');
-    const uploadProgText   = document.getElementById('upload-progress-text');
-    const navOverlay       = document.getElementById('nav-overlay');
-    const navOverlayText   = document.getElementById('nav-overlay-text');
+    const uploadForm      = document.getElementById('upload-form');
+    const uploadSubmitBtn = document.getElementById('upload-submit-btn');
+    const uploadProgWrap  = document.getElementById('upload-progress-wrap');
+    const uploadProgFill  = document.getElementById('upload-progress-fill');
+    const uploadProgText  = document.getElementById('upload-progress-text');
+    const navOverlay      = document.getElementById('nav-overlay');
+    const navOverlayText  = document.getElementById('nav-overlay-text');
 
     function showError(msg) {
         uploadSubmitBtn.disabled = false;
@@ -491,7 +452,7 @@
         if (!fileInput.files || !fileInput.files.length) { showError('Please select at least one file.'); return; }
         const formData = new FormData(this);
         uploadSubmitBtn.disabled = true;
-        uploadSubmitBtn.textContent = 'Uploading…';
+        uploadSubmitBtn.textContent = 'Uploading\u2026';
         uploadProgWrap.style.display = 'block';
 
         const xhr = new XMLHttpRequest();

@@ -9,7 +9,7 @@
 
     .page-header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: var(--sp-md);
         margin-bottom: var(--sp-xl);
         padding-bottom: var(--sp-lg);
@@ -29,14 +29,14 @@
         font-size: 1rem;
         transition: color var(--ease), background var(--ease);
         flex-shrink: 0;
+        margin-top: 2px;
     }
 
     .page-header a:hover { color: var(--text-primary); background: var(--surface-hover); }
 
-    .page-title { flex: 1; }
+    .page-title { flex: 1; min-width: 0; }
     .page-title h1 { font-size: 1.1rem; margin-bottom: 2px; }
 
-    /* Badge */
     .badge {
         display: inline-flex;
         align-items: center;
@@ -48,31 +48,35 @@
         color: var(--accent-bright);
         font-weight: 600;
         font-family: 'DM Mono', monospace;
+        flex-shrink: 0;
+        margin-top: 4px;
     }
 
-    /* Two-column layout */
+    /* Critical: prevent any grid child from overflowing */
     .form-grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: var(--sp-xl);
+        gap: var(--sp-lg);
+        /* Prevent overflow */
+        min-width: 0;
+        overflow: hidden;
     }
 
     @media (min-width: 640px) {
-        .form-grid {
-            grid-template-columns: 1fr 1fr;
-        }
-        .col-full { grid-column: 1 / -1; }
+        .form-grid { grid-template-columns: 1fr 1fr; }
+        .col-full  { grid-column: 1 / -1; }
     }
 
-    /* Section block */
     .section-block {
         background: var(--surface-raised);
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-lg);
         padding: var(--sp-lg);
+        /* Critical: prevents children from blowing up the cell */
+        min-width: 0;
+        overflow: hidden;
     }
 
-    /* Dimension row */
     .dim-row {
         display: grid;
         grid-template-columns: 1fr auto 1fr;
@@ -90,7 +94,6 @@
         font-size: 0.75rem;
     }
 
-    /* Checkbox pills */
     .check-pills {
         display: flex;
         flex-wrap: wrap;
@@ -119,10 +122,70 @@
         color: var(--accent-bright);
     }
 
-    .check-pill input[type="checkbox"] {
-        width: 12px;
-        height: 12px;
+    .check-pill input[type="checkbox"] { width: 12px; height: 12px; }
+
+    .options-row {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: var(--sp-lg);
+        margin-bottom: var(--sp-md);
     }
+
+    @media (max-width: 480px) {
+        .options-row { grid-template-columns: 1fr; }
+    }
+
+    /* Sharpen inline block — always visible */
+    .sharpen-block {
+        margin-top: var(--sp-md);
+        padding: var(--sp-md);
+        background: var(--surface-bg);
+        border: 1px solid var(--surface-line);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-md);
+        flex-wrap: wrap;
+    }
+
+    .sharpen-intensity {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-sm);
+        flex-wrap: wrap;
+    }
+
+    .sharpen-intensity span {
+        color: var(--text-muted);
+        font-size: 0.78rem;
+    }
+
+    .intensity-options {
+        display: flex;
+        gap: var(--sp-xs);
+        flex-wrap: wrap;
+    }
+
+    .intensity-radio {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 20px;
+        border: 1px solid var(--surface-border);
+        background: var(--surface-hover);
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all var(--ease);
+    }
+
+    .intensity-radio:has(input:checked) {
+        background: var(--accent-subtle);
+        border-color: var(--accent);
+        color: var(--accent-bright);
+    }
+
+    .intensity-radio input[type="radio"] { display: none; }
 
     /* Batch info panel */
     .batch-info-panel {
@@ -133,15 +196,12 @@
         margin-top: var(--sp-md);
     }
 
-    .batch-info-panel .section-title {
-        margin-bottom: var(--sp-sm);
-    }
-
     .batch-info-panel ul {
         list-style: none;
         display: flex;
         flex-direction: column;
         gap: 4px;
+        margin-top: var(--sp-sm);
     }
 
     .batch-info-panel li {
@@ -150,6 +210,9 @@
         display: flex;
         align-items: baseline;
         gap: var(--sp-sm);
+        /* Prevent long filenames from overflowing */
+        min-width: 0;
+        overflow: hidden;
     }
 
     .batch-info-panel li::before {
@@ -163,20 +226,11 @@
         font-family: 'DM Mono', monospace;
         font-size: 0.72rem;
         color: var(--text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    /* Format note */
-    .format-note {
-        margin-top: var(--sp-sm);
-        padding: var(--sp-sm) var(--sp-md);
-        background: var(--surface-bg);
-        border: 1px solid var(--surface-line);
-        border-radius: var(--radius-md);
-        font-size: 0.78rem;
-        color: var(--text-muted);
-    }
-
-    /* Submit */
     .submit-area { margin-top: var(--sp-xl); }
 
     @media (max-width: 639px) {
@@ -203,10 +257,8 @@
 
         <div class="form-grid">
 
-            <!-- Resize by pixels -->
             <div class="section-block">
                 <div class="section-title">By pixels</div>
-
                 <div class="dim-row">
                     <div class="form-group" style="margin-bottom:0">
                         <label for="batch_width">Width</label>
@@ -218,7 +270,6 @@
                         <input type="text" name="height" id="batch_height" placeholder="px">
                     </div>
                 </div>
-
                 <div class="check-pills">
                     <label class="check-pill">
                         <input type="checkbox" name="keep_ratio" id="batch_keep_ratio"> Keep ratio
@@ -234,7 +285,6 @@
                 </div>
             </div>
 
-            <!-- Resize by percentage -->
             <div class="section-block">
                 <div class="section-title">By percentage</div>
                 <div class="form-group">
@@ -244,16 +294,15 @@
                 <small>Applies to each image individually</small>
             </div>
 
-            <!-- Additional options -->
             <div class="section-block col-full">
                 <div class="section-title">Additional options</div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-lg);">
-                    <div class="form-group">
+                <div class="options-row">
+                    <div class="form-group" style="margin-bottom:0">
                         <label for="quality">Quality (1&ndash;100)</label>
                         <input type="text" name="quality" id="quality" value="{{ defaults.quality if defaults else '100' }}">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="margin-bottom:0">
                         <label for="format">Convert all to format</label>
                         <select name="format" id="format">
                             <option value="">Keep original formats</option>
@@ -279,19 +328,21 @@
                         <input type="checkbox" name="auto_gamma" id="auto_gamma"> Auto-Gamma
                         <span class="tip" data-tip="Intelligent gamma correction for balanced exposure.">?</span>
                     </label>
-                    <label class="check-pill">
+                </div>
+
+                <div class="sharpen-block">
+                    <label class="check-pill" style="margin:0; flex-shrink:0">
                         <input type="checkbox" name="use_sharpen" id="batch_use_sharpen"> Sharpen
                         <span class="tip" data-tip="Apply screen-optimized sharpening after resize.">?</span>
                     </label>
-                </div>
-
-                <div id="sharpen-level-row" style="display:none; margin-top: var(--sp-sm);">
-                    <label for="batch_sharpen_level" style="margin-bottom: var(--sp-xs);">Sharpen intensity</label>
-                    <select name="sharpen_level" id="batch_sharpen_level" style="max-width: 200px;">
-                        <option value="low">Low</option>
-                        <option value="standard" selected>Standard</option>
-                        <option value="high">High</option>
-                    </select>
+                    <div class="sharpen-intensity">
+                        <span>Intensity:</span>
+                        <div class="intensity-options">
+                            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="low"> Low</label>
+                            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="standard" checked> Standard</label>
+                            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="high"> High</label>
+                        </div>
+                    </div>
                 </div>
 
                 {% if batch_info or image_types %}
@@ -304,7 +355,6 @@
                         {% if batch_info.has_graphics %}<li>Graphic images</li>{% endif %}
                     </ul>
                     {% endif %}
-
                     {% if image_types %}
                     <div class="section-title" style="margin-top: var(--sp-md);">Per-image details</div>
                     <ul>
@@ -337,15 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const keepRatio  = document.getElementById('batch_keep_ratio');
     const widthInput = document.getElementById('batch_width');
     const heiInput   = document.getElementById('batch_height');
-    const sharpenBox = document.getElementById('batch_use_sharpen');
-    const sharpenRow = document.getElementById('sharpen-level-row');
-
     keepRatio.addEventListener('change', () => {
         if (!keepRatio.checked) { widthInput.value = ''; heiInput.value = ''; }
-    });
-
-    sharpenBox.addEventListener('change', () => {
-        sharpenRow.style.display = sharpenBox.checked ? 'block' : 'none';
     });
 });
 </script>

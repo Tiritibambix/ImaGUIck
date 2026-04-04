@@ -17,7 +17,6 @@
         margin-bottom: var(--sp-sm);
     }
 
-    /* Global progress */
     .global-progress {
         margin-bottom: var(--sp-xl);
     }
@@ -47,7 +46,6 @@
         font-family: 'DM Mono', monospace;
     }
 
-    /* File list */
     .file-list {
         display: flex;
         flex-direction: column;
@@ -68,6 +66,7 @@
         border-radius: var(--radius-md);
         font-size: 0.82rem;
         transition: border-color var(--ease);
+        min-width: 0;
     }
 
     .file-row.status-processing { border-color: var(--accent); }
@@ -89,6 +88,7 @@
         color: var(--text-secondary);
         font-family: 'DM Mono', monospace;
         font-size: 0.75rem;
+        min-width: 0;
     }
 
     .file-badge {
@@ -105,7 +105,6 @@
     .badge-done       { background: var(--ok-bg);            color: var(--ok); border: 1px solid var(--ok-border); }
     .badge-error      { background: var(--err-bg);           color: var(--err); border: 1px solid var(--err-border); }
 
-    /* Spinner */
     .spinner {
         display: inline-block;
         width: 12px;
@@ -119,7 +118,6 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Status summary */
     .status-line {
         text-align: center;
         font-size: 0.84rem;
@@ -128,7 +126,6 @@
         margin-bottom: var(--sp-lg);
     }
 
-    /* Action buttons */
     .action-row {
         display: none;
         gap: var(--sp-md);
@@ -137,6 +134,10 @@
     }
 
     .action-row.visible { display: flex; }
+
+    @media (max-width: 639px) {
+        .progress-card { padding: var(--sp-lg) var(--sp-md); }
+    }
 </style>
 {% endblock %}
 
@@ -145,7 +146,7 @@
 <div class="card progress-card">
 
     <div class="page-header">
-        <h1>Processing batch&hellip;</h1>
+        <h1 id="page-title">Processing batch&hellip;</h1>
     </div>
 
     <div class="global-progress">
@@ -175,13 +176,14 @@
     const jobId   = {{ job_id | tojson }};
     const total   = {{ total }};
 
-    const globalBar    = document.getElementById('global-bar');
-    const globalCtr    = document.getElementById('global-counter');
-    const globalPct    = document.getElementById('global-pct');
-    const fileListEl   = document.getElementById('file-list');
-    const statusLine   = document.getElementById('status-summary');
-    const actionArea   = document.getElementById('action-area');
-    const downloadBtn  = document.getElementById('download-btn');
+    const globalBar   = document.getElementById('global-bar');
+    const globalCtr   = document.getElementById('global-counter');
+    const globalPct   = document.getElementById('global-pct');
+    const fileListEl  = document.getElementById('file-list');
+    const statusLine  = document.getElementById('status-summary');
+    const actionArea  = document.getElementById('action-area');
+    const downloadBtn = document.getElementById('download-btn');
+    const pageTitle   = document.getElementById('page-title');
 
     const ICONS = {
         queued:     '&#x23F3;',
@@ -189,7 +191,6 @@
         done:       '&#x2714;',
         error:      '&#x2716;'
     };
-
     const LABELS = { queued: 'Queued', processing: 'Processing', done: 'Done', error: 'Error' };
 
     let initialised = false;
@@ -234,17 +235,27 @@
 
         const done = (data.done || 0) + (data.errors || 0);
         const pct  = data.total > 0 ? Math.round(done / data.total * 100) : 0;
-        globalBar.style.width   = pct + '%';
-        globalCtr.textContent   = done + ' / ' + data.total;
-        globalPct.textContent   = pct + '%';
+        globalBar.style.width = pct + '%';
+        globalCtr.textContent = done + ' / ' + data.total;
+        globalPct.textContent = pct + '%';
 
         (data.files || []).forEach(updateRow);
 
         if (data.complete) {
             evtSource.close();
-            statusLine.textContent = data.errors === 0
-                ? 'All ' + data.total + ' files processed successfully.'
-                : data.done + ' file(s) done, ' + data.errors + ' error(s).';
+
+            // Update page title to reflect completion
+            if (data.errors === 0) {
+                pageTitle.textContent = 'Batch complete';
+                statusLine.textContent = 'All ' + data.total + ' files processed successfully.';
+            } else if (data.done === 0) {
+                pageTitle.textContent = 'Batch failed';
+                statusLine.textContent = 'Processing failed for all files.';
+            } else {
+                pageTitle.textContent = 'Batch complete';
+                statusLine.textContent = data.done + ' file(s) done, ' + data.errors + ' error(s).';
+            }
+
             actionArea.classList.add('visible');
             if (data.zip) {
                 downloadBtn.href = '/download_batch/' + encodeURIComponent(data.zip);
