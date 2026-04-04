@@ -758,8 +758,8 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
-    filename = os.path.basename(filename)
-    if not re.match(r'^[\w\-.]+$', filename) or '..' in filename or filename.startswith('/'):
+    filename = secure_filename(os.path.basename(filename))
+    if not filename or not re.match(r'^[\w\-.]+$', filename) or '..' in filename or filename.startswith('/'):
         flash('Invalid filename')
         return render_template('result.html',
                                success=False,
