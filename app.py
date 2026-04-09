@@ -40,6 +40,9 @@ ALLOWED_OUTPUT_FORMATS = {
 }
 
 ALLOWED_SHARPEN_LEVELS = {'low', 'standard', 'high'}
+
+# Formats that require potrace (raster-to-vector delegate)
+POTRACE_FORMATS = {'SVG', 'EPS', 'AI', 'PDF', 'WMF', 'EMF'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -419,6 +422,14 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     if not secure_path(output_path):
         app.logger.error("Insecure output path detected")
         return None
+
+    # Check potrace availability for vector output formats
+    ext = os.path.splitext(output_path)[1].lstrip('.').upper()
+    if ext in POTRACE_FORMATS:
+        potrace_check = subprocess.run(['which', 'potrace'], capture_output=True)
+        if potrace_check.returncode != 0:
+            app.logger.error(f"Output format {ext} requires potrace which is not installed")
+            return None
 
     command = ['magick', filepath]
 

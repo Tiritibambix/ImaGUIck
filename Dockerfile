@@ -1,10 +1,10 @@
-# Choisir l'image de base
+# Base image
 FROM --platform=$BUILDPLATFORM python:3.9-slim
 
-# Détecter l'architecture (amd64 ou arm64)
+# Target architecture (amd64 or arm64)
 ARG TARGETARCH
 
-# Installer les dépendances nécessaires
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     g++ \
@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     libjxl-tools \
     libjxl-dev \
     exiftool \
+    potrace \
     zip \
     unzip \
     cron \
@@ -33,7 +34,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 
-# Cas particulier pour ARM64 : utiliser une version pré-compilée d'ImageMagick
+# ARM64: use the pre-compiled apt package; AMD64: build from source for JXL support
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
         echo "Using pre-compiled ImageMagick for ARM64"; \
         apt-get update && apt-get install -y imagemagick; \
@@ -48,43 +49,40 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
         rm -rf /tmp/*; \
     fi
 
-# Ajouter /usr/local/bin au PATH
+# Ensure /usr/local/bin is on PATH (source-compiled binaries land there)
 ENV PATH="/usr/local/bin:${PATH}"
 
-# Vérifier que ImageMagick est bien installé
+# Verify ImageMagick is correctly installed
 RUN magick -version
 
-# Copier l'application dans le conteneur
+# Copy application source
 WORKDIR /app
 COPY . /app
 
-# Rendre les scripts exécutables
+# Make helper scripts executable
 RUN chmod +x /app/cleanup.py /app/cleanup.sh
 
-# Configurer le cron job
-# Configurer le cron job avec logging approprié
+# Set up cleanup cron job (runs every 12 hours, logs to /var/log/cleanup.log)
 RUN echo "0 */12 * * * root cd /app && /usr/local/bin/python /app/cleanup.py >> /var/log/cleanup.log 2>&1" > /etc/cron.d/cleanup-cron
 RUN chmod 0644 /etc/cron.d/cleanup-cron
 RUN crontab /etc/cron.d/cleanup-cron
 
-# Créer le fichier de log avec les bonnes permissions
+# Create log file with appropriate permissions
 RUN touch /var/log/cleanup.log && \
     chmod 666 /var/log/cleanup.log
 
-# Installer les dépendances Python
+# Install Python dependencies
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Vérifier l'installation de Gunicorn
+# Install and verify Gunicorn
 RUN pip install gunicorn && \
     gunicorn --version && \
     which gunicorn
 
-# Script de démarrage pour lancer cron et l'application
+# Copy and enable the entrypoint script (starts cron + Gunicorn)
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-# Exposer le port
 EXPOSE 5000
 
-# Utiliser le script de démarrage
 CMD ["/app/start.sh"]

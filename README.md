@@ -4,7 +4,6 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-amd64%20%7C%20arm64-blue" alt="Platform Support" />
-  </a>
   <a href="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build.yml">
     <img src="https://github.com/Tiritibambix/ImaGUIck/actions/workflows/docker-build.yml/badge.svg" alt="Build and Push Docker Image">
   </a>
@@ -18,7 +17,7 @@
 
 ## ⚠️ Security notice
 
-This application has been vibe coded and is designed for **local or trusted-network use only**. It has no built-in authentication. Exposing it to the public internet without an additional access-control layer (reverse proxy with auth, VPN, etc.) is done at your own risk.
+This application has been coded with the help of AI and is designed for **local or trusted-network use only**. It has no built-in authentication. Exposing it to the public internet without an additional access-control layer (reverse proxy with auth, VPN, etc.) is done at your own risk.
 
 ---
 
@@ -31,7 +30,7 @@ This application has been vibe coded and is designed for **local or trusted-netw
   - RAW: ARW, CR2, CR3, NEF, RAF, RW2, DNG
   - Modern: AVIF, HEIC, JXL
   - Animation: GIF, WEBP, APNG
-  - Vector / document: SVG, PDF, EPS
+  - Vector / document: SVG, PDF, EPS (requires `potrace`)
 - **Image enhancement** — auto-level, auto-gamma, and three-level unsharp masking (low / standard / high)
 - **Smart format recommendations** — context-aware suggestions based on image type and transparency
 - **URL import** — fetch and process an image directly from a URL
@@ -41,11 +40,9 @@ This application has been vibe coded and is designed for **local or trusted-netw
 
 ## Screenshots
 
-![Upload](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Upload.webp)
+![Landing page](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_1.png)
 
-![Options](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Options.webp)
-
-![Results](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Results.webp)
+![Resize](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_2.png)
 
 ---
 
@@ -71,6 +68,7 @@ Batch uploads are processed **asynchronously** — the browser redirects to a li
 | Python | 3.9+ | |
 | [ImageMagick](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-18) | 7.1.2-18+ | Add to PATH on Windows; install `libmagickwand-dev` on Linux |
 | ExifTool | any | Required for RAW metadata |
+| potrace | any | Required for vector output (SVG, EPS, PDF) |
 | Docker | any | Recommended deployment method |
 
 ### Docker (recommended)
@@ -145,6 +143,7 @@ Verify dependencies:
 ```bash
 magick -version    # ImageMagick 7.1.2-18 or newer
 exiftool -ver
+potrace --version  # required for SVG/EPS/PDF output
 ```
 
 Start the server:
@@ -163,12 +162,12 @@ The application is available at `http://localhost:5000`.
 
 1. Open `http://localhost:5000` in your browser.
 2. Select your import method:
-   - **Upload** — drag-and-drop or file picker (single file or batch)
+   - **Upload** — drag-and-drop or file picker (single file or batch, folders accepted)
    - **URL** — paste a direct image URL
 3. Configure processing options:
    - Output format
    - Resize mode (dimensions, percentage, or preset)
-   - Enhancement options (auto-level, auto-gamma, sharpening)
+   - Enhancement options (auto-level, auto-gamma, sharpening level)
 4. Submit — for batches, a live progress page tracks each file in real time.
 5. Download the result or ZIP archive when processing completes.
 
@@ -191,10 +190,10 @@ The application is available at `http://localhost:5000`.
 | Layer | Technology |
 |---|---|
 | Backend | Flask (Python 3.9+), Gunicorn (gthread, 4 workers × 8 threads) |
-| Image processing | ImageMagick 7.1.2-18, ExifTool, Pillow |
+| Image processing | ImageMagick 7.1.2-18, ExifTool, Pillow, potrace |
 | Async pipeline | `ThreadPoolExecutor` + `BoundedSemaphore(4)` — no external queue required |
 | Progress streaming | Server-Sent Events (SSE) via `/job/<id>/status` |
-| Frontend | Vanilla HTML / CSS / JavaScript |
+| Frontend | Vanilla HTML / CSS / JavaScript (dark theme, DM Sans + DM Mono) |
 | Container | Docker (multi-arch: amd64 + arm64) |
 
 ### Project structure
@@ -209,13 +208,13 @@ imaguick/
 ├── cleanup.sh                  # Manual cleanup helper
 ├── requirements.txt            # Python dependencies
 ├── templates/
-│   ├── base.html               # Shared layout
+│   ├── base.html               # Shared layout and design system (CSS variables, components)
 │   ├── index.html              # Upload page
 │   ├── resize.html             # Single-image options
 │   ├── resize_batch.html       # Batch options
 │   ├── progress.html           # Real-time batch progress (SSE)
 │   └── result.html             # Success / error feedback
-└── static/                     # CSS, images, favicon
+└── static/                     # Fonts, images, favicon
 ```
 
 ### Batch processing pipeline
@@ -232,6 +231,16 @@ Browser                     Flask (Gunicorn)              ThreadPoolExecutor
   │ <─ {complete, zip} ─────────  │                              │
   ├─ GET /download_batch/<zip> ─> │                              │
 ```
+
+### Security
+
+- All filenames sanitised with `werkzeug.utils.secure_filename` at route entry
+- Path traversal prevented by `secure_path()` — confines all file access to `uploads/` and `output/`
+- Output formats validated against an explicit allowlist (`ALLOWED_OUTPUT_FORMATS`)
+- Sharpen level validated against `ALLOWED_SHARPEN_LEVELS`
+- Vector output formats checked for `potrace` availability before building the ImageMagick command
+- SSRF prevented by `is_safe_url()` — DNS resolution + rejection of private/loopback/link-local IPs
+- GitHub Actions workflows use minimal `permissions: contents: read` and SHA-pinned actions
 
 ### Customisation
 
