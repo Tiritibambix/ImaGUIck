@@ -40,9 +40,11 @@ This application has been coded with the help of AI and is designed for **local 
 
 ## Screenshots
 
-![Landing page](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_1.png)
+![Upload](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Upload.webp)
 
-![Resize](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/ImaGUIck_2.png)
+![Options](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Options.webp)
+
+![Results](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Results.webp)
 
 ---
 
