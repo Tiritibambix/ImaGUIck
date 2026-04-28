@@ -134,12 +134,13 @@ def prepare_input_file(filepath):
         if not validated:
             raise ValueError(f"Insecure RAW path: {filepath}")
         tmp_path = f'/tmp/imaguick_{uuid.uuid4().hex}.tiff'
-        # -T: output TIFF, -w: use camera white balance, -6: 16-bit output
-        # -O: explicit output path (dcraw defaults to same dir as input)
-        subprocess.run(
-            ['dcraw', '-T', '-w', '-6', '-O', tmp_path, '--', validated],
-            check=True, timeout=120
-        )
+        # -T: output TIFF, -w: camera white balance, -6: 16-bit, -c: write to stdout
+        # Pipe stdout to the temp file — dcraw does not support explicit output path
+        with open(tmp_path, 'wb') as out_f:
+            subprocess.run(
+                ['dcraw', '-T', '-w', '-6', '-c', '--', validated],
+                stdout=out_f, check=True, timeout=120
+            )
         return tmp_path, tmp_path
 
     return filepath, None
