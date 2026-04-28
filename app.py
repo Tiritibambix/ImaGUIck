@@ -131,9 +131,11 @@ def get_image_dimensions(filepath):
         if not secure_file_path:
             raise Exception("Invalid file path")
 
-        if filepath.lower().endswith('.arw'):
-            app.logger.info(f"Getting dimensions for ARW file: {filepath}")
-            cmd = ['exiftool', '-s', '-s', '-s', '-PreviewImageLength', '-PreviewImageWidth', secure_file_path]
+        RAW_EXTENSIONS = {'.arw', '.dng', '.cr2', '.cr3', '.nef', '.raf', '.rw2'}
+        if any(filepath.lower().endswith(ext) for ext in RAW_EXTENSIONS):
+            app.logger.info(f"Getting dimensions for RAW file: {filepath}")
+            # Use ImageWidth/ImageHeight for full-resolution RAW dimensions
+            cmd = ['exiftool', '-s', '-s', '-s', '-ImageWidth', '-ImageHeight', secure_file_path]
             app.logger.info(f"Running exiftool command")
             result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
 
@@ -142,9 +144,9 @@ def get_image_dimensions(filepath):
                 dimensions = result.stdout.strip().split('\n')
                 if len(dimensions) == 2:
                     try:
-                        height = int(dimensions[0])
-                        width = int(dimensions[1])
-                        if not (0 < width < MAX_DIMENSION and 0 < height < MAX_DIMENSION):
+                        width = int(dimensions[0])
+                        height = int(dimensions[1])
+                        if not (0 < width <= MAX_DIMENSION and 0 < height <= MAX_DIMENSION):
                             raise ValueError(f"Image dimensions ({width}x{height}) exceed maximum allowed ({MAX_DIMENSION}px)")
                         app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
                         return width, height
@@ -165,7 +167,7 @@ def get_image_dimensions(filepath):
             if match:
                 width = int(match.group(1))
                 height = int(match.group(2))
-                if not (0 < width < MAX_DIMENSION and 0 < height < MAX_DIMENSION):
+                if not (0 < width <= MAX_DIMENSION and 0 < height <= MAX_DIMENSION):
                     raise ValueError(f"Image dimensions ({width}x{height}) exceed maximum allowed ({MAX_DIMENSION}px)")
                 app.logger.info(f"Successfully parsed dimensions: {width}x{height}")
                 return width, height
