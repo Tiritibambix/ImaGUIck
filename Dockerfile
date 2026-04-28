@@ -5,6 +5,8 @@ FROM --platform=$BUILDPLATFORM python:3.9-slim
 ARG TARGETARCH
 
 # Install system dependencies
+# dcraw: RAW format pre-processing (DNG, ARW, CR2, CR3, NEF, RAF, RW2)
+# potrace: required by ImageMagick for raster-to-vector output (SVG, EPS, PDF)
 RUN apt-get update && apt-get install -y \
     build-essential \
     g++ \
@@ -24,6 +26,7 @@ RUN apt-get update && apt-get install -y \
     libjxl-tools \
     libjxl-dev \
     exiftool \
+    dcraw \
     potrace \
     zip \
     unzip \
@@ -31,6 +34,7 @@ RUN apt-get update && apt-get install -y \
     procps \
     && cjxl --version \
     && djxl --version \
+    && dcraw 2>&1 | head -1 \
     && rm -rf /var/lib/apt/lists/*
 
 

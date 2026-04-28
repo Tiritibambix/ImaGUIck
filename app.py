@@ -110,17 +110,38 @@ def is_valid_tmp_path(filepath):
     )
 
 
+# RAW formats that require dcraw pre-processing before ImageMagick
+RAW_FORMATS_DCRAW = {'.arw', '.dng', '.cr2', '.cr3', '.nef', '.raf', '.rw2'}
+
 def prepare_input_file(filepath):
-    """If the file is JXL, decode it to a unique temp PNG for ImageMagick.
+    """Decode special formats to a temp file before passing to ImageMagick.
+    - JXL: decoded to PNG via djxl
+    - RAW (ARW, DNG, CR2, CR3, NEF, RAF, RW2): decoded to TIFF via dcraw
     Returns (input_path, tmp_path). tmp_path is None if no temp was created.
     Caller is responsible for deleting tmp_path (use try/finally)."""
-    if filepath.lower().endswith('.jxl'):
+    ext = os.path.splitext(filepath)[1].lower()
+
+    if ext == '.jxl':
         validated = secure_path(filepath)
         if not validated:
             raise ValueError(f"Insecure JXL path: {filepath}")
         tmp_path = f'/tmp/imaguick_{uuid.uuid4().hex}.png'
         subprocess.run(['djxl', '--', validated, tmp_path], check=True, timeout=60)
         return tmp_path, tmp_path
+
+    if ext in RAW_FORMATS_DCRAW:
+        validated = secure_path(filepath)
+        if not validated:
+            raise ValueError(f"Insecure RAW path: {filepath}")
+        tmp_path = f'/tmp/imaguick_{uuid.uuid4().hex}.tiff'
+        # -T: output TIFF, -w: use camera white balance, -6: 16-bit output
+        # -O: explicit output path (dcraw defaults to same dir as input)
+        subprocess.run(
+            ['dcraw', '-T', '-w', '-6', '-O', tmp_path, '--', validated],
+            check=True, timeout=120
+        )
+        return tmp_path, tmp_path
+
     return filepath, None
 
 
