@@ -50,7 +50,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
-app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw', '.jxl']
+app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw', '.jxl', '.dng', '.cr2', '.cr3', '.nef', '.raf', '.rw2', '.heic', '.avif', '.apng', '.bmp']
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-insecure-key-change-in-prod')
 app.logger.setLevel(logging.INFO)
 
