@@ -310,7 +310,16 @@
                     </div>
                 </div>
 
-                {% if image_type %}
+                {% set raw_exts = ['.arw', '.dng', '.cr2', '.cr3', '.nef', '.raf', '.rw2'] %}
+                {% set is_raw = filename.lower().split('.')[-1] in ['arw', 'dng', 'cr2', 'cr3', 'nef', 'raf', 'rw2'] %}
+                {% if is_raw %}
+                <div class="format-note" style="border-color: rgba(139,92,246,0.3); color: var(--accent-bright);">
+                    <strong>RAW file detected.</strong>
+                    ImageMagick cannot produce a proper compressed DNG output.
+                    <strong>TIFF 16-bit</strong> is recommended to preserve full quality,
+                    or <strong>JPEG / WEBP</strong> for a smaller delivery file.
+                </div>
+                {% elif image_type %}
                 <div class="format-note">
                     {% if image_type.has_transparency %}Contains transparency. &nbsp;{% endif %}
                     {% if image_type.is_photo %}Photographic image detected.{% else %}Graphic image detected.{% endif %}

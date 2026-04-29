@@ -250,7 +250,7 @@ def get_recommended_formats_for_image(image_type, original_format):
         recommended.update(['WEBP', 'AVIF'])
 
     if image_type.get('is_photo'):
-        recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC', 'DNG', 'JXL'])
+        recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC', 'JXL'])
     else:
         # Pour les graphiques, logos, etc.
         recommended.update(['WEBP', 'SVG', 'JXL'])
@@ -259,7 +259,11 @@ def get_recommended_formats_for_image(image_type, original_format):
     if original_format:
         original_format = original_format.upper()
         if original_format in ['ARW', 'CR2', 'CR3', 'NEF', 'RAF', 'RW2', 'DNG']:
-            recommended.update(['TIFF', 'DNG'])
+            # TIFF 16-bit is the recommended output for RAW files — ImageMagick
+            # cannot produce a proper compressed DNG, so DNG output is intentionally
+            # excluded from recommendations. JPEG and WEBP are offered for delivery use.
+            recommended.update(['TIFF', 'JPEG', 'WEBP', 'JXL'])
+            recommended.discard('DNG')
         elif original_format in ['GIF', 'WEBP', 'MNG', 'APNG']:
             recommended.update(['GIF', 'WEBP', 'APNG'])
         elif original_format in ['ICO', 'CUR', 'ICON']:

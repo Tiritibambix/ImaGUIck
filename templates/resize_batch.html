@@ -345,6 +345,21 @@
                     </div>
                 </div>
 
+                {% set ns = namespace(has_raw=false) %}
+                {% for f in files %}
+                    {% set ext = f.lower().split('.')[-1] %}
+                    {% if ext in ['arw', 'dng', 'cr2', 'cr3', 'nef', 'raf', 'rw2'] %}
+                        {% set ns.has_raw = true %}
+                    {% endif %}
+                {% endfor %}
+                {% if ns.has_raw %}
+                <div class="format-note" style="border-color: rgba(139,92,246,0.3); color: var(--accent-bright); margin-bottom: var(--sp-md);">
+                    <strong>RAW files detected in batch.</strong>
+                    ImageMagick cannot produce proper compressed DNG output.
+                    <strong>TIFF 16-bit</strong> is recommended to preserve full quality,
+                    or <strong>JPEG / WEBP</strong> for smaller delivery files.
+                </div>
+                {% endif %}
                 {% if batch_info or image_types %}
                 <div class="batch-info-panel">
                     {% if batch_info %}
