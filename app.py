@@ -106,7 +106,7 @@ def is_valid_tmp_path(filepath):
     basename = os.path.basename(filepath)
     return (
         filepath.startswith('/tmp/imaguick_') and
-        re.match(r'^imaguick_[a-f0-9]{32}\.png$', basename) is not None
+        re.match(r'^imaguick_[a-f0-9]{32}\.(png|tiff)$', basename) is not None
     )
 
 
