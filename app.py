@@ -243,7 +243,7 @@ def get_recommended_formats_for_image(image_type, original_format):
     """Get recommended formats based on image characteristics."""
     recommended = set()
 
-    # PNG est toujours recommandé car c'est un excellent format sans perte
+    # PNG is always recommended as an excellent lossless format
     recommended.add('PNG')
 
     if image_type.get('has_transparency'):
@@ -252,10 +252,10 @@ def get_recommended_formats_for_image(image_type, original_format):
     if image_type.get('is_photo'):
         recommended.update(['JPEG', 'WEBP', 'AVIF', 'HEIC', 'JXL'])
     else:
-        # Pour les graphiques, logos, etc.
+        # For graphics, logos, etc.
         recommended.update(['WEBP', 'SVG', 'JXL'])
 
-    # Cas spéciaux basés sur le format original
+    # Special cases based on the original format
     if original_format:
         original_format = original_format.upper()
         if original_format in ['ARW', 'CR2', 'CR3', 'NEF', 'RAF', 'RW2', 'DNG']:
@@ -684,7 +684,7 @@ def upload_file():
         if not file or not file.filename:
             continue
         if not allowed_file(file.filename):
-            errors.append(f"Format non supporté : {secure_filename(file.filename)}")
+            errors.append(f"Unsupported format: {secure_filename(file.filename)}")
             continue
         unique_name = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
