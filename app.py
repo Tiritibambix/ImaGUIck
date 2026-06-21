@@ -176,7 +176,7 @@ def get_image_dimensions(filepath):
                         app.logger.warning("Could not parse dimensions from exiftool output")
                         pass
 
-            return 7008, 4672
+            return None, None
         else:
             app.logger.info(f"Getting dimensions for non-ARW file")
             cmd = ['magick', 'identify', secure_file_path]
@@ -370,7 +370,11 @@ def _analyze_with_pil(filepath):
             is_photo = False
         elif img.mode in ('RGB', 'RGBA'):
             pixels = list(img.getdata())
-            unique_colors = len(set(pixels[:1000]))
+            # Sample spread across the whole image, not just the top-left
+            # corner, which is often a uniform sky/background region.
+            step = max(1, len(pixels) // 1000)
+            sample = pixels[::step][:1000]
+            unique_colors = len(set(sample))
             is_photo = unique_colors > 100
         return {
             'has_transparency': has_transparency,
@@ -823,7 +827,7 @@ def resize_image(filename):
         if keep_ratio and (width.isdigit() or height.isdigit()):
             filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             original_dimensions = get_image_dimensions(filepath) if filepath else None
-            if original_dimensions:
+            if original_dimensions and original_dimensions[0] and original_dimensions[1]:
                 original_width, original_height = original_dimensions
                 if width.isdigit() and not height.isdigit():
                     new_width = int(width)
