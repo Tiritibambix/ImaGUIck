@@ -158,17 +158,6 @@
         }
         .app-header-logo:hover { color: var(--text-primary); }
         .app-header-logo img { height: 22px; width: auto; display: block; }
-        .app-header-nav {
-            display: flex;
-            gap: var(--sp-lg);
-        }
-        .app-header-nav a {
-            color: var(--text-secondary);
-            font-size: var(--fs-sm);
-            font-weight: 500;
-        }
-        .app-header-nav a.active,
-        .app-header-nav a:hover { color: var(--accent-bright); }
 
         /* Layout helpers */
         .page-center {
@@ -513,9 +502,6 @@
         ::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--surface-hover); }
 
-        @media (max-width: 768px) {
-            .app-header-nav { gap: var(--sp-md); }
-        }
         @media (max-width: 380px) {
             .app-header-logo span { display: none; }
         }
@@ -552,10 +538,6 @@
                 <img src="{{ url_for('static', filename='media/imaguick-logo.png') }}" alt="">
                 <span>ImaGUIck</span>
             </a>
-            <nav class="app-header-nav">
-                <a href="{{ url_for('index') }}" class="{{ 'active' if request.path == '/' else '' }}">Resize</a>
-                <a href="{{ url_for('index') }}#gif" class="{{ 'active' if request.path.startswith('/gif') else '' }}">GIF &middot; WEBP</a>
-            </nav>
         </div>
     </header>
 

@@ -126,6 +126,32 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    .spinner.spinner-lg {
+        width: 32px;
+        height: 32px;
+        border-width: 3px;
+    }
+
+    .building-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-sm);
+        padding: var(--sp-lg) 0 var(--sp-xl);
+    }
+
+    .building-text {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        text-align: center;
+    }
+
+    .building-elapsed {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        font-family: 'DM Mono', monospace;
+    }
+
     .status-line {
         text-align: center;
         font-size: 0.84rem;
@@ -182,6 +208,13 @@
         <h1 id="page-title">{{ 'Building animation…' if job_kind == 'gif_create' else 'Processing batch…' }}</h1>
     </div>
 
+    {% if job_kind == 'gif_create' %}
+    <div class="building-indicator" id="building-indicator">
+        <span class="spinner spinner-lg"></span>
+        <p class="building-text">Assembling {{ total }} frames into your animation&hellip;</p>
+        <p class="building-elapsed" id="building-elapsed">0s elapsed</p>
+    </div>
+    {% else %}
     <div class="global-progress">
         <div class="global-track">
             <div class="global-fill" id="global-bar"></div>
@@ -193,8 +226,9 @@
     </div>
 
     <div class="file-list" id="file-list" role="status" aria-live="polite"></div>
+    {% endif %}
 
-    <div class="status-line" id="status-summary" aria-live="polite">Initialising&hellip;</div>
+    <div class="status-line" id="status-summary" aria-live="polite">{{ '' if job_kind == 'gif_create' else 'Initialising…' }}</div>
 
     <div class="action-row" id="action-area">
         <a id="download-btn" href="#" class="btn btn-primary" style="display:none">Download</a>
@@ -219,6 +253,15 @@
     const pageTitle      = document.getElementById('page-title');
     const completionIcon = document.getElementById('completion-icon');
     const pageWrapper    = document.getElementById('page-wrapper');
+    const buildingElapsed = document.getElementById('building-elapsed');
+
+    let elapsedInterval = null;
+    if (buildingElapsed) {
+        const startTime = Date.now();
+        elapsedInterval = setInterval(() => {
+            buildingElapsed.textContent = Math.floor((Date.now() - startTime) / 1000) + 's elapsed';
+        }, 1000);
+    }
 
     const ICONS = {
         queued:     '<svg class="icon"><use href="#icon-clock"></use></svg>',
@@ -263,26 +306,29 @@
 
         if (data.error) { statusLine.textContent = 'Error: ' + data.error; evtSource.close(); return; }
 
-        if (!initialised && data.files && data.files.length) {
-            initRows(data.files);
-            initialised = true;
+        const isGif = data.kind === 'gif_create';
+
+        if (!isGif) {
+            if (!initialised && data.files && data.files.length) {
+                initRows(data.files);
+                initialised = true;
+            }
+
+            const done = (data.done || 0) + (data.errors || 0);
+            const pct  = data.total > 0 ? Math.round(done / data.total * 100) : 0;
+            globalBar.style.width = pct + '%';
+            globalCtr.textContent = done + ' / ' + data.total;
+            globalPct.textContent = pct + '%';
+
+            (data.files || []).forEach(updateRow);
         }
-
-        const done = (data.done || 0) + (data.errors || 0);
-        const pct  = data.total > 0 ? Math.round(done / data.total * 100) : 0;
-        globalBar.style.width = pct + '%';
-        globalCtr.textContent = done + ' / ' + data.total;
-        globalPct.textContent = pct + '%';
-
-        (data.files || []).forEach(updateRow);
 
         if (data.complete) {
             evtSource.close();
+            if (elapsedInterval) clearInterval(elapsedInterval);
 
             completionIcon.classList.add('visible');
             pageWrapper.classList.add('complete');
-
-            const isGif = data.kind === 'gif_create';
             const doneWord = isGif ? 'Animation' : 'Batch';
 
             if (data.errors === 0) {
@@ -314,7 +360,7 @@
                 downloadBtn.href = '/download_batch/' + encodeURIComponent(data.zip);
                 downloadBtn.style.display = 'inline-flex';
             }
-        } else {
+        } else if (!isGif) {
             const processing = (data.files || []).filter(f => f.status === 'processing').length;
             statusLine.textContent = processing > 0
                 ? processing + ' file(s) processing\u2026'

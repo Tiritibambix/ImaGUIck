@@ -9,7 +9,6 @@ import atexit
 import shutil
 from zipfile import ZipFile
 from datetime import datetime
-from werkzeug.utils import secure_filename
 from PIL import Image
 import requests
 import logging
@@ -145,6 +144,48 @@ def is_valid_tmp_path(filepath):
         filepath.startswith('/tmp/imaguick_') and
         re.match(r'^imaguick_[a-f0-9]{32}\.(png|tiff)$', basename) is not None
     )
+
+
+_WINDOWS_RESERVED_NAMES = {
+    'CON', 'PRN', 'AUX', 'NUL',
+    *(f'COM{i}' for i in range(1, 10)),
+    *(f'LPT{i}' for i in range(1, 10)),
+}
+
+
+def safe_display_filename(filename, fallback='file'):
+    """Sanitize a filename for storage/display while preserving spaces, accents,
+    and punctuation that Werkzeug's secure_filename() strips. secure_path() is
+    the actual defense against directory traversal (confines the resolved
+    absolute path to uploads/output); this only removes what's genuinely unsafe
+    as a filesystem path component or in a Content-Disposition header.
+    Idempotent: re-applying it to its own output is a no-op — required since
+    it's reused both to sanitize a brand-new upload AND to re-validate a
+    filename that arrived as a URL path parameter and must still match the
+    exact file already on disk."""
+    name = os.path.basename(filename or '').strip()
+    name = re.sub(r'[\x00-\x1f\x7f<>:"|?*\\/]', '', name)
+    name = re.sub(r'\s+', ' ', name).strip(' .')
+    if not name:
+        return fallback
+    base, ext = os.path.splitext(name)
+    if base.upper() in _WINDOWS_RESERVED_NAMES:
+        base = f'_{base}'
+    name = f'{base}{ext}'
+    if len(name) > 200:
+        base, ext = os.path.splitext(name)
+        name = base[:200 - len(ext)] + ext
+    return name or fallback
+
+
+def is_unsafe_filename(name):
+    """True if name could indicate a path-traversal attempt or an unsafe
+    filesystem name. secure_path() is the real traversal defense (resolved
+    absolute path confinement); this is a fast pre-check that — unlike the
+    old `^[\\w\\-.]+$` allowlist regex it replaces — doesn't reject legitimate
+    filenames containing spaces, `&`, or accented characters."""
+    return (not name or '/' in name or '\\' in name or '..' in name
+            or name.startswith('.') or '\x00' in name)
 
 
 # RAW formats that require dcraw pre-processing before ImageMagick
@@ -1008,16 +1049,16 @@ def upload_file():
         if not file or not file.filename:
             continue
         if not allowed_file(file.filename):
-            errors.append(f"Unsupported format: {secure_filename(file.filename)}")
+            errors.append(f"Unsupported format: {safe_display_filename(file.filename)}")
             continue
-        unique_name = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
+        unique_name = f"{uuid.uuid4().hex}_{safe_display_filename(file.filename)}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
         file.save(filepath)
         # Per-file size check after saving
         if os.path.getsize(filepath) > PER_FILE_MAX_SIZE:
             os.remove(filepath)
             errors.append(
-                f"{secure_filename(file.filename)} exceeds the per-file limit of "
+                f"{safe_display_filename(file.filename)} exceeds the per-file limit of "
                 f"{PER_FILE_MAX_SIZE // 1024 // 1024} MB"
             )
             continue
@@ -1080,7 +1121,7 @@ def upload_url():
         if not content_type.startswith('image/'):
             raise ValueError('Not an image file')
 
-        filename = secure_filename(os.path.basename(url.split('?')[0]))
+        filename = safe_display_filename(os.path.basename(url.split('?')[0]))
         if not filename or not allowed_file(filename):
             raise ValueError('Invalid file type')
 
@@ -1107,7 +1148,7 @@ def upload_url():
 @app.route('/resize_options/<filename>')
 def resize_options(filename):
     """Resize options page for a single image."""
-    sanitized_filename = secure_filename(os.path.basename(filename))
+    sanitized_filename = safe_display_filename(os.path.basename(filename))
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], sanitized_filename)
     if not os.path.exists(filepath):
         flash_error("File not found.")
@@ -1134,8 +1175,8 @@ def resize_options(filename):
 @app.route('/resize/<filename>', methods=['POST'])
 def resize_image(filename):
     """Handle resizing or format conversion for a single image."""
-    filename = secure_filename(os.path.basename(filename))
-    if not filename or not re.match(r'^[\w\-.]+$', filename) or '..' in filename or filename.startswith('/'):
+    filename = safe_display_filename(os.path.basename(filename))
+    if is_unsafe_filename(filename):
         flash('Invalid filename')
         return render_template('result.html',
                                success=False,
@@ -1176,7 +1217,7 @@ def resize_image(filename):
         else:
             output_filename = f"{base_name}_imaGUIck{os.path.splitext(clean_name)[1]}"
 
-        output_filename = secure_filename(output_filename)
+        output_filename = safe_display_filename(output_filename)
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
         app.logger.info(f"Output path: {output_path}")
 
@@ -1252,7 +1293,7 @@ def resize_batch_options(filenames=None):
         else:
             # Legacy fallback: filenames in query string — sanitize each entry
             filenames = [
-                secure_filename(os.path.basename(f.strip()))
+                safe_display_filename(os.path.basename(f.strip()))
                 for f in request.args.get('filenames', '').split(',')
                 if f.strip()
             ]
@@ -1271,7 +1312,7 @@ def resize_batch_options(filenames=None):
     first_file_path = None
 
     for filename in filenames:
-        filename = secure_filename(os.path.basename(filename))
+        filename = safe_display_filename(os.path.basename(filename))
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if not os.path.exists(filepath):
             continue
@@ -1328,7 +1369,7 @@ def resize_batch():
 
     file_list = []
     for fname in filenames:
-        fname = secure_filename(os.path.basename(fname))
+        fname = safe_display_filename(os.path.basename(fname))
         fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], fname))
         if fpath and os.path.isfile(fpath):
             # Strip UUID prefix (32 hex chars + underscore) to restore original filename
@@ -1395,7 +1436,7 @@ def gif_create_options():
 
     valid_files = []
     for filename in filenames:
-        filename = secure_filename(os.path.basename(filename))
+        filename = safe_display_filename(os.path.basename(filename))
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if os.path.exists(filepath):
             valid_files.append(filename)
@@ -1470,14 +1511,29 @@ def gif_create():
     h_raw = request.form.get('height', '').strip()
     if w_raw.isdigit() and h_raw.isdigit():
         width, height = int(w_raw), int(h_raw)
-        if width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION:
-            flash(f'Canvas size too large. Maximum is {GIF_MAX_OUTPUT_DIMENSION}px per side.', 'error')
-            return redirect(url_for('gif_create_options', upload_key=upload_key))
+    elif w_raw.isdigit() or h_raw.isdigit():
+        # Only one dimension given — scale the other proportionally from the
+        # first frame's own aspect ratio, mirroring resolve_missing_dimension()
+        # in the single-image resize flow, instead of silently dropping it.
+        first_fname = safe_display_filename(os.path.basename(filenames[0]))
+        first_fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], first_fname))
+        first_w, first_h = get_image_dimensions(first_fpath) if first_fpath else (None, None)
+        if first_w and first_h:
+            if w_raw.isdigit():
+                width = int(w_raw)
+                height = round(width * first_h / first_w)
+            else:
+                height = int(h_raw)
+                width = round(height * first_w / first_h)
+
+    if width and height and (width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION):
+        flash(f'Canvas size too large. Maximum is {GIF_MAX_OUTPUT_DIMENSION}px per side.', 'error')
+        return redirect(url_for('gif_create_options', upload_key=upload_key))
 
     file_list = []
     total_pixels = 0
     for fname in filenames:
-        fname = secure_filename(os.path.basename(fname))
+        fname = safe_display_filename(os.path.basename(fname))
         fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], fname))
         if not fpath or not os.path.isfile(fpath):
             continue
@@ -1505,8 +1561,8 @@ def gif_create():
     purge_old_jobs()
 
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    base_name = os.path.splitext(secure_filename(re.sub(r'^[a-f0-9]{32}_', '', filenames[0])))[0]
-    output_filename = secure_filename(f'{base_name}_imaGUIck_{timestamp}.{output_format.lower()}')
+    base_name = os.path.splitext(safe_display_filename(re.sub(r'^[a-f0-9]{32}_', '', filenames[0])))[0]
+    output_filename = safe_display_filename(f'{base_name}_imaGUIck_{timestamp}.{output_format.lower()}')
     output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
     job_id = uuid.uuid4().hex
@@ -1544,7 +1600,7 @@ def gif_create():
 @app.route('/gif_edit_options/<filename>')
 def gif_edit_options(filename):
     """Options page for editing an existing animated GIF/WEBP."""
-    sanitized_filename = secure_filename(os.path.basename(filename))
+    sanitized_filename = safe_display_filename(os.path.basename(filename))
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], sanitized_filename)
     if not os.path.exists(filepath):
         flash_error("File not found.")
@@ -1580,8 +1636,8 @@ def gif_edit(filename):
     """Handle one editing operation on an existing animated GIF/WEBP. Synchronous,
     mirroring resize_image()'s pattern since edits are single-file and bounded
     (unlike GIF creation, which can involve many large input frames)."""
-    filename = secure_filename(os.path.basename(filename))
-    if not filename or not re.match(r'^[\w\-.]+$', filename) or '..' in filename or filename.startswith('/'):
+    filename = safe_display_filename(os.path.basename(filename))
+    if is_unsafe_filename(filename):
         flash('Invalid filename')
         return render_template('result.html', success=False, title='Error',
                                return_url=url_for('index'))
@@ -1638,12 +1694,12 @@ def gif_edit(filename):
                                        return_url=url_for('gif_edit_options', filename=filename))
 
             if extract_mode == 'single':
-                output_filename = secure_filename(f'{base_name}_frame{frame_number}_imaGUIck.{extract_format.lower()}')
+                output_filename = safe_display_filename(f'{base_name}_frame{frame_number}_imaGUIck.{extract_format.lower()}')
                 output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
                 command = build_gif_extract_command(filepath, output_path, extract_mode,
                                                      frame_number, frame_start, frame_end, extract_format)
             else:
-                zip_dir_name = secure_filename(f'{base_name}_frames_{uuid.uuid4().hex[:8]}')
+                zip_dir_name = safe_display_filename(f'{base_name}_frames_{uuid.uuid4().hex[:8]}')
                 zip_dir = os.path.join(app.config['OUTPUT_FOLDER'], zip_dir_name)
                 os.makedirs(zip_dir, exist_ok=True)
                 output_pattern = os.path.join(zip_dir, f'frame_%03d.{extract_format.lower()}')
@@ -1663,7 +1719,7 @@ def gif_edit(filename):
                 return render_template('result.html', success=True, title='Success',
                                        filename=output_filename, batch=False)
             else:
-                zip_filename = secure_filename(f'{zip_dir_name}.zip')
+                zip_filename = safe_display_filename(f'{zip_dir_name}.zip')
                 zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
                 with ZipFile(zip_path, 'w') as zipf:
                     for fn in sorted(os.listdir(zip_dir)):
@@ -1681,7 +1737,7 @@ def gif_edit(filename):
             return render_template('result.html', success=False, title='Error',
                                    return_url=url_for('gif_edit_options', filename=filename))
 
-        output_filename = secure_filename(f'{base_name}_imaGUIck.{output_format.lower()}')
+        output_filename = safe_display_filename(f'{base_name}_imaGUIck.{output_format.lower()}')
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
 
         params = {'loop': loop}
@@ -1813,8 +1869,8 @@ def job_status(job_id):
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
-    safe_name = secure_filename(os.path.basename(filename))
-    if not safe_name or not re.match(r'^[\w\-.]+$', safe_name) or '..' in safe_name:
+    safe_name = safe_display_filename(os.path.basename(filename))
+    if is_unsafe_filename(safe_name):
         flash('Invalid filename', 'error')
         return redirect(url_for('index'))
     zip_path = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], safe_name))
@@ -1827,8 +1883,8 @@ def download_batch(filename):
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    safe_name = secure_filename(os.path.basename(filename))
-    if not safe_name or not re.match(r'^[\w\-.]+$', safe_name) or '..' in safe_name:
+    safe_name = safe_display_filename(os.path.basename(filename))
+    if is_unsafe_filename(safe_name):
         flash('Invalid filename', 'error')
         return redirect(url_for('index'))
     filepath = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], safe_name))
@@ -1839,6 +1895,22 @@ def download(filename):
         response = Response(f.read(), mimetype='application/octet-stream')
         response.headers['Content-Disposition'] = f'attachment; filename="{safe_name}"'
     return response
+
+
+@app.route('/preview_frame/<filename>')
+def preview_frame(filename):
+    """Serve an already-uploaded (not yet processed) image back to the browser,
+    for the client-side GIF-creation timing preview only. Read-only, same
+    path-confinement as download() but via send_file() so the browser renders
+    it inline instead of forcing a download. Plain 404 on failure since this
+    is only ever hit as an <img src> target, not a user-facing navigation."""
+    safe_name = os.path.basename(filename)
+    if is_unsafe_filename(safe_name):
+        return ('', 404)
+    filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], safe_name))
+    if not filepath or not os.path.exists(filepath):
+        return ('', 404)
+    return send_file(filepath)
 
 
 def is_safe_url(url):

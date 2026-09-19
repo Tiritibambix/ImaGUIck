@@ -42,6 +42,23 @@
         font-size: 0.68rem;
         color: var(--text-muted);
     }
+
+    .gif-preview-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 220px;
+        background: var(--surface-bg);
+        border: 1px solid var(--surface-line);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-top: var(--sp-sm);
+    }
+    .gif-preview-wrap img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
 </style>
 {% endblock %}
 
@@ -80,6 +97,14 @@
 
         <div class="form-grid">
 
+            <div class="section-block col-full">
+                <div class="section-title">Preview</div>
+                <div class="gif-preview-wrap">
+                    <img id="gif-preview-img" alt="Animation preview">
+                </div>
+                <small>Approximate order and timing only — canvas size and palette are applied during processing, not shown here.</small>
+            </div>
+
             <div class="section-block">
                 <div class="section-title">Playback</div>
                 <div class="form-group">
@@ -106,7 +131,7 @@
                         <input type="number" name="height" id="height" min="1" max="{{ gif_max_dimension }}" placeholder="auto">
                     </div>
                 </div>
-                <small>Leave blank to keep each frame's own size. Frames are centered on a transparent canvas of this size.</small>
+                <small>Leave both blank to keep each frame's own size. Fill in one to scale proportionally from the first frame; fill in both for an exact canvas.</small>
             </div>
 
             <div class="section-block col-full">
@@ -148,4 +173,27 @@
 
 </div>
 </div>
+
+<script>
+(function () {
+    const frameNames = {{ files | tojson }};
+    const frameUrls = frameNames.map(f => '/preview_frame/' + encodeURIComponent(f));
+    let previewIndex = 0, previewTimer = null;
+    const previewImg = document.getElementById('gif-preview-img');
+    const fpsInput = document.getElementById('fps');
+
+    function startPreview() {
+        clearInterval(previewTimer);
+        if (!frameUrls.length) return;
+        const fps = Math.max(1, parseInt(fpsInput.value, 10) || 12);
+        previewImg.src = frameUrls[previewIndex];
+        previewTimer = setInterval(() => {
+            previewIndex = (previewIndex + 1) % frameUrls.length;
+            previewImg.src = frameUrls[previewIndex];
+        }, 1000 / fps);
+    }
+    fpsInput.addEventListener('input', startPreview);
+    startPreview();
+})();
+</script>
 {% endblock %}
