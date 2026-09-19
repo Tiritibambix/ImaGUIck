@@ -226,7 +226,7 @@ From the resize options page of any animated GIF/WEBP you've uploaded, follow th
 
 | Layer | Technology |
 |---|---|
-| Backend | Flask (Python 3.9+), Gunicorn (gthread, 4 workers × 8 threads) |
+| Backend | Flask (Python 3.9+), Gunicorn (gthread, 1 worker × 16 threads — job/session state is in-process memory, so it must stay a single process) |
 | Image processing | ImageMagick 7.1.2-18, ExifTool, Pillow, potrace |
 | Async pipeline | `ThreadPoolExecutor` + `BoundedSemaphore(4)` — no external queue required |
 | Progress streaming | Server-Sent Events (SSE) via `/job/<id>/status` |

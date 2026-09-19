@@ -44,5 +44,15 @@ fi
 
 echo "Using Gunicorn at: $GUNICORN_PATH"
 
-# Start the application with Gunicorn
-exec $GUNICORN_PATH --bind 0.0.0.0:5000 --workers 4 --worker-class gthread --threads 8 --timeout 600 --limit-request-line 8190 app:app
+# Start the application with Gunicorn.
+# Exactly one worker process: app.py keeps all state (jobs, upload_sessions,
+# the ImageMagick concurrency semaphore, the WebP-support cache) in plain
+# in-memory Python objects with no external store. Those are only shared
+# between threads of the SAME process, not across separate worker processes —
+# with more than one worker, a request can land on a worker that never saw
+# the upload_sessions/jobs entry a previous request created on another worker,
+# causing spurious "No files selected" / "Job not found" errors. Concurrency
+# still comes from --threads within this single process; the ImageMagick
+# invocation limit is enforced by _processing_semaphore (BoundedSemaphore(4))
+# in app.py, which is only correct when there is one process.
+exec $GUNICORN_PATH --bind 0.0.0.0:5000 --workers 1 --worker-class gthread --threads 16 --timeout 600 --limit-request-line 8190 app:app
