@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% from "_resize_form_fields.html" import info_tip %}
+
+{% block title %}Edit animation — {{ filename }}{% endblock %}
+
+{% block head %}
+{% include "_resize_options_styles.html" %}
+<style>
+    .mode-block { display: none; }
+    .mode-block.active { display: block; }
+
+    .angle-options {
+        display: flex;
+        gap: var(--sp-xs);
+        flex-wrap: wrap;
+        margin-bottom: var(--sp-sm);
+    }
+    .angle-radio {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border-radius: 20px;
+        border: 1px solid var(--surface-border);
+        background: var(--surface-hover);
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all var(--ease);
+    }
+    .angle-radio:has(input:checked) {
+        background: var(--accent-subtle);
+        border-color: var(--accent);
+        color: var(--accent-bright);
+    }
+    .angle-radio input[type="radio"] { display: none; }
+
+    .switch-row {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-sm);
+        margin-bottom: var(--sp-sm);
+    }
+    .switch-row label:not(.switch) { margin: 0; color: var(--text-secondary); font-size: 0.84rem; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page-top">
+<div class="card resize-card">
+
+    <div class="page-header">
+        <a href="{{ url_for('index') }}" title="Back"><svg class="icon"><use href="#icon-arrow-left"></use></svg></a>
+        <div class="page-title">
+            <h1>Edit animation</h1>
+            <span class="filename">{{ filename }}</span>
+        </div>
+        <span class="page-header-meta">{{ width }}&times;{{ height }}px &middot; {{ n_frames }} frames</span>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-list" aria-live="polite">
+            {% for category, message in messages %}
+                {% set icon = {'error': 'x-circle', 'success': 'check-circle', 'warning': 'alert-triangle'}.get(category, 'info') %}
+                <div class="flash {{ category }}">
+                    <svg class="icon"><use href="#icon-{{ icon }}"></use></svg>
+                    <span class="flash-text">{{ message }}</span>
+                    <button type="button" class="flash-dismiss" aria-label="Dismiss">
+                        <svg class="icon"><use href="#icon-x"></use></svg>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <form action="/gif_edit/{{ filename }}" method="post" id="gif-edit-form">
+
+        <div class="form-group">
+            <label for="mode-select">Operation</label>
+            <select name="mode" id="mode-select">
+                <option value="resize">Resize</option>
+                <option value="optimize">Optimize (palette / dithering)</option>
+                <option value="speed">Change speed</option>
+                <option value="reverse">Reverse</option>
+                <option value="rotate">Rotate / flip</option>
+                <option value="loop">Change loop count</option>
+                <option value="extract">Extract frame(s)</option>
+            </select>
+        </div>
+
+        <div class="section-block mode-block" data-mode="resize">
+            <div class="section-title">Resize</div>
+            <div class="dim-row">
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="width_edit">Width</label>
+                    <input type="number" name="width" id="width_edit" min="1" max="{{ gif_max_dimension }}" placeholder="px">
+                </div>
+                <div class="dim-sep">×</div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="height_edit">Height</label>
+                    <input type="number" name="height" id="height_edit" min="1" max="{{ gif_max_dimension }}" placeholder="px">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+                <label for="percentage">or Scale (%)</label>
+                <input type="number" name="percentage" id="percentage" min="1" max="500" step="0.1" placeholder="e.g. 50">
+            </div>
+        </div>
+
+        <div class="section-block mode-block" data-mode="optimize">
+            <div class="section-title">Optimize</div>
+            <div class="form-group">
+                <label for="colors">Palette size (2&ndash;256)</label>
+                <input type="number" name="colors" id="colors" min="2" max="256" value="256">
+            </div>
+            <div class="switch-row">
+                <label class="switch"><input type="checkbox" name="dither" checked><span class="switch-track"><span class="switch-thumb"></span></span></label>
+                <label>Dithering (Floyd&ndash;Steinberg)</label>
+            </div>
+        </div>
+
+        <div class="section-block mode-block" data-mode="speed">
+            <div class="section-title">Playback speed</div>
+            <div class="form-group" style="margin-bottom:0">
+                <label for="speed_factor">Speed factor</label>
+                <input type="number" name="speed_factor" id="speed_factor" min="0.1" max="10" step="0.1" value="1.0">
+                <small>2.0 = twice as fast, 0.5 = half speed</small>
+            </div>
+        </div>
+
+        <div class="section-block mode-block" data-mode="reverse">
+            <div class="section-title">Reverse</div>
+            <div class="format-note">
+                <svg class="icon"><use href="#icon-repeat"></use></svg>
+                <span>Plays every frame in reverse order.</span>
+            </div>
+        </div>
+
+        <div class="section-block mode-block" data-mode="rotate">
+            <div class="section-title">Rotate / flip</div>
+            <div class="angle-options">
+                <label class="angle-radio"><input type="radio" name="angle" value="" checked> None</label>
+                <label class="angle-radio"><input type="radio" name="angle" value="90"> 90&deg;</label>
+                <label class="angle-radio"><input type="radio" name="angle" value="180"> 180&deg;</label>
+                <label class="angle-radio"><input type="radio" name="angle" value="270"> 270&deg;</label>
+            </div>
+            <div class="switch-row">
+                <label class="switch"><input type="checkbox" name="flip_h"><span class="switch-track"><span class="switch-thumb"></span></span></label>
+                <label>Flip horizontal</label>
+            </div>
+            <div class="switch-row" style="margin-bottom:0">
+                <label class="switch"><input type="checkbox" name="flip_v"><span class="switch-track"><span class="switch-thumb"></span></span></label>
+                <label>Flip vertical</label>
+            </div>
+        </div>
+
+        <div class="section-block mode-block" data-mode="loop">
+            <div class="format-note">
+                <svg class="icon"><use href="#icon-repeat"></use></svg>
+                <span>Set the new loop count in the Output section below (0 = loop forever), then Apply.</span>
+            </div>
+        </div>
+
+        <div class="section-block mode-block" data-mode="extract">
+            <div class="section-title">Extract frame(s)</div>
+            <div class="form-group">
+                <label for="extract_mode">Range</label>
+                <select name="extract_mode" id="extract_mode">
+                    <option value="single">Single frame</option>
+                    <option value="range">Frame range</option>
+                    <option value="all">All frames</option>
+                </select>
+            </div>
+            <div class="form-group" id="extract-single-fields">
+                <label for="frame_number">Frame number (0&ndash;{{ n_frames - 1 }})</label>
+                <input type="number" name="frame_number" id="frame_number" min="0" max="{{ n_frames - 1 }}" value="0">
+            </div>
+            <div class="dim-row" id="extract-range-fields" style="display:none">
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="frame_start">From</label>
+                    <input type="number" name="frame_start" id="frame_start" min="0" max="{{ n_frames - 1 }}" value="0">
+                </div>
+                <div class="dim-sep">&ndash;</div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="frame_end">To</label>
+                    <input type="number" name="frame_end" id="frame_end" min="0" max="{{ n_frames - 1 }}" value="{{ n_frames - 1 }}">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+                <label for="extract_format">Extract as</label>
+                <select name="extract_format" id="extract_format">
+                    <option value="PNG">PNG</option>
+                    <option value="WEBP">WEBP</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section-block col-full common-fields" style="margin-top: var(--sp-lg)">
+            <div class="section-title">Output</div>
+            <div class="options-row">
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="loop">Loop count</label>
+                    <input type="number" name="loop" id="loop" min="0" max="100" placeholder="keep current">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="output_format">Output format</label>
+                    <select name="output_format" id="output_format">
+                        <option value="GIF">GIF</option>
+                        <option value="WEBP" {{ 'disabled' if not webp_supported }}>WEBP{{ ' (not supported on this server)' if not webp_supported }}</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="submit-area">
+            <button type="submit" class="btn btn-primary btn-full">Apply</button>
+        </div>
+    </form>
+
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const modeSelect   = document.getElementById('mode-select');
+    const modeBlocks   = document.querySelectorAll('.mode-block[data-mode]');
+    const commonFields = document.querySelector('.common-fields');
+    const extractModeSelect = document.getElementById('extract_mode');
+    const singleFields = document.getElementById('extract-single-fields');
+    const rangeFields   = document.getElementById('extract-range-fields');
+
+    function updateMode() {
+        const mode = modeSelect.value;
+        modeBlocks.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+        // Extract has its own format/params — hide the shared loop/output-format block for it.
+        commonFields.style.display = (mode === 'extract') ? 'none' : '';
+    }
+
+    modeSelect.addEventListener('change', updateMode);
+    updateMode();
+
+    function updateExtractFields() {
+        const m = extractModeSelect.value;
+        singleFields.style.display = (m === 'single') ? '' : 'none';
+        rangeFields.style.display  = (m === 'range') ? 'grid' : 'none';
+    }
+    extractModeSelect.addEventListener('change', updateExtractFields);
+    updateExtractFields();
+});
+</script>
+{% endblock %}

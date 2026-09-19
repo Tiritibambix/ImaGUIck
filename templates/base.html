@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImaGUIck</title>
+    <title>{% block title %}ImaGUIck{% endblock %}</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='media/imaguick-favicon.ico') }}">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -36,6 +36,8 @@
             --err-bg:          rgba(239, 68, 68, 0.08);
             --err-border:      rgba(239, 68, 68, 0.25);
             --warn:            #f59e0b;
+            --warn-bg:         rgba(245, 158, 11, 0.08);
+            --warn-border:     rgba(245, 158, 11, 0.3);
 
             /* Geometry */
             --radius-sm:       4px;
@@ -44,18 +46,33 @@
             --radius-xl:       18px;
 
             /* Spacing */
+            --sp-2xs:  2px;
             --sp-xs:   4px;
             --sp-sm:   8px;
             --sp-md:   16px;
             --sp-lg:   24px;
             --sp-xl:   40px;
+            --sp-2xl:  64px;
+
+            /* Type scale */
+            --fs-xs:   0.72rem;
+            --fs-sm:   0.82rem;
+            --fs-base: 0.88rem;
+            --fs-md:   1rem;
+            --fs-lg:   1.2rem;
+            --fs-xl:   1.5rem;
 
             /* Motion */
-            --ease:    0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            --ease:          0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-entrance: 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-fast:     0.12s ease;
 
             /* Shadow */
             --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
             --shadow-lg:   0 4px 24px rgba(0,0,0,0.5);
+
+            /* Header */
+            --header-height: 52px;
         }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -80,12 +97,85 @@
             opacity: 0.5;
         }
 
+        /* Accessibility: skip link */
+        .skip-link {
+            position: absolute;
+            top: -48px;
+            left: var(--sp-md);
+            z-index: 200;
+            background: var(--accent);
+            color: #fff;
+            padding: var(--sp-sm) var(--sp-md);
+            border-radius: var(--radius-md);
+            font-size: var(--fs-sm);
+            font-weight: 600;
+            transition: top var(--ease);
+        }
+        .skip-link:focus {
+            top: var(--sp-sm);
+            color: #fff;
+        }
+
+        /* Icon sprite base */
+        .icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Header / nav */
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            height: var(--header-height);
+            background: rgba(14, 14, 17, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--surface-line);
+        }
+        .app-header-inner {
+            max-width: 960px;
+            height: 100%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--sp-md);
+        }
+        .app-header-logo {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-sm);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: var(--fs-sm);
+        }
+        .app-header-logo:hover { color: var(--text-primary); }
+        .app-header-logo img { height: 22px; width: auto; display: block; }
+        .app-header-nav {
+            display: flex;
+            gap: var(--sp-lg);
+        }
+        .app-header-nav a {
+            color: var(--text-secondary);
+            font-size: var(--fs-sm);
+            font-weight: 500;
+        }
+        .app-header-nav a.active,
+        .app-header-nav a:hover { color: var(--accent-bright); }
+
         /* Layout helpers */
         .page-center {
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            min-height: calc(100vh - var(--header-height));
             padding: var(--sp-lg) var(--sp-md);
             position: relative;
             z-index: 1;
@@ -95,7 +185,7 @@
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            min-height: 100vh;
+            min-height: calc(100vh - var(--header-height));
             padding: var(--sp-xl) var(--sp-md);
             position: relative;
             z-index: 1;
@@ -111,9 +201,9 @@
         }
 
         /* Typography */
-        h1 { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
-        h2 { font-size: 1.2rem; font-weight: 600; color: var(--text-primary); }
-        h3 { font-size: 1rem;   font-weight: 500; color: var(--text-secondary); }
+        h1 { font-size: var(--fs-xl); font-weight: 600; color: var(--text-primary); }
+        h2 { font-size: var(--fs-lg); font-weight: 600; color: var(--text-primary); }
+        h3 { font-size: var(--fs-md); font-weight: 500; color: var(--text-secondary); }
 
         a {
             color: var(--accent-bright);
@@ -124,7 +214,7 @@
 
         /* Section legend */
         .section-title {
-            font-size: 0.72rem;
+            font-size: var(--fs-xs);
             font-weight: 600;
             letter-spacing: 0.08em;
             text-transform: uppercase;
@@ -137,13 +227,14 @@
         /* Form elements */
         label {
             display: block;
-            font-size: 0.82rem;
+            font-size: var(--fs-sm);
             font-weight: 500;
             color: var(--text-secondary);
             margin-bottom: var(--sp-xs);
         }
 
         input[type="text"],
+        input[type="number"],
         select {
             width: 100%;
             height: 38px;
@@ -153,18 +244,20 @@
             border-radius: var(--radius-md);
             color: var(--text-primary);
             font-family: inherit;
-            font-size: 0.88rem;
+            font-size: var(--fs-base);
             transition: border-color var(--ease), box-shadow var(--ease);
         }
 
         input[type="text"]:focus,
+        input[type="number"]:focus,
         select:focus {
             outline: none;
             border-color: var(--accent);
             box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
-        input[type="text"]::placeholder { color: var(--text-muted); }
+        input[type="text"]::placeholder,
+        input[type="number"]::placeholder { color: var(--text-muted); }
 
         select {
             cursor: pointer;
@@ -185,6 +278,47 @@
             flex-shrink: 0;
         }
 
+        /* Switch (toggle) */
+        .switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            width: 38px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        .switch input[type="checkbox"] {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            margin: 0;
+            cursor: pointer;
+        }
+        .switch-track {
+            position: absolute;
+            inset: 0;
+            background: var(--surface-raised);
+            border: 1px solid var(--surface-border);
+            border-radius: 20px;
+            transition: background var(--ease), border-color var(--ease);
+            pointer-events: none;
+        }
+        .switch-thumb {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: transform var(--ease-fast), background var(--ease);
+        }
+        .switch input:checked ~ .switch-track { background: var(--accent-subtle); border-color: var(--accent); }
+        .switch input:checked ~ .switch-track .switch-thumb { transform: translateX(16px); background: var(--accent-bright); }
+        .switch input:focus-visible ~ .switch-track { box-shadow: 0 0 0 3px var(--accent-glow); }
+
         /* Buttons */
         .btn {
             display: inline-flex;
@@ -196,7 +330,7 @@
             border: none;
             border-radius: var(--radius-md);
             font-family: inherit;
-            font-size: 0.88rem;
+            font-size: var(--fs-base);
             font-weight: 600;
             letter-spacing: 0.02em;
             cursor: pointer;
@@ -243,7 +377,7 @@
 
         /* Small helper */
         small {
-            font-size: 0.75rem;
+            font-size: var(--fs-xs);
             color: var(--text-muted);
         }
 
@@ -256,34 +390,75 @@
         }
 
         .flash {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-sm);
             padding: var(--sp-sm) var(--sp-md);
             border-radius: var(--radius-md);
             font-size: 0.84rem;
             font-weight: 500;
+            animation: flash-in 0.2s ease;
+            overflow: hidden;
         }
+
+        .flash-text { flex: 1; }
+
+        .flash-dismiss {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: 0.6;
+            cursor: pointer;
+            padding: 2px;
+            flex-shrink: 0;
+        }
+        .flash-dismiss:hover { opacity: 1; }
 
         .flash.error   { background: var(--err-bg);  border: 1px solid var(--err-border);  color: #fca5a5; }
         .flash.success { background: var(--ok-bg);   border: 1px solid var(--ok-border);   color: #86efac; }
         .flash.info    { background: var(--accent-subtle); border: 1px solid var(--accent-glow); color: var(--accent-bright); }
+        .flash.warning { background: var(--warn-bg); border: 1px solid var(--warn-border); color: #fbbf24; }
 
-        /* Tooltip */
+        @keyframes flash-in {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: none; }
+        }
+        .flash-out {
+            animation: flash-out 0.18s ease forwards;
+        }
+        @keyframes flash-out {
+            to {
+                opacity: 0;
+                transform: translateY(-4px);
+                max-height: 0;
+                margin-bottom: 0;
+                padding-top: 0;
+                padding-bottom: 0;
+                border-width: 0;
+            }
+        }
+
+        /* Tooltip — click/tap toggled, with hover as a bonus on desktop */
         .tip {
             position: relative;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             background: var(--surface-hover);
             border: 1px solid var(--surface-border);
             color: var(--text-muted);
-            font-size: 0.65rem;
-            font-weight: 700;
-            cursor: help;
+            cursor: pointer;
             flex-shrink: 0;
-            font-family: 'DM Mono', monospace;
+            font-family: inherit;
+            padding: 0;
         }
+        .tip .icon { width: 10px; height: 10px; }
 
         .tip::after {
             content: attr(data-tip);
@@ -294,7 +469,7 @@
             background: #2a2a36;
             border: 1px solid var(--surface-border);
             color: var(--text-secondary);
-            font-size: 0.72rem;
+            font-size: var(--fs-xs);
             font-weight: 400;
             padding: 6px 10px;
             border-radius: var(--radius-md);
@@ -309,7 +484,9 @@
             line-height: 1.5;
         }
 
-        .tip:hover::after {
+        .tip:hover::after,
+        .tip:focus-visible::after,
+        .tip.tip-open::after {
             opacity: 1;
             visibility: visible;
         }
@@ -335,10 +512,82 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--surface-hover); }
+
+        @media (max-width: 768px) {
+            .app-header-nav { gap: var(--sp-md); }
+        }
+        @media (max-width: 380px) {
+            .app-header-logo span { display: none; }
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
+
+    <svg style="display:none" aria-hidden="true">
+        <symbol id="icon-upload-cloud" viewBox="0 0 24 24"><path d="M7 18a4.6 4.4 0 0 1 0-9 5.5 5.5 0 0 1 10.6-1.5A4.5 4.5 0 0 1 17 18H7z"/><polyline points="8 13 12 9 16 13"/><line x1="12" y1="9" x2="12" y2="19"/></symbol>
+        <symbol id="icon-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+        <symbol id="icon-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+        <symbol id="icon-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9"/></symbol>
+        <symbol id="icon-x-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="14.5" y1="9.5" x2="9.5" y2="14.5"/><line x1="9.5" y1="9.5" x2="14.5" y2="14.5"/></symbol>
+        <symbol id="icon-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 5 4 12 11 19"/></symbol>
+        <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="0.6" fill="currentColor" stroke="none"/></symbol>
+        <symbol id="icon-alert-triangle" viewBox="0 0 24 24"><path d="M12 3.5 21.5 20h-19z"/><line x1="12" y1="9.5" x2="12" y2="13.5"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor" stroke="none"/></symbol>
+        <symbol id="icon-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></symbol>
+        <symbol id="icon-rotate-cw" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 0 18.6 16"/><polyline points="20 4 20 11 13 11"/></symbol>
+        <symbol id="icon-flip-horizontal" viewBox="0 0 24 24"><path d="M8 3v18M4 8l-1.5 2 1.5 2M16 3v18M20 8l1.5 2-1.5 2"/></symbol>
+        <symbol id="icon-flip-vertical" viewBox="0 0 24 24"><path d="M3 8h18M8 4l2-1.5 2 1.5M3 16h18M8 20l2 1.5 2-1.5"/></symbol>
+        <symbol id="icon-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="2.5"/><circle cx="6" cy="17.5" r="2.5"/><line x1="8.5" y1="8" x2="20" y2="19"/><line x1="20" y1="5" x2="8.5" y2="16"/></symbol>
+        <symbol id="icon-repeat" viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3"/></symbol>
+        <symbol id="icon-images" viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12" rx="2"/><path d="M7 3h11a2 2 0 0 1 2 2v11"/><circle cx="8" cy="10.5" r="1.4"/><path d="M4 16.5l3.2-3.2a1.5 1.5 0 0 1 2.1 0L13 17"/></symbol>
+        <symbol id="icon-grip-vertical" viewBox="0 0 24 24" stroke="none" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></symbol>
+        <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12"/><polyline points="7 11 12 16 17 11"/><path d="M4 18v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/></symbol>
+        <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></symbol>
+    </svg>
+
+    <header class="app-header">
+        <div class="app-header-inner">
+            <a href="{{ url_for('index') }}" class="app-header-logo">
+                <img src="{{ url_for('static', filename='media/imaguick-logo.png') }}" alt="">
+                <span>ImaGUIck</span>
+            </a>
+            <nav class="app-header-nav">
+                <a href="{{ url_for('index') }}" class="{{ 'active' if request.path == '/' else '' }}">Resize</a>
+                <a href="{{ url_for('index') }}#gif" class="{{ 'active' if request.path.startswith('/gif') else '' }}">GIF &middot; WEBP</a>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main-content">
     {% block body %}{% endblock %}
+    </main>
+
+    <script>
+        document.addEventListener('click', function (e) {
+            var tip = e.target.closest('.tip');
+            document.querySelectorAll('.tip.tip-open').forEach(function (t) {
+                if (t !== tip) t.classList.remove('tip-open');
+            });
+            if (tip) {
+                tip.classList.toggle('tip-open');
+                e.stopPropagation();
+                return;
+            }
+            var dismiss = e.target.closest('.flash-dismiss');
+            if (dismiss) {
+                var flash = dismiss.closest('.flash');
+                if (flash) flash.classList.add('flash-out');
+            }
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.tip.tip-open').forEach(function (t) { t.classList.remove('tip-open'); });
+            }
+        });
+        document.addEventListener('animationend', function (e) {
+            if (e.animationName === 'flash-out') e.target.remove();
+        });
+    </script>
 </body>
 </html>

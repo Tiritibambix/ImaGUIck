@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}ImaGUIck — Image resizing & conversion{% endblock %}
+
 {% block head %}
 <style>
     .upload-card {
@@ -54,7 +56,37 @@
         transform: scale(1.01);
     }
 
-    .drop-icon { font-size: 1.6rem; line-height: 1; opacity: 0.6; }
+    .mode-tabs {
+        display: flex;
+        gap: var(--sp-xs);
+        background: var(--surface-raised);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-md);
+        padding: 3px;
+        margin-bottom: var(--sp-lg);
+    }
+    .mode-tab {
+        flex: 1;
+        background: none;
+        border: none;
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        font-family: inherit;
+        font-size: 0.82rem;
+        font-weight: 500;
+        padding: 8px var(--sp-sm);
+        cursor: pointer;
+        transition: background var(--ease), color var(--ease);
+    }
+    .mode-tab:hover { color: var(--text-primary); }
+    .mode-tab.active {
+        background: var(--surface-card);
+        color: var(--accent-bright);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .drop-icon { opacity: 0.6; }
+    .drop-icon .icon { width: 28px; height: 28px; }
     .drop-label { font-size: 0.88rem; font-weight: 500; }
     .drop-hint  { font-size: 0.75rem; color: var(--text-muted); }
 
@@ -112,6 +144,30 @@
 
     .file-item:last-child { border-bottom: none; }
     .file-item:hover { background: var(--surface-hover); }
+    .file-item.drag-over { background: var(--accent-subtle); }
+    .file-item[draggable="true"] { cursor: grab; }
+    .file-item.dragging { opacity: 0.4; }
+
+    .file-item-grip {
+        display: none;
+        flex-shrink: 0;
+        color: var(--text-muted);
+    }
+    .file-list-wrap.reorderable .file-item-grip { display: flex; }
+    .file-item-index {
+        display: none;
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--surface-hover);
+        color: var(--text-muted);
+        font-size: 0.62rem;
+        font-family: 'DM Mono', monospace;
+        align-items: center;
+        justify-content: center;
+    }
+    .file-list-wrap.reorderable .file-item-index { display: flex; }
 
     .file-item-info {
         flex: 1;
@@ -256,27 +312,40 @@
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-        <div class="flash-list">
+        <div class="flash-list" aria-live="polite">
             {% for category, message in messages %}
-                <div class="flash {{ category }}">{{ message }}</div>
+                {% set icon = {'error': 'x-circle', 'success': 'check-circle', 'warning': 'alert-triangle'}.get(category, 'info') %}
+                <div class="flash {{ category }}">
+                    <svg class="icon"><use href="#icon-{{ icon }}"></use></svg>
+                    <span class="flash-text">{{ message }}</span>
+                    <button type="button" class="flash-dismiss" aria-label="Dismiss">
+                        <svg class="icon"><use href="#icon-x"></use></svg>
+                    </button>
+                </div>
             {% endfor %}
         </div>
         {% endif %}
     {% endwith %}
 
+    <div class="mode-tabs" id="gif">
+        <button type="button" class="mode-tab active" data-mode="resize">Resize images</button>
+        <button type="button" class="mode-tab" data-mode="gif_create" id="gif-tab">Create GIF &middot; WEBP</button>
+    </div>
+
     <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
-        <div class="section-title">Upload images</div>
+        <input type="hidden" name="intent" id="upload-intent" value="resize">
+        <div class="section-title" id="upload-section-title">Upload images</div>
 
         <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
             <input type="file" id="file-input" name="file" multiple style="display:none">
-            <div class="drop-icon">⬆</div>
+            <div class="drop-icon"><svg class="icon"><use href="#icon-upload-cloud"></use></svg></div>
             <div class="drop-label">Drop files here or click to select</div>
-            <div class="drop-hint">Supports all common image formats &middot; folders accepted</div>
+            <div class="drop-hint" id="drop-hint">Supports all common image formats &middot; folders accepted</div>
         </div>
 
         <div class="file-list-wrap" id="file-list">
             <div class="file-list-head">
-                <span class="file-list-label">Selected files</span>
+                <span class="file-list-label" id="file-list-label">Selected files</span>
                 <button type="button" class="btn-clear" onclick="clearAllFiles()">Clear all</button>
             </div>
             <div class="file-list-scroll" id="file-list-scroll"></div>
@@ -314,6 +383,8 @@
 <script>
     let uploadedItems = [];
     let dragActive = false;
+    let currentMode = 'resize';
+    let dragSrcIndex = null;
 
     async function processFilesAndFolders(items) {
         const files = [];
@@ -373,15 +444,36 @@
         fileScroll.innerHTML = '';
         if (!uploadedItems.length) { fileList.style.display = 'none'; return; }
         fileList.style.display = 'block';
+        const reorderable = currentMode === 'gif_create';
+        fileList.classList.toggle('reorderable', reorderable);
         uploadedItems.forEach((item, i) => {
             const el = document.createElement('div');
             el.className = 'file-item';
+            el.draggable = reorderable;
             el.innerHTML = `
+                <span class="file-item-grip"><svg class="icon"><use href="#icon-grip-vertical"></use></svg></span>
+                <span class="file-item-index">${i + 1}</span>
                 <div class="file-item-info">
                     <div class="file-item-name">${item.path}</div>
                     <div class="file-item-size">${formatSize(item.size)}</div>
                 </div>
-                <button type="button" class="btn-remove" title="Remove" onclick="removeFile(${i})">&#x2715;</button>`;
+                <button type="button" class="btn-remove" title="Remove" onclick="removeFile(${i})"><svg class="icon"><use href="#icon-x"></use></svg></button>`;
+            if (reorderable) {
+                el.addEventListener('dragstart', () => { dragSrcIndex = i; el.classList.add('dragging'); });
+                el.addEventListener('dragend',   () => { el.classList.remove('dragging'); });
+                el.addEventListener('dragover',  e => { e.preventDefault(); el.classList.add('drag-over'); });
+                el.addEventListener('dragleave', () => { el.classList.remove('drag-over'); });
+                el.addEventListener('drop', e => {
+                    e.preventDefault();
+                    el.classList.remove('drag-over');
+                    if (dragSrcIndex === null || dragSrcIndex === i) return;
+                    const [moved] = uploadedItems.splice(dragSrcIndex, 1);
+                    uploadedItems.splice(i, 0, moved);
+                    dragSrcIndex = null;
+                    syncInput();
+                    updateFileList();
+                });
+            }
             fileScroll.appendChild(el);
         });
     }
@@ -421,6 +513,31 @@
         updateFileList(); syncInput();
     });
 
+    const modeTabs     = document.querySelectorAll('.mode-tab');
+    const uploadIntent = document.getElementById('upload-intent');
+    const dropHint      = document.getElementById('drop-hint');
+    const sectionTitle  = document.getElementById('upload-section-title');
+    const fileListLabel = document.getElementById('file-list-label');
+
+    function setMode(mode) {
+        currentMode = mode;
+        uploadIntent.value = mode;
+        modeTabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+        if (mode === 'gif_create') {
+            sectionTitle.textContent = 'Select frames';
+            dropHint.textContent = 'Select 2+ images, in the order you want them animated';
+            fileListLabel.textContent = 'Frames (drag to reorder)';
+        } else {
+            sectionTitle.textContent = 'Upload images';
+            dropHint.textContent = 'Supports all common image formats · folders accepted';
+            fileListLabel.textContent = 'Selected files';
+        }
+        updateFileList();
+    }
+
+    modeTabs.forEach(tab => tab.addEventListener('click', () => setMode(tab.dataset.mode)));
+    if (window.location.hash === '#gif') setMode('gif_create');
+
     const uploadForm      = document.getElementById('upload-form');
     const uploadSubmitBtn = document.getElementById('upload-submit-btn');
     const uploadProgWrap  = document.getElementById('upload-progress-wrap');
@@ -442,14 +559,22 @@
         }
         const div = document.createElement('div');
         div.className = 'flash error';
-        div.textContent = msg;
+        div.innerHTML = `
+            <svg class="icon"><use href="#icon-x-circle"></use></svg>
+            <span class="flash-text"></span>
+            <button type="button" class="flash-dismiss" aria-label="Dismiss"><svg class="icon"><use href="#icon-x"></use></svg></button>`;
+        div.querySelector('.flash-text').textContent = msg;
         container.appendChild(div);
-        setTimeout(() => div.remove(), 6000);
+        setTimeout(() => div.classList.add('flash-out'), 6000);
     }
 
     uploadForm.addEventListener('submit', function(e) {
         e.preventDefault();
         if (!fileInput.files || !fileInput.files.length) { showError('Please select at least one file.'); return; }
+        if (currentMode === 'gif_create' && fileInput.files.length < 2) {
+            showError('Select at least 2 images to create an animation.');
+            return;
+        }
         const formData = new FormData(this);
         uploadSubmitBtn.disabled = true;
         uploadSubmitBtn.textContent = 'Uploading\u2026';
@@ -469,7 +594,9 @@
             try {
                 const data = JSON.parse(xhr.responseText);
                 if (data.redirect) {
-                    navOverlayText.textContent = data.redirect.includes('resize_batch_options')
+                    navOverlayText.textContent = data.redirect.includes('gif_create_options')
+                        ? 'Preparing your frames\u2026'
+                        : data.redirect.includes('resize_batch_options')
                         ? 'Analysing your images\u2026'
                         : 'Loading options\u2026';
                     navOverlay.classList.add('visible');

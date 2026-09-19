@@ -1,203 +1,10 @@
 {% extends "base.html" %}
+{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block %}
+
+{% block title %}Resize — {{ filename }}{% endblock %}
 
 {% block head %}
-<style>
-    .resize-card {
-        max-width: 860px;
-        padding: var(--sp-xl);
-    }
-
-    .page-header {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--sp-md);
-        margin-bottom: var(--sp-xl);
-        padding-bottom: var(--sp-lg);
-        border-bottom: 1px solid var(--surface-line);
-    }
-
-    .page-header a {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: var(--radius-md);
-        background: var(--surface-raised);
-        border: 1px solid var(--surface-border);
-        color: var(--text-muted);
-        font-size: 1rem;
-        transition: color var(--ease), background var(--ease);
-        flex-shrink: 0;
-        margin-top: 2px;
-    }
-
-    .page-header a:hover { color: var(--text-primary); background: var(--surface-hover); }
-
-    .page-title { flex: 1; min-width: 0; }
-    .page-title h1 { font-size: 1.1rem; margin-bottom: 2px; }
-    .page-title .filename {
-        font-family: 'DM Mono', monospace;
-        font-size: 0.72rem;
-        color: var(--text-muted);
-        word-break: break-all;
-        display: block;
-    }
-
-    .page-header-meta {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        white-space: nowrap;
-        flex-shrink: 0;
-        margin-top: 4px;
-    }
-
-    .form-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: var(--sp-lg);
-    }
-
-    @media (min-width: 640px) {
-        .form-grid { grid-template-columns: 1fr 1fr; }
-        .col-full  { grid-column: 1 / -1; }
-    }
-
-    .section-block {
-        background: var(--surface-raised);
-        border: 1px solid var(--surface-border);
-        border-radius: var(--radius-lg);
-        padding: var(--sp-lg);
-        min-width: 0;
-    }
-
-    .dim-row {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr;
-        gap: var(--sp-sm);
-        align-items: end;
-        margin-bottom: var(--sp-sm);
-    }
-
-    .dim-sep {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 38px;
-        color: var(--text-muted);
-        font-size: 0.75rem;
-    }
-
-    .check-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--sp-sm);
-        margin-top: var(--sp-sm);
-    }
-
-    .check-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--sp-xs);
-        padding: 4px 10px;
-        background: var(--surface-hover);
-        border: 1px solid var(--surface-border);
-        border-radius: 20px;
-        font-size: 0.78rem;
-        color: var(--text-secondary);
-        cursor: pointer;
-        user-select: none;
-        transition: border-color var(--ease), background var(--ease), color var(--ease);
-    }
-
-    .check-pill:has(input:checked) {
-        background: var(--accent-subtle);
-        border-color: var(--accent);
-        color: var(--accent-bright);
-    }
-
-    .check-pill input[type="checkbox"] { width: 12px; height: 12px; }
-
-    /* Quality + format side by side, format gets more room */
-    .options-row {
-        display: grid;
-        grid-template-columns: 1fr 2fr;
-        gap: var(--sp-lg);
-        margin-bottom: var(--sp-md);
-    }
-
-    @media (max-width: 480px) {
-        .options-row { grid-template-columns: 1fr; }
-    }
-
-    /* Sharpen inline block — always visible */
-    .sharpen-block {
-        margin-top: var(--sp-md);
-        padding: var(--sp-md);
-        background: var(--surface-bg);
-        border: 1px solid var(--surface-line);
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        gap: var(--sp-md);
-        flex-wrap: wrap;
-    }
-
-    .sharpen-intensity {
-        display: flex;
-        align-items: center;
-        gap: var(--sp-sm);
-        flex-wrap: wrap;
-    }
-
-    .sharpen-intensity span {
-        color: var(--text-muted);
-        font-size: 0.78rem;
-    }
-
-    .intensity-options {
-        display: flex;
-        gap: var(--sp-xs);
-        flex-wrap: wrap;
-    }
-
-    .intensity-radio {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 10px;
-        border-radius: 20px;
-        border: 1px solid var(--surface-border);
-        background: var(--surface-hover);
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: all var(--ease);
-    }
-
-    .intensity-radio:has(input:checked) {
-        background: var(--accent-subtle);
-        border-color: var(--accent);
-        color: var(--accent-bright);
-    }
-
-    .intensity-radio input[type="radio"] { display: none; }
-
-    .format-note {
-        margin-top: var(--sp-sm);
-        padding: var(--sp-sm) var(--sp-md);
-        background: var(--surface-bg);
-        border: 1px solid var(--surface-line);
-        border-radius: var(--radius-md);
-        font-size: 0.78rem;
-        color: var(--text-muted);
-    }
-
-    .submit-area { margin-top: var(--sp-xl); }
-
-    @media (max-width: 639px) {
-        .resize-card { padding: var(--sp-lg) var(--sp-md); }
-    }
-</style>
+{% include "_resize_options_styles.html" %}
 {% endblock %}
 
 {% block body %}
@@ -205,7 +12,7 @@
 <div class="card resize-card">
 
     <div class="page-header">
-        <a href="{{ url_for('index') }}" title="Back">&#8592;</a>
+        <a href="{{ url_for('index') }}" title="Back"><svg class="icon"><use href="#icon-arrow-left"></use></svg></a>
         <div class="page-title">
             <h1>Resize options</h1>
             <span class="filename">{{ filename }}</span>
@@ -221,7 +28,7 @@
                 <div class="dim-row">
                     <div class="form-group" style="margin-bottom:0">
                         <label for="width">Width</label>
-                        <input type="text" name="width" id="width"
+                        <input type="number" name="width" id="width" min="1" max="10000"
                                placeholder="{{ width }}"
                                data-original-width="{{ width }}"
                                data-original-height="{{ height }}">
@@ -229,32 +36,20 @@
                     <div class="dim-sep">×</div>
                     <div class="form-group" style="margin-bottom:0">
                         <label for="height">Height</label>
-                        <input type="text" name="height" id="height"
+                        <input type="number" name="height" id="height" min="1" max="10000"
                                placeholder="{{ height }}"
                                data-original-width="{{ width }}"
                                data-original-height="{{ height }}">
                     </div>
                 </div>
-                <div class="check-pills">
-                    <label class="check-pill">
-                        <input type="checkbox" name="keep_ratio" id="keep_ratio"> Keep ratio
-                    </label>
-                    <label class="check-pill">
-                        <input type="checkbox" name="use_1080p" id="use_1080p"> 1080p
-                        <span class="tip" data-tip="Resize to max 1080px on longest edge. Good for social media.">?</span>
-                    </label>
-                    <label class="check-pill">
-                        <input type="checkbox" name="use_1920p" id="use_1920p"> 1920p
-                        <span class="tip" data-tip="Resize to max 1920px on longest edge. Good for web.">?</span>
-                    </label>
-                </div>
+                {{ pixel_check_pills() }}
             </div>
 
             <div class="section-block">
                 <div class="section-title">By percentage</div>
                 <div class="form-group">
                     <label for="percentage">Scale (%)</label>
-                    <input type="text" name="percentage" id="percentage" placeholder="e.g. 50">
+                    <input type="number" name="percentage" id="percentage" min="1" max="1000" step="0.1" placeholder="e.g. 50">
                 </div>
                 <small>Original: {{ width }} &times; {{ height }} pixels</small>
             </div>
@@ -263,66 +58,42 @@
                 <div class="section-title">Additional options</div>
 
                 <div class="options-row">
-                    <div class="form-group" style="margin-bottom:0">
-                        <label for="quality">Quality (1&ndash;100)</label>
-                        <input type="text" name="quality" id="quality" value="{{ defaults.quality if defaults else '100' }}">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0">
-                        <label for="format">Output format</label>
-                        <select name="format" id="format">
-                            <option value="">Keep original format</option>
-                            {% for category, info in formats.items() %}
-                                {% if info.formats %}
-                                <optgroup label="{{ info.name }}">
-                                    {% for format in info.formats %}
-                                    <option value="{{ format }}">{{ format }}</option>
-                                    {% endfor %}
-                                </optgroup>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </div>
+                    {{ quality_format_field(formats, defaults.quality if defaults else '100', 'Output format', 'Keep original format') }}
                 </div>
 
-                <div class="check-pills">
-                    <label class="check-pill">
-                        <input type="checkbox" name="auto_level" id="auto_level"> Auto-Level
-                        <span class="tip" data-tip="Optimizes image levels for better dynamic range and contrast.">?</span>
-                    </label>
-                    <label class="check-pill">
-                        <input type="checkbox" name="auto_gamma" id="auto_gamma"> Auto-Gamma
-                        <span class="tip" data-tip="Intelligent gamma correction for balanced exposure.">?</span>
-                    </label>
-                </div>
+                {{ auto_level_gamma_pills() }}
 
-                <div class="sharpen-block">
-                    <label class="check-pill" style="margin:0; flex-shrink:0">
-                        <input type="checkbox" name="use_sharpen" id="use_sharpen"> Sharpen
-                        <span class="tip" data-tip="Apply screen-optimized sharpening after resize.">?</span>
-                    </label>
-                    <div class="sharpen-intensity">
-                        <span>Intensity:</span>
-                        <div class="intensity-options">
-                            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="low"> Low</label>
-                            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="standard" checked> Standard</label>
-                            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="high"> High</label>
-                        </div>
-                    </div>
-                </div>
+                {{ sharpen_block('use_sharpen') }}
 
-                {% set raw_exts = ['.arw', '.dng', '.cr2', '.cr3', '.nef', '.raf', '.rw2'] %}
                 {% set is_raw = filename.lower().split('.')[-1] in ['arw', 'dng', 'cr2', 'cr3', 'nef', 'raf', 'rw2'] %}
                 {% if is_raw %}
-                <div class="format-note" style="border-color: rgba(139,92,246,0.3); color: var(--accent-bright);">
-                    <strong>RAW file detected.</strong>
-                    ImageMagick cannot produce a proper compressed DNG output.
-                    <strong>TIFF 16-bit</strong> is recommended to preserve full quality,
-                    or <strong>JPEG / WEBP</strong> for a smaller delivery file.
+                <div class="format-note accent">
+                    <svg class="icon"><use href="#icon-info"></use></svg>
+                    <span>
+                        <strong>RAW file detected.</strong>
+                        ImageMagick cannot produce a proper compressed DNG output.
+                        <strong>TIFF 16-bit</strong> is recommended to preserve full quality,
+                        or <strong>JPEG / WEBP</strong> for a smaller delivery file.
+                    </span>
                 </div>
                 {% elif image_type %}
                 <div class="format-note">
-                    {% if image_type.has_transparency %}Contains transparency. &nbsp;{% endif %}
-                    {% if image_type.is_photo %}Photographic image detected.{% else %}Graphic image detected.{% endif %}
+                    <svg class="icon"><use href="#icon-info"></use></svg>
+                    <span>
+                        {% if image_type.has_transparency %}Contains transparency. &nbsp;{% endif %}
+                        {% if image_type.is_photo %}Photographic image detected.{% else %}Graphic image detected.{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+
+                {% if image_type and image_type.is_animated %}
+                <div class="format-note accent">
+                    <svg class="icon"><use href="#icon-images"></use></svg>
+                    <span>
+                        <strong>Animated file detected</strong> ({{ image_type.n_frames }} frames).
+                        Resizing here processes each frame independently without animation-specific optimization.
+                        <a href="{{ url_for('gif_edit_options', filename=filename) }}">Edit as animation instead &rarr;</a>
+                    </span>
                 </div>
                 {% endif %}
             </div>

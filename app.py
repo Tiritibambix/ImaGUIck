@@ -5,6 +5,8 @@ import uuid
 import threading
 import json
 import time
+import atexit
+import shutil
 from zipfile import ZipFile
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -23,12 +25,28 @@ OUTPUT_FOLDER = 'output'
 MAX_DIMENSION = 10000
 MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024   # 2 GB — total request limit (MAX_CONTENT_LENGTH)
 PER_FILE_MAX_SIZE = 200 * 1024 * 1024    # 200 MB — per individual file
+JOBS_TTL_HOURS = 2                       # completed batch jobs are purged from memory after this long
 DEFAULTS = {
     "quality": "100",
     "width": "",
     "height": "",
     "percentage": "",
 }
+
+# Subprocess timeouts, in seconds
+SUBPROCESS_TIMEOUT_SHORT = 30    # format probing, delegate checks, dimension lookups
+SUBPROCESS_TIMEOUT_MEDIUM = 120  # single-image processing
+SUBPROCESS_TIMEOUT_LONG = 300    # batch per-file / GIF creation processing
+
+# GIF/WEBP animation creation & editing limits — checked before any decode/
+# processing work, to keep memory and CPU use bounded regardless of user input.
+GIF_MAX_FRAMES = 500
+GIF_MAX_OUTPUT_DIMENSION = 4000        # stricter than MAX_DIMENSION: many frames at 10000px would be excessive
+GIF_MAX_TOTAL_PIXELS = 500_000_000     # sum of width*height across all frames (~2GB of raw RGBA when coalesced)
+GIF_CREATE_OUTPUT_FORMATS = {'GIF', 'WEBP'}
+GIF_EXTRACT_FORMATS = {'PNG', 'WEBP'}
+GIF_EDIT_MODES = {'resize', 'optimize', 'speed', 'reverse', 'rotate', 'extract', 'loop'}
+ANIMATED_EXTENSIONS = {'.gif', '.webp'}
 
 # Allowlist of accepted output formats — prevents path injection via format field
 ALLOWED_OUTPUT_FORMATS = {
@@ -43,6 +61,20 @@ ALLOWED_SHARPEN_LEVELS = {'low', 'standard', 'high'}
 
 # Formats that require potrace (raster-to-vector delegate)
 POTRACE_FORMATS = {'SVG', 'EPS', 'AI', 'PDF', 'WMF', 'EMF'}
+
+# Single source of truth for accepted image extensions. Used both for direct
+# upload (UPLOAD_EXTENSIONS below) and, extended with a few document-ish
+# vector formats, for URL import (URL_IMPORT_EXTENSIONS in is_safe_url).
+IMAGE_EXTENSIONS = {
+    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw',
+    '.jxl', '.dng', '.cr2', '.cr3', '.nef', '.raf', '.rw2', '.heic',
+    '.avif', '.apng',
+}
+
+# Extensions accepted for URL import (is_safe_url) — a superset of IMAGE_EXTENSIONS
+# that also allows a few vector/document formats not offered for direct upload.
+URL_IMPORT_EXTENSIONS = IMAGE_EXTENSIONS | {'.svg', '.pdf', '.eps'}
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -50,7 +82,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
-app.config['UPLOAD_EXTENSIONS'] = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.arw', '.jxl', '.dng', '.cr2', '.cr3', '.nef', '.raf', '.rw2', '.heic', '.avif', '.apng', '.bmp']
+app.config['UPLOAD_EXTENSIONS'] = sorted(IMAGE_EXTENSIONS)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-insecure-key-change-in-prod')
 app.logger.setLevel(logging.INFO)
 
@@ -59,9 +91,11 @@ jobs = {}
 jobs_lock = threading.Lock()
 _processing_semaphore = threading.BoundedSemaphore(4)
 executor = ThreadPoolExecutor(max_workers=16)
+atexit.register(lambda: executor.shutdown(wait=False, cancel_futures=True))
 
 # Server-side upload sessions: maps a short key -> list of saved filenames.
-# Avoids embedding long filename lists in redirect URLs (Gunicorn 4094-char limit).
+# Avoids embedding long filename lists in redirect URLs (Gunicorn's
+# --limit-request-line 8190, see start.sh).
 upload_sessions = {}
 upload_sessions_lock = threading.Lock()
 
@@ -76,7 +110,10 @@ def file_too_large(e):
 
 
 def allowed_file(filename):
-    """Allow all image file types supported by ImageMagick, but block potentially dangerous extensions."""
+    """Allow all image file types supported by ImageMagick, but block potentially dangerous extensions.
+    The allowlist below already restricts uploads to IMAGE_EXTENSIONS, so BLOCKED_EXTENSIONS can never
+    actually reject anything today — it's kept as intentional defense-in-depth against a future accidental
+    widening of UPLOAD_EXTENSIONS to include an executable-ish extension."""
     BLOCKED_EXTENSIONS = {'php', 'php3', 'php4', 'php5', 'phtml', 'exe', 'js', 'jsp', 'html', 'htm', 'sh', 'bash', 'py', 'pl'}
     ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
     return ext and ext not in BLOCKED_EXTENSIONS and f'.{ext}' in app.config['UPLOAD_EXTENSIONS']
@@ -159,7 +196,7 @@ def get_image_dimensions(filepath):
             # Use ImageWidth/ImageHeight for full-resolution RAW dimensions
             cmd = ['exiftool', '-s', '-s', '-s', '-ImageWidth', '-ImageHeight', secure_file_path]
             app.logger.info(f"Running exiftool command")
-            result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=SUBPROCESS_TIMEOUT_SHORT)
 
             if result.returncode == 0 and result.stdout.strip():
                 app.logger.info(f"Exiftool output received")
@@ -181,7 +218,7 @@ def get_image_dimensions(filepath):
             app.logger.info(f"Getting dimensions for non-ARW file")
             cmd = ['magick', 'identify', secure_file_path]
             app.logger.info(f"Running ImageMagick command")
-            result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=SUBPROCESS_TIMEOUT_SHORT)
             if result.returncode != 0:
                 raise Exception(f"Error getting image dimensions: {result.stderr}")
 
@@ -226,8 +263,8 @@ def get_format_categories():
             'formats': ['ICO', 'CUR', 'ICON', 'PICON', 'XBM', 'XPM']
         },
         'animation': {
-            'name': 'Animation & Video',
-            'formats': ['GIF', 'APNG', 'MNG', 'WEBP', 'JIF', 'MP4']
+            'name': 'Animation',
+            'formats': ['GIF', 'APNG', 'MNG', 'WEBP']
         },
         'archive': {
             'name': 'Archive & Storage',
@@ -283,7 +320,7 @@ def get_available_formats(filepath=None):
     try:
         VIDEO_FORMATS = {'3G2', '3GP', 'AVI', 'FLV', 'M4V', 'MKV', 'MOV', 'MP4', 'MPG', 'MPEG', 'OGV', 'SWF', 'VOB', 'WMV'}
 
-        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True)
+        result = subprocess.run(['magick', '-list', 'format'], capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT_SHORT)
 
         if result.returncode != 0:
             raise Exception("Failed to retrieve format list from ImageMagick")
@@ -361,6 +398,30 @@ def get_available_formats(filepath=None):
         }
 
 
+_webp_anim_supported_cache = None
+
+
+def webp_animation_supported():
+    """Check (once, cached) whether the installed ImageMagick has the WebP
+    mux/demux delegate needed for *animated* WEBP output. Single-frame WEBP
+    can work without it, so this must be checked separately before offering
+    WEBP as a GIF-creation/editing output format."""
+    global _webp_anim_supported_cache
+    if _webp_anim_supported_cache is not None:
+        return _webp_anim_supported_cache
+    try:
+        result = subprocess.run(['magick', '-list', 'delegate'], capture_output=True,
+                                 text=True, timeout=SUBPROCESS_TIMEOUT_SHORT)
+        _webp_anim_supported_cache = 'webp' in result.stdout.lower()
+    except Exception as e:
+        app.logger.warning(f"Could not determine WebP delegate support: {e}")
+        _webp_anim_supported_cache = False
+    return _webp_anim_supported_cache
+
+
+app.logger.info(f"WebP animation (muxing) support: {'yes' if webp_animation_supported() else 'no'}")
+
+
 def _analyze_with_pil(filepath):
     """Analyze image with PIL and return type dict."""
     with Image.open(filepath) as img:
@@ -379,7 +440,9 @@ def _analyze_with_pil(filepath):
         return {
             'has_transparency': has_transparency,
             'is_photo': is_photo,
-            'original_format': img.format
+            'original_format': img.format,
+            'is_animated': getattr(img, 'is_animated', False),
+            'n_frames': getattr(img, 'n_frames', 1),
         }
 
 
@@ -392,7 +455,8 @@ def analyze_image_type(filepath):
 
         if validated_path.lower().endswith('.arw'):
             app.logger.info(f"Analyzing RAW file: {validated_path}")
-            return {'has_transparency': False, 'is_photo': True, 'original_format': 'ARW'}
+            return {'has_transparency': False, 'is_photo': True, 'original_format': 'ARW',
+                    'is_animated': False, 'n_frames': 1}
 
         if validated_path.lower().endswith('.jxl'):
             tmp_path = f'/tmp/imaguick_{uuid.uuid4().hex}.png'
@@ -406,7 +470,8 @@ def analyze_image_type(filepath):
         return _analyze_with_pil(validated_path)
     except Exception as e:
         app.logger.error(f"Error analyzing image: {e}")
-        return {'has_transparency': False, 'is_photo': True, 'original_format': None}
+        return {'has_transparency': False, 'is_photo': True, 'original_format': None,
+                'is_animated': False, 'n_frames': 1}
 
 
 def flash_error(message):
@@ -417,6 +482,40 @@ def flash_error(message):
                            success=False,
                            title='Error',
                            return_url=request.referrer)
+
+
+def resolve_missing_dimension(width, height, keep_ratio, filepath):
+    """When keep_ratio is set and only one of width/height is provided, compute the
+    other proportionally from the source image's own dimensions. Returns (width,
+    height) unchanged otherwise. Shared by the single-image and batch resize paths
+    so both apply the same non-upscaling, aspect-preserving behavior."""
+    if not (keep_ratio and (width.isdigit() or height.isdigit())):
+        return width, height
+    original_dimensions = get_image_dimensions(filepath) if filepath else None
+    if not (original_dimensions and original_dimensions[0] and original_dimensions[1]):
+        return width, height
+    original_width, original_height = original_dimensions
+    if width.isdigit() and not height.isdigit():
+        new_width = int(width)
+        height = str(round(new_width * original_height / original_width))
+    elif height.isdigit() and not width.isdigit():
+        new_height = int(height)
+        width = str(round(new_height * original_width / original_height))
+    return width, height
+
+
+def classify_processing_error(exc, stderr=''):
+    """Map a processing exception to a safe, specific user-facing message.
+    The raw exception/stderr is always logged separately — this only controls
+    what the end user sees, so it must never leak paths or internal details."""
+    if isinstance(exc, subprocess.TimeoutExpired):
+        return 'Processing timed out. Try a smaller image, fewer frames, or lower quality.'
+    text = (stderr or str(exc) or '').lower()
+    if 'no decode delegate' in text or 'no encode delegate' in text or 'delegate failed' in text:
+        return 'This format is not supported by the server (missing codec).'
+    if 'cache resources exhausted' in text or 'memory' in text:
+        return 'Image too large to process (memory limit exceeded).'
+    return 'Processing error'
 
 
 def extract_processing_params(form):
@@ -458,7 +557,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     # Check potrace availability for vector output formats
     ext = os.path.splitext(output_path)[1].lstrip('.').upper()
     if ext in POTRACE_FORMATS:
-        potrace_check = subprocess.run(['which', 'potrace'], capture_output=True)
+        potrace_check = subprocess.run(['which', 'potrace'], capture_output=True, timeout=SUBPROCESS_TIMEOUT_SHORT)
         if potrace_check.returncode != 0:
             app.logger.error(f"Output format {ext} requires potrace which is not installed")
             return None
@@ -488,7 +587,13 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     else:
         if percentage:
             try:
-                resize_value = f"{float(percentage)}%"
+                pct = float(percentage)
+                src_width, src_height = get_image_dimensions(filepath)
+                if src_width and src_height:
+                    if src_width * pct / 100 > MAX_DIMENSION or src_height * pct / 100 > MAX_DIMENSION:
+                        app.logger.error(f"Percentage resize ({pct}%) would exceed MAX_DIMENSION ({MAX_DIMENSION}px)")
+                        return None
+                resize_value = f"{pct}%"
                 command.extend(['-resize', resize_value])
             except ValueError:
                 return None
@@ -496,8 +601,14 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             try:
                 if width:
                     width = int(width)
+                    if width > MAX_DIMENSION:
+                        app.logger.error(f"Requested width {width} exceeds MAX_DIMENSION ({MAX_DIMENSION}px)")
+                        return None
                 if height:
                     height = int(height)
+                    if height > MAX_DIMENSION:
+                        app.logger.error(f"Requested height {height} exceeds MAX_DIMENSION ({MAX_DIMENSION}px)")
+                        return None
 
                 resize_value = ''
                 if width and height:
@@ -526,7 +637,212 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     return command
 
 
+def build_gif_create_command(input_paths, output_path, fps, width, height, loop, quality, output_format):
+    """Build an ImageMagick command that assembles a sequence of already-decoded
+    static images into a single animated GIF or WEBP. input_paths order is frame
+    order, as chosen by the caller (route)."""
+    for p in input_paths:
+        if not (secure_path(p) or is_valid_tmp_path(p)):
+            app.logger.error("Insecure GIF frame path detected")
+            return None
+    if not secure_path(output_path):
+        app.logger.error("Insecure GIF output path detected")
+        return None
+    if output_format not in GIF_CREATE_OUTPUT_FORMATS:
+        app.logger.error(f"Unsupported GIF creation output format: {output_format}")
+        return None
+    if width and height and (width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION):
+        app.logger.error(f"Requested GIF canvas {width}x{height} exceeds GIF_MAX_OUTPUT_DIMENSION ({GIF_MAX_OUTPUT_DIMENSION}px)")
+        return None
+
+    delay_ticks = max(1, round(100 / fps))  # -delay is in 1/100s ticks
+    command = ['magick', '-delay', str(delay_ticks), '-loop', str(loop)]
+    command.extend(input_paths)
+    command.append('-coalesce')
+
+    if width and height:
+        # -resize alone won't force a common canvas when source frames differ in
+        # aspect ratio; -extent normalizes every frame onto the same canvas.
+        command.extend(['-resize', f'{width}x{height}', '-gravity', 'center',
+                         '-background', 'none', '-extent', f'{width}x{height}'])
+
+    if output_format == 'GIF':
+        if quality:  # reused here as palette size, 2-256
+            command.extend(['-colors', str(quality)])
+        command.extend(['-layers', 'optimize'])
+    else:  # WEBP
+        command.extend(['-quality', str(quality or 80)])
+
+    command.append(output_path)
+    return command
+
+
+def build_gif_edit_command(filepath, output_path, mode, params):
+    """Build an ImageMagick command for one editing operation on an existing
+    animated GIF/WEBP. `params` holds mode-specific values already validated
+    by the caller (route). Frame extraction has its own command builder
+    (build_gif_extract_command) since its output shape differs (1 file vs N)."""
+    if not (secure_path(filepath) or is_valid_tmp_path(filepath)):
+        app.logger.error("Insecure GIF edit input path detected")
+        return None
+    if not secure_path(output_path):
+        app.logger.error("Insecure GIF edit output path detected")
+        return None
+    if mode not in GIF_EDIT_MODES or mode == 'extract':
+        return None
+
+    if mode == 'loop':
+        return ['magick', filepath, '-loop', str(params['loop']), output_path]
+
+    command = ['magick', filepath, '-coalesce']
+
+    if mode == 'resize':
+        percentage = params.get('percentage')
+        width = params.get('width')
+        height = params.get('height')
+        if percentage:
+            command.extend(['-resize', f"{percentage}%"])
+        elif width and height:
+            if width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION:
+                app.logger.error(f"Requested GIF resize {width}x{height} exceeds GIF_MAX_OUTPUT_DIMENSION ({GIF_MAX_OUTPUT_DIMENSION}px)")
+                return None
+            command.extend(['-resize', f'{width}x{height}'])
+        else:
+            return None
+    elif mode == 'optimize':
+        command.extend(['-dither', 'FloydSteinberg' if params.get('dither') else 'None'])
+        command.extend(['-colors', str(params.get('colors', 256))])
+    elif mode == 'speed':
+        # v1 simplification: apply one uniform delay derived from the first
+        # frame's original delay, rather than rescaling every frame's delay
+        # individually (which -delay as a single list-form flag can't express).
+        command.extend(['-delay', str(params['new_delay'])])
+    elif mode == 'reverse':
+        command.append('-reverse')
+    elif mode == 'rotate':
+        angle = params.get('angle')
+        if angle:
+            command.extend(['-rotate', str(angle)])
+        if params.get('flip_h'):
+            command.append('-flop')
+        if params.get('flip_v'):
+            command.append('-flip')
+
+    if params.get('loop') is not None:
+        command.extend(['-loop', str(params['loop'])])
+
+    command.extend(['-layers', 'optimize', output_path])
+    return command
+
+
+def build_gif_extract_command(filepath, output_pattern, extract_mode, frame_number, frame_start, frame_end, extract_format):
+    """Build an ImageMagick command to extract one frame, a range of frames, or
+    every frame from an animated GIF/WEBP. frame_number/frame_start/frame_end
+    must already be validated as in-range integers by the caller."""
+    if not (secure_path(filepath) or is_valid_tmp_path(filepath)):
+        app.logger.error("Insecure GIF extract input path detected")
+        return None
+    if not secure_path(output_pattern):
+        app.logger.error("Insecure GIF extract output path detected")
+        return None
+    if extract_format not in GIF_EXTRACT_FORMATS:
+        return None
+
+    if extract_mode == 'single':
+        return ['magick', f'{filepath}[{frame_number}]', output_pattern]
+    elif extract_mode == 'range':
+        return ['magick', f'{filepath}[{frame_start}-{frame_end}]', output_pattern]
+    elif extract_mode == 'all':
+        return ['magick', filepath, output_pattern]
+    return None
+
+
 # --- Async batch processing functions ---
+
+def purge_old_jobs():
+    """Remove completed jobs older than JOBS_TTL_HOURS from the in-memory jobs
+    dict, which otherwise grows for the lifetime of the process."""
+    cutoff = time.time() - JOBS_TTL_HOURS * 3600
+    with jobs_lock:
+        stale = [
+            jid for jid, job in jobs.items()
+            if job.get('status') == 'complete' and job.get('completed_at', 0) < cutoff
+        ]
+        for jid in stale:
+            del jobs[jid]
+    if stale:
+        app.logger.info(f"Purged {len(stale)} completed job(s) older than {JOBS_TTL_HOURS}h")
+
+
+def process_gif_create_job(job_id):
+    """Process a GIF/WEBP creation job: builds one animated file from the ordered
+    set of uploaded frames via a single ImageMagick invocation. Runs in a
+    background daemon thread, reusing the same jobs dict + semaphore the batch
+    resize pipeline uses, but as one unit of work rather than N independent ones."""
+    with jobs_lock:
+        job = jobs.get(job_id)
+        if not job:
+            return
+        params = job['params']
+        file_infos = job['files']
+        output_path = job['output_path']
+
+    with jobs_lock:
+        for f in file_infos:
+            f['status'] = 'processing'
+
+    with _processing_semaphore:
+        try:
+            input_paths = [f['path'] for f in file_infos]
+            command = build_gif_create_command(
+                input_paths=input_paths,
+                output_path=output_path,
+                fps=params['fps'],
+                width=params['width'],
+                height=params['height'],
+                loop=params['loop'],
+                quality=params['quality'],
+                output_format=params['output_format'],
+            )
+            if not command:
+                raise RuntimeError("Could not build GIF creation command")
+            app.logger.info(f"[Job {job_id}] Executing: {' '.join(command)}")
+            subprocess.run(command, check=True, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT_LONG)
+        except subprocess.CalledProcessError as e:
+            app.logger.error(f"[Job {job_id}] GIF creation error: {e.stderr}")
+            error_msg = classify_processing_error(e, e.stderr)
+            with jobs_lock:
+                for f in file_infos:
+                    f['status'] = 'error'
+                    f['error'] = error_msg
+                jobs[job_id]['errors'] = len(file_infos)
+        except Exception as e:
+            app.logger.error(f"[Job {job_id}] GIF creation error: {e}")
+            error_msg = classify_processing_error(e, getattr(e, 'stderr', ''))
+            with jobs_lock:
+                for f in file_infos:
+                    f['status'] = 'error'
+                    f['error'] = error_msg
+                jobs[job_id]['errors'] = len(file_infos)
+        else:
+            with jobs_lock:
+                for f in file_infos:
+                    f['status'] = 'done'
+                jobs[job_id]['done'] = len(file_infos)
+            for f in file_infos:
+                try:
+                    src = secure_path(f['path'])
+                    if src and os.path.exists(src):
+                        os.remove(src)
+                except Exception as e:
+                    app.logger.warning(f"[Job {job_id}] Could not remove source frame {f['path']}: {e}")
+
+    with jobs_lock:
+        jobs[job_id]['status'] = 'complete'
+        jobs[job_id]['completed_at'] = time.time()
+
+    app.logger.info(f"Job {job_id} (gif_create) complete")
+
 
 def process_job(job_id):
     """Process all files for a batch job. Runs in a background daemon thread."""
@@ -571,6 +887,7 @@ def process_job(job_id):
 
     with jobs_lock:
         jobs[job_id]['status'] = 'complete'
+        jobs[job_id]['completed_at'] = time.time()
         final_done = jobs[job_id]['done']
         final_errors = jobs[job_id]['errors']
 
@@ -594,13 +911,17 @@ def process_single_file(job_id, file_info, params, batch_folder):
                 output_filename = f'{os.path.splitext(fname)[0]}_imaGUIck{os.path.splitext(fname)[1]}'
             output_path = os.path.join(batch_folder, output_filename)
 
+            width, height = resolve_missing_dimension(
+                params['width'], params['height'], params['keep_ratio'], filepath
+            )
+
             input_path, tmp_path = prepare_input_file(filepath)
             try:
                 command = build_imagemagick_command(
                     filepath=input_path,
                     output_path=output_path,
-                    width=params['width'],
-                    height=params['height'],
+                    width=width,
+                    height=height,
                     percentage=params['percentage'],
                     quality=params['quality'],
                     keep_ratio=params['keep_ratio'],
@@ -615,10 +936,10 @@ def process_single_file(job_id, file_info, params, batch_folder):
                     raise RuntimeError(f"Could not build ImageMagick command for {fname}")
 
                 app.logger.info(f"[Job {job_id}] Executing: {' '.join(command)}")
-                subprocess.run(command, check=True, capture_output=True, text=True, timeout=300)
+                subprocess.run(command, check=True, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT_LONG)
             except subprocess.CalledProcessError as e:
                 app.logger.error(f"[Job {job_id}] ImageMagick error for {fname}: {e.stderr}")
-                raise RuntimeError(f"Image processing failed for {fname}")
+                raise
             finally:
                 if tmp_path and os.path.exists(tmp_path):
                     os.remove(tmp_path)
@@ -628,8 +949,8 @@ def process_single_file(job_id, file_info, params, batch_folder):
                 src = secure_path(filepath)
                 if src and os.path.exists(src):
                     os.remove(src)
-            except Exception:
-                pass
+            except Exception as e:
+                app.logger.warning(f"[Job {job_id}] Could not remove source file {filepath}: {e}")
 
             with jobs_lock:
                 file_info['status'] = 'done'
@@ -640,7 +961,7 @@ def process_single_file(job_id, file_info, params, batch_folder):
             app.logger.error(f"[Job {job_id}] Error processing {fname}: {e}")
             with jobs_lock:
                 file_info['status'] = 'error'
-                file_info['error'] = 'Processing error'
+                file_info['error'] = classify_processing_error(e, getattr(e, 'stderr', ''))
                 jobs[job_id]['errors'] += 1
 
 
@@ -662,8 +983,11 @@ def health():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handle file uploads. Supports both regular form POST and XHR (returns JSON)."""
+    """Handle file uploads. Supports both regular form POST and XHR (returns JSON).
+    The optional `intent` field routes to the GIF/WEBP creation flow instead of
+    the default resize flow; the save loop itself is shared by both."""
     is_xhr = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    intent = request.form.get('intent', 'resize')
 
     def _error(msg, status=400):
         if is_xhr:
@@ -706,10 +1030,17 @@ def upload_file():
         msg = errors[0] if errors else 'No valid file'
         return _error(msg)
 
-    if len(uploaded_files) == 1:
+    if intent == 'gif_create':
+        # Creation always goes through upload_sessions (even for 2 files),
+        # since frame order matters and the query string can't carry it safely.
+        upload_key = uuid.uuid4().hex
+        with upload_sessions_lock:
+            upload_sessions[upload_key] = uploaded_files
+        redirect_url = url_for('gif_create_options', upload_key=upload_key)
+    elif len(uploaded_files) == 1:
         redirect_url = url_for('resize_options', filename=uploaded_files[0])
     else:
-        # Store filenames server-side to avoid URL length limit (Gunicorn 4094 chars)
+        # Store filenames server-side to avoid the URL length limit (Gunicorn's --limit-request-line 8190)
         upload_key = uuid.uuid4().hex
         with upload_sessions_lock:
             upload_sessions[upload_key] = uploaded_files
@@ -788,6 +1119,7 @@ def resize_options(filename):
         return redirect(url_for('index'))
 
     formats = get_available_formats(filepath)
+    image_type = analyze_image_type(filepath)
 
     app.logger.info(f"Formats passed to template: {formats}")
     return render_template('resize.html',
@@ -795,6 +1127,7 @@ def resize_options(filename):
                            width=dimensions[0],
                            height=dimensions[1],
                            formats=formats,
+                           image_type=image_type,
                            defaults=DEFAULTS)
 
 
@@ -824,22 +1157,6 @@ def resize_image(filename):
         app.logger.info(f"Sharpening: enabled={use_sharpen}, level={sharpen_level}")
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
 
-        if keep_ratio and (width.isdigit() or height.isdigit()):
-            filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            original_dimensions = get_image_dimensions(filepath) if filepath else None
-            if original_dimensions and original_dimensions[0] and original_dimensions[1]:
-                original_width, original_height = original_dimensions
-                if width.isdigit() and not height.isdigit():
-                    new_width = int(width)
-                    height = str(round(new_width * original_height / original_width))
-                    app.logger.info(f"Calculated proportional height: {height}")
-                elif height.isdigit() and not width.isdigit():
-                    new_height = int(height)
-                    width = str(round(new_height * original_width / original_height))
-                    app.logger.info(f"Calculated proportional width: {width}")
-
-        app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
-
         filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         if not filepath or not os.path.exists(filepath):
             flash('File not found')
@@ -847,6 +1164,9 @@ def resize_image(filename):
                                    success=False,
                                    title='Error',
                                    return_url=url_for('resize_options', filename=filename))
+
+        width, height = resolve_missing_dimension(width, height, keep_ratio, filepath)
+        app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
 
         # Strip UUID prefix (32 hex chars + underscore) to restore original filename
         clean_name = re.sub(r'^[a-f0-9]{32}_', '', filename)
@@ -886,10 +1206,17 @@ def resize_image(filename):
                                        return_url=url_for('resize_options', filename=filename))
 
             app.logger.info(f"Executing command: {' '.join(command)}")
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            subprocess.run(command, check=True, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT_MEDIUM)
         except subprocess.CalledProcessError as e:
             app.logger.error(f"ImageMagick error for {filename}: {e.stderr}")
-            flash('An error occurred while processing the image.')
+            flash(classify_processing_error(e, e.stderr))
+            return render_template('result.html',
+                                   success=False,
+                                   title='Error',
+                                   return_url=url_for('resize_options', filename=filename))
+        except subprocess.TimeoutExpired as e:
+            app.logger.error(f"Timeout processing {filename}")
+            flash(classify_processing_error(e))
             return render_template('result.html',
                                    success=False,
                                    title='Error',
@@ -907,11 +1234,11 @@ def resize_image(filename):
 
     except Exception as e:
         app.logger.error(f"Error during resize: {str(e)}")
-        flash('An error occurred during processing.')
+        flash(classify_processing_error(e))
         return render_template('result.html',
                                success=False,
                                title='Error',
-                               return_url=url_for('resize_options', filename=filename))
+                               return_url=url_for('resize_options', filename=filename) if filename else url_for('index'))
 
 
 @app.route('/resize_batch_options')
@@ -1021,9 +1348,12 @@ def resize_batch():
                                title='Error',
                                return_url=url_for('index'))
 
+    purge_old_jobs()
+
     job_id = uuid.uuid4().hex
     with jobs_lock:
         jobs[job_id] = {
+            'kind': 'batch',
             'files': file_list,
             'params': params,
             'batch_folder': batch_folder,
@@ -1032,13 +1362,400 @@ def resize_batch():
             'total': len(file_list),
             'done': 0,
             'errors': 0,
-            'status': 'processing'
+            'status': 'processing',
+            'created_at': time.time(),
         }
 
     t = threading.Thread(target=process_job, args=(job_id,), daemon=True)
     t.start()
 
     return redirect(url_for('job_progress', job_id=job_id))
+
+
+@app.route('/gif_create_options')
+def gif_create_options():
+    """Options page for creating an animated GIF/WEBP from a sequence of already-uploaded images."""
+    upload_key = request.args.get('upload_key')
+    filenames = []
+    if upload_key:
+        with upload_sessions_lock:
+            filenames = upload_sessions.get(upload_key, [])
+
+    if not filenames:
+        flash('No files selected', 'error')
+        return redirect(url_for('index'))
+
+    if len(filenames) < 2:
+        flash('Select at least 2 images to create an animation', 'error')
+        return redirect(url_for('index'))
+
+    if len(filenames) > GIF_MAX_FRAMES:
+        flash(f'Too many images ({len(filenames)}). Maximum is {GIF_MAX_FRAMES} frames.', 'error')
+        return redirect(url_for('index'))
+
+    valid_files = []
+    for filename in filenames:
+        filename = secure_filename(os.path.basename(filename))
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if os.path.exists(filepath):
+            valid_files.append(filename)
+
+    if len(valid_files) < 2:
+        flash('No valid files found', 'error')
+        return redirect(url_for('index'))
+
+    # RAW/JXL frames need the dcraw/djxl pre-decode step that prepare_input_file()
+    # provides for the resize pipeline; GIF creation passes frames to ImageMagick
+    # directly, so these formats aren't supported as animation frames yet.
+    unsupported = [f for f in valid_files if os.path.splitext(f)[1].lower() in (RAW_FORMATS_DCRAW | {'.jxl'})]
+    if unsupported:
+        flash('RAW and JXL files are not supported as animation frames yet. Please select only standard image formats.', 'error')
+        return redirect(url_for('index'))
+
+    return render_template('gif_create.html',
+                           files=valid_files,
+                           upload_key=upload_key,
+                           webp_supported=webp_animation_supported(),
+                           gif_max_frames=GIF_MAX_FRAMES,
+                           gif_max_dimension=GIF_MAX_OUTPUT_DIMENSION)
+
+
+@app.route('/gif_create', methods=['POST'])
+def gif_create():
+    """Submit a GIF/WEBP creation job. Validates frame count and combined pixel
+    budget before touching the filesystem or spawning any processing, then
+    reuses the same async job/SSE progress page as batch resize."""
+    upload_key = request.form.get('upload_key', '')
+    with upload_sessions_lock:
+        filenames = upload_sessions.get(upload_key, [])
+
+    if not filenames:
+        flash('No files selected', 'error')
+        return redirect(url_for('index'))
+
+    if len(filenames) > GIF_MAX_FRAMES:
+        flash(f'Too many images. Maximum is {GIF_MAX_FRAMES} frames.', 'error')
+        return redirect(url_for('index'))
+
+    if any(os.path.splitext(f)[1].lower() in (RAW_FORMATS_DCRAW | {'.jxl'}) for f in filenames):
+        flash('RAW and JXL files are not supported as animation frames yet.', 'error')
+        return redirect(url_for('index'))
+
+    try:
+        fps = max(1, min(30, int(request.form.get('fps', 12))))
+    except ValueError:
+        fps = 12
+
+    try:
+        loop = max(0, min(100, int(request.form.get('loop', 0))))
+    except ValueError:
+        loop = 0
+
+    quality = None
+    quality_raw = request.form.get('quality', '').strip()
+    if quality_raw:
+        try:
+            quality = int(quality_raw)
+        except ValueError:
+            quality = None
+
+    raw_format = request.form.get('output_format', 'GIF').upper().strip()
+    output_format = raw_format if raw_format in GIF_CREATE_OUTPUT_FORMATS else 'GIF'
+    if output_format == 'WEBP' and not webp_animation_supported():
+        flash('Animated WEBP is not supported on this server. Use GIF instead.', 'error')
+        return redirect(url_for('gif_create_options', upload_key=upload_key))
+
+    width = height = None
+    w_raw = request.form.get('width', '').strip()
+    h_raw = request.form.get('height', '').strip()
+    if w_raw.isdigit() and h_raw.isdigit():
+        width, height = int(w_raw), int(h_raw)
+        if width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION:
+            flash(f'Canvas size too large. Maximum is {GIF_MAX_OUTPUT_DIMENSION}px per side.', 'error')
+            return redirect(url_for('gif_create_options', upload_key=upload_key))
+
+    file_list = []
+    total_pixels = 0
+    for fname in filenames:
+        fname = secure_filename(os.path.basename(fname))
+        fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+        if not fpath or not os.path.isfile(fpath):
+            continue
+        frame_w, frame_h = get_image_dimensions(fpath)
+        if not frame_w or not frame_h:
+            flash(f'Could not read dimensions for {fname}', 'error')
+            return redirect(url_for('gif_create_options', upload_key=upload_key))
+        total_pixels += frame_w * frame_h
+        if total_pixels > GIF_MAX_TOTAL_PIXELS:
+            flash('Combined frame size is too large for a single animation.', 'error')
+            return redirect(url_for('gif_create_options', upload_key=upload_key))
+        original_name = re.sub(r'^[a-f0-9]{32}_', '', fname)
+        file_list.append({
+            'original': original_name,
+            'path': fpath,
+            'output': None,
+            'status': 'queued',
+            'error': None
+        })
+
+    if len(file_list) < 2:
+        flash('At least 2 valid images are required', 'error')
+        return redirect(url_for('index'))
+
+    purge_old_jobs()
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    base_name = os.path.splitext(secure_filename(re.sub(r'^[a-f0-9]{32}_', '', filenames[0])))[0]
+    output_filename = secure_filename(f'{base_name}_imaGUIck_{timestamp}.{output_format.lower()}')
+    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+    job_id = uuid.uuid4().hex
+    with jobs_lock:
+        jobs[job_id] = {
+            'kind': 'gif_create',
+            'files': file_list,
+            'params': {
+                'fps': fps,
+                'width': width,
+                'height': height,
+                'loop': loop,
+                'quality': quality,
+                'output_format': output_format,
+            },
+            'output_path': output_path,
+            'output_filename': output_filename,
+            'zip': None,
+            'total': len(file_list),
+            'done': 0,
+            'errors': 0,
+            'status': 'processing',
+            'created_at': time.time(),
+        }
+
+    t = threading.Thread(target=process_gif_create_job, args=(job_id,), daemon=True)
+    t.start()
+
+    with upload_sessions_lock:
+        upload_sessions.pop(upload_key, None)
+
+    return redirect(url_for('job_progress', job_id=job_id))
+
+
+@app.route('/gif_edit_options/<filename>')
+def gif_edit_options(filename):
+    """Options page for editing an existing animated GIF/WEBP."""
+    sanitized_filename = secure_filename(os.path.basename(filename))
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], sanitized_filename)
+    if not os.path.exists(filepath):
+        flash_error("File not found.")
+        return redirect(url_for('index'))
+
+    validated_path = secure_path(filepath)
+    try:
+        with Image.open(validated_path) as img:
+            is_animated = getattr(img, 'is_animated', False)
+            n_frames = getattr(img, 'n_frames', 1)
+    except Exception as e:
+        app.logger.error(f"Error opening {filename} for GIF edit: {e}")
+        flash('Could not read this file.', 'error')
+        return redirect(url_for('index'))
+
+    if not is_animated:
+        flash('This file is not an animated GIF/WEBP.', 'error')
+        return redirect(url_for('resize_options', filename=sanitized_filename))
+
+    dimensions = get_image_dimensions(filepath)
+
+    return render_template('gif_edit.html',
+                           filename=sanitized_filename,
+                           n_frames=n_frames,
+                           width=dimensions[0],
+                           height=dimensions[1],
+                           webp_supported=webp_animation_supported(),
+                           gif_max_dimension=GIF_MAX_OUTPUT_DIMENSION)
+
+
+@app.route('/gif_edit/<filename>', methods=['POST'])
+def gif_edit(filename):
+    """Handle one editing operation on an existing animated GIF/WEBP. Synchronous,
+    mirroring resize_image()'s pattern since edits are single-file and bounded
+    (unlike GIF creation, which can involve many large input frames)."""
+    filename = secure_filename(os.path.basename(filename))
+    if not filename or not re.match(r'^[\w\-.]+$', filename) or '..' in filename or filename.startswith('/'):
+        flash('Invalid filename')
+        return render_template('result.html', success=False, title='Error',
+                               return_url=url_for('index'))
+
+    mode = request.form.get('mode', '').strip().lower()
+    if mode not in GIF_EDIT_MODES:
+        flash('Invalid edit mode')
+        return render_template('result.html', success=False, title='Error',
+                               return_url=url_for('gif_edit_options', filename=filename))
+
+    try:
+        filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        if not filepath or not os.path.exists(filepath):
+            flash('File not found')
+            return render_template('result.html', success=False, title='Error',
+                                   return_url=url_for('index'))
+
+        clean_name = re.sub(r'^[a-f0-9]{32}_', '', filename)
+        base_name, orig_ext = os.path.splitext(clean_name)
+        orig_ext = orig_ext.lstrip('.').upper() or 'GIF'
+        if orig_ext not in GIF_CREATE_OUTPUT_FORMATS:
+            orig_ext = 'GIF'
+
+        raw_loop = request.form.get('loop', '').strip()
+        loop = None
+        if raw_loop:
+            try:
+                loop = max(0, min(100, int(raw_loop)))
+            except ValueError:
+                loop = None
+        if mode == 'loop' and loop is None:
+            loop = 0  # 0 = infinite, a sensible default if parsing failed
+
+        if mode == 'extract':
+            extract_mode = request.form.get('extract_mode', 'single').strip().lower()
+            if extract_mode not in ('single', 'range', 'all'):
+                extract_mode = 'single'
+            raw_extract_format = request.form.get('extract_format', 'PNG').upper().strip()
+            extract_format = raw_extract_format if raw_extract_format in GIF_EXTRACT_FORMATS else 'PNG'
+
+            try:
+                with Image.open(filepath) as img:
+                    n_frames = getattr(img, 'n_frames', 1)
+            except Exception:
+                n_frames = 1
+
+            try:
+                frame_number = max(0, min(n_frames - 1, int(request.form.get('frame_number', 0))))
+                frame_start = max(0, min(n_frames - 1, int(request.form.get('frame_start', 0))))
+                frame_end = max(frame_start, min(n_frames - 1, int(request.form.get('frame_end', n_frames - 1))))
+            except ValueError:
+                flash('Invalid frame number')
+                return render_template('result.html', success=False, title='Error',
+                                       return_url=url_for('gif_edit_options', filename=filename))
+
+            if extract_mode == 'single':
+                output_filename = secure_filename(f'{base_name}_frame{frame_number}_imaGUIck.{extract_format.lower()}')
+                output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+                command = build_gif_extract_command(filepath, output_path, extract_mode,
+                                                     frame_number, frame_start, frame_end, extract_format)
+            else:
+                zip_dir_name = secure_filename(f'{base_name}_frames_{uuid.uuid4().hex[:8]}')
+                zip_dir = os.path.join(app.config['OUTPUT_FOLDER'], zip_dir_name)
+                os.makedirs(zip_dir, exist_ok=True)
+                output_pattern = os.path.join(zip_dir, f'frame_%03d.{extract_format.lower()}')
+                command = build_gif_extract_command(filepath, output_pattern, extract_mode,
+                                                     frame_number, frame_start, frame_end, extract_format)
+
+            if not command:
+                flash('Error preparing extraction command')
+                return render_template('result.html', success=False, title='Error',
+                                       return_url=url_for('gif_edit_options', filename=filename))
+
+            app.logger.info(f"Executing: {' '.join(command)}")
+            subprocess.run(command, check=True, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT_MEDIUM)
+
+            if extract_mode == 'single':
+                flash('Frame extracted successfully!')
+                return render_template('result.html', success=True, title='Success',
+                                       filename=output_filename, batch=False)
+            else:
+                zip_filename = secure_filename(f'{zip_dir_name}.zip')
+                zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
+                with ZipFile(zip_path, 'w') as zipf:
+                    for fn in sorted(os.listdir(zip_dir)):
+                        zipf.write(os.path.join(zip_dir, fn), fn)
+                shutil.rmtree(zip_dir, ignore_errors=True)
+                flash('Frames extracted successfully!')
+                return render_template('result.html', success=True, title='Success',
+                                       filename=zip_filename, batch=True)
+
+        # Non-extract modes: produce a single animated output file
+        raw_format = request.form.get('output_format', orig_ext).upper().strip()
+        output_format = raw_format if raw_format in GIF_CREATE_OUTPUT_FORMATS else orig_ext
+        if output_format == 'WEBP' and not webp_animation_supported():
+            flash('Animated WEBP is not supported on this server. Use GIF instead.')
+            return render_template('result.html', success=False, title='Error',
+                                   return_url=url_for('gif_edit_options', filename=filename))
+
+        output_filename = secure_filename(f'{base_name}_imaGUIck.{output_format.lower()}')
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+
+        params = {'loop': loop}
+
+        if mode == 'resize':
+            percentage_raw = request.form.get('percentage', '').strip()
+            width_raw = request.form.get('width', '').strip()
+            height_raw = request.form.get('height', '').strip()
+            if percentage_raw:
+                try:
+                    params['percentage'] = float(percentage_raw)
+                except ValueError:
+                    params['percentage'] = None
+            elif width_raw.isdigit() and height_raw.isdigit():
+                edit_width, edit_height = int(width_raw), int(height_raw)
+                if edit_width > GIF_MAX_OUTPUT_DIMENSION or edit_height > GIF_MAX_OUTPUT_DIMENSION:
+                    flash(f'Size too large. Maximum is {GIF_MAX_OUTPUT_DIMENSION}px per side.')
+                    return render_template('result.html', success=False, title='Error',
+                                           return_url=url_for('gif_edit_options', filename=filename))
+                params['width'] = edit_width
+                params['height'] = edit_height
+        elif mode == 'optimize':
+            try:
+                params['colors'] = max(2, min(256, int(request.form.get('colors', 256))))
+            except ValueError:
+                params['colors'] = 256
+            params['dither'] = request.form.get('dither') == 'on'
+        elif mode == 'speed':
+            try:
+                speed_factor = max(0.1, min(10, float(request.form.get('speed_factor', 1.0))))
+            except ValueError:
+                speed_factor = 1.0
+            base_delay = 10
+            try:
+                with Image.open(filepath) as img:
+                    base_delay = (img.info.get('duration', 100) // 10) or 10
+            except Exception:
+                pass
+            params['new_delay'] = max(2, round(base_delay / speed_factor))
+        elif mode == 'rotate':
+            angle_raw = request.form.get('angle', '')
+            if angle_raw in ('90', '180', '270'):
+                params['angle'] = int(angle_raw)
+            params['flip_h'] = request.form.get('flip_h') == 'on'
+            params['flip_v'] = request.form.get('flip_v') == 'on'
+
+        command = build_gif_edit_command(filepath, output_path, mode, params)
+        if not command:
+            flash('Error preparing edit command')
+            return render_template('result.html', success=False, title='Error',
+                                   return_url=url_for('gif_edit_options', filename=filename))
+
+        app.logger.info(f"Executing: {' '.join(command)}")
+        subprocess.run(command, check=True, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT_MEDIUM)
+
+        flash('Animation processed successfully!')
+        return render_template('result.html', success=True, title='Success',
+                               filename=output_filename, batch=False)
+
+    except subprocess.CalledProcessError as e:
+        app.logger.error(f"GIF edit error for {filename}: {e.stderr}")
+        flash(classify_processing_error(e, e.stderr))
+        return render_template('result.html', success=False, title='Error',
+                               return_url=url_for('gif_edit_options', filename=filename))
+    except subprocess.TimeoutExpired as e:
+        app.logger.error(f"Timeout editing {filename}")
+        flash(classify_processing_error(e))
+        return render_template('result.html', success=False, title='Error',
+                               return_url=url_for('gif_edit_options', filename=filename))
+    except Exception as e:
+        app.logger.error(f"Error during GIF edit: {str(e)}")
+        flash(classify_processing_error(e))
+        return render_template('result.html', success=False, title='Error',
+                               return_url=url_for('gif_edit_options', filename=filename) if filename else url_for('index'))
 
 
 @app.route('/job/<job_id>/progress')
@@ -1049,12 +1766,14 @@ def job_progress(job_id):
     if not job:
         flash('Job not found', 'error')
         return redirect(url_for('index'))
-    return render_template('progress.html', job_id=job_id, total=job['total'])
+    return render_template('progress.html', job_id=job_id, total=job['total'], job_kind=job.get('kind', 'batch'))
 
 
 @app.route('/job/<job_id>/status')
 def job_status(job_id):
     """SSE endpoint streaming real-time job status."""
+    purge_old_jobs()
+
     def generate():
         while True:
             with jobs_lock:
@@ -1063,6 +1782,7 @@ def job_status(job_id):
                     yield 'data: {"error": "job not found"}\n\n'
                     return
                 payload = {
+                    'kind': job.get('kind', 'batch'),
                     'total': job['total'],
                     'done': job['done'],
                     'errors': job['errors'],
@@ -1075,6 +1795,7 @@ def job_status(job_id):
                         for f in job['files']
                     ],
                     'zip': job.get('zip'),
+                    'output': job.get('output_filename'),
                     'complete': job.get('status') == 'complete'
                 }
             yield f'data: {json.dumps(payload)}\n\n'
@@ -1130,11 +1851,6 @@ def is_safe_url(url):
     """
     try:
         ALLOWED_SCHEMES = {'http', 'https'}
-        ALLOWED_EXTENSIONS = {
-            '.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp',
-            '.avif', '.heic', '.jxl', '.arw', '.cr2', '.cr3', '.nef',
-            '.raf', '.rw2', '.dng', '.svg', '.pdf', '.eps', '.apng',
-        }
 
         parsed = urlparse(url)
 
@@ -1146,7 +1862,7 @@ def is_safe_url(url):
             return False
 
         path = parsed.path.lower()
-        if not any(path.endswith(ext) for ext in ALLOWED_EXTENSIONS):
+        if not any(path.endswith(ext) for ext in URL_IMPORT_EXTENSIONS):
             return False
 
         # Resolve all DNS addresses and reject any private/reserved IP.

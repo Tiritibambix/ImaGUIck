@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% from "_resize_form_fields.html" import info_tip %}
+
+{% block title %}Create GIF/WEBP — {{ files | length }} frames{% endblock %}
+
+{% block head %}
+{% include "_resize_options_styles.html" %}
+<style>
+    .frame-list {
+        background: var(--surface-bg);
+        border: 1px solid var(--surface-line);
+        border-radius: var(--radius-md);
+        padding: var(--sp-sm);
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: var(--sp-sm);
+    }
+    .frame-list ol { list-style: none; counter-reset: frame; }
+    .frame-list li {
+        counter-increment: frame;
+        display: flex;
+        align-items: center;
+        gap: var(--sp-sm);
+        padding: 4px var(--sp-sm);
+        font-family: 'DM Mono', monospace;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .frame-list li::before {
+        content: counter(frame);
+        flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--surface-hover);
+        border-radius: 50%;
+        font-size: 0.68rem;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page-top">
+<div class="card resize-card">
+
+    <div class="page-header">
+        <a href="{{ url_for('index') }}" title="Back"><svg class="icon"><use href="#icon-arrow-left"></use></svg></a>
+        <div class="page-title">
+            <h1>Create animation</h1>
+            <small>Assemble {{ files | length }} images into an animated GIF or WEBP</small>
+        </div>
+        <span class="badge">{{ files | length }} frames</span>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-list" aria-live="polite">
+            {% for category, message in messages %}
+                {% set icon = {'error': 'x-circle', 'success': 'check-circle', 'warning': 'alert-triangle'}.get(category, 'info') %}
+                <div class="flash {{ category }}">
+                    <svg class="icon"><use href="#icon-{{ icon }}"></use></svg>
+                    <span class="flash-text">{{ message }}</span>
+                    <button type="button" class="flash-dismiss" aria-label="Dismiss">
+                        <svg class="icon"><use href="#icon-x"></use></svg>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <form action="/gif_create" method="post">
+        <input type="hidden" name="upload_key" value="{{ upload_key }}">
+
+        <div class="form-grid">
+
+            <div class="section-block">
+                <div class="section-title">Playback</div>
+                <div class="form-group">
+                    <label for="fps">Frames per second</label>
+                    <input type="number" name="fps" id="fps" min="1" max="30" value="12">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label for="loop">Loop count</label>
+                    <input type="number" name="loop" id="loop" min="0" max="100" value="0">
+                    <small>0 = loop forever</small>
+                </div>
+            </div>
+
+            <div class="section-block">
+                <div class="section-title">Canvas size (optional)</div>
+                <div class="dim-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label for="width">Width</label>
+                        <input type="number" name="width" id="width" min="1" max="{{ gif_max_dimension }}" placeholder="auto">
+                    </div>
+                    <div class="dim-sep">×</div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label for="height">Height</label>
+                        <input type="number" name="height" id="height" min="1" max="{{ gif_max_dimension }}" placeholder="auto">
+                    </div>
+                </div>
+                <small>Leave blank to keep each frame's own size. Frames are centered on a transparent canvas of this size.</small>
+            </div>
+
+            <div class="section-block col-full">
+                <div class="section-title">Output</div>
+                <div class="options-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label for="quality">Colors (GIF) / Quality (WEBP)</label>
+                        <input type="number" name="quality" id="quality" min="2" max="256" value="256">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label for="output_format">Output format</label>
+                        <select name="output_format" id="output_format">
+                            <option value="GIF">GIF</option>
+                            <option value="WEBP" {{ 'disabled' if not webp_supported }}>WEBP{{ ' (not supported on this server)' if not webp_supported }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="format-note">
+                    <svg class="icon"><use href="#icon-images"></use></svg>
+                    <span>Frame order follows the order you selected files in. Go back to reorder before uploading again if needed.</span>
+                </div>
+
+                <div class="frame-list">
+                    <ol>
+                        {% for f in files %}
+                        <li title="{{ f }}">{{ f }}</li>
+                        {% endfor %}
+                    </ol>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="submit-area">
+            <button type="submit" class="btn btn-primary btn-full">Create animation</button>
+        </div>
+    </form>
+
+</div>
+</div>
+{% endblock %}

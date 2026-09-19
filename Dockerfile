@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     autoconf \
     automake \
     libtool \
+    pkg-config \
     wget \
     tar \
     libjpeg-dev \
@@ -23,6 +24,7 @@ RUN apt-get update && apt-get install -y \
     libmagickwand-dev \
     libjxl-tools \
     libjxl-dev \
+    libwebp-dev \
     exiftool \
     dcraw \
     potrace \

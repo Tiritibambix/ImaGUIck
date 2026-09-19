@@ -1,0 +1,69 @@
+{% macro info_tip(text) %}<button type="button" class="tip" data-tip="{{ text }}" aria-label="More info"><svg class="icon"><use href="#icon-info"></use></svg></button>{% endmacro %}
+
+{% macro pixel_check_pills(id_prefix='') %}
+<div class="check-pills">
+    <label class="check-pill">
+        <input type="checkbox" name="keep_ratio" id="{{ id_prefix }}keep_ratio"> Keep ratio
+    </label>
+    <label class="check-pill">
+        <input type="checkbox" name="use_1080p" id="{{ id_prefix }}use_1080p"> 1080p
+        {{ info_tip("Resize to max 1080px on longest edge. Good for social media.") }}
+    </label>
+    <label class="check-pill">
+        <input type="checkbox" name="use_1920p" id="{{ id_prefix }}use_1920p"> 1920p
+        {{ info_tip("Resize to max 1920px on longest edge. Good for web.") }}
+    </label>
+</div>
+{% endmacro %}
+
+{% macro quality_format_field(formats, quality_value, format_label, format_placeholder) %}
+<div class="form-group" style="margin-bottom:0">
+    <label for="quality">Quality (1&ndash;100)</label>
+    <input type="number" name="quality" id="quality" min="1" max="100" value="{{ quality_value }}">
+</div>
+<div class="form-group" style="margin-bottom:0">
+    <label for="format">{{ format_label }}</label>
+    <select name="format" id="format">
+        <option value="">{{ format_placeholder }}</option>
+        {% for category, info in formats.items() %}
+            {% if info.formats %}
+            <optgroup label="{{ info.name }}">
+                {% for format in info.formats %}
+                <option value="{{ format }}">{{ format }}</option>
+                {% endfor %}
+            </optgroup>
+            {% endif %}
+        {% endfor %}
+    </select>
+</div>
+{% endmacro %}
+
+{% macro auto_level_gamma_pills() %}
+<div class="check-pills">
+    <label class="check-pill">
+        <input type="checkbox" name="auto_level" id="auto_level"> Auto-Level
+        {{ info_tip("Optimizes image levels for better dynamic range and contrast.") }}
+    </label>
+    <label class="check-pill">
+        <input type="checkbox" name="auto_gamma" id="auto_gamma"> Auto-Gamma
+        {{ info_tip("Intelligent gamma correction for balanced exposure.") }}
+    </label>
+</div>
+{% endmacro %}
+
+{% macro sharpen_block(checkbox_id) %}
+<div class="sharpen-block">
+    <label class="check-pill" style="margin:0; flex-shrink:0">
+        <input type="checkbox" name="use_sharpen" id="{{ checkbox_id }}"> Sharpen
+        {{ info_tip("Apply screen-optimized sharpening after resize.") }}
+    </label>
+    <div class="sharpen-intensity">
+        <span>Intensity:</span>
+        <div class="intensity-options">
+            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="low"> Low</label>
+            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="standard" checked> Standard</label>
+            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="high"> High</label>
+        </div>
+    </div>
+</div>
+{% endmacro %}

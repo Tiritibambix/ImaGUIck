@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}{{ title }} — ImaGUIck{% endblock %}
+
 {% block head %}
 <style>
     .result-card {
@@ -9,13 +11,12 @@
     }
 
     .result-icon {
-        font-size: 2.5rem;
-        line-height: 1;
         margin-bottom: var(--sp-lg);
     }
+    .result-icon svg { width: 40px; height: 40px; }
 
-    .result-icon.ok  { filter: drop-shadow(0 0 16px rgba(34, 197, 94, 0.4)); }
-    .result-icon.err { filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.4)); }
+    .result-icon.ok  svg { color: var(--ok);  filter: drop-shadow(0 0 16px rgba(34, 197, 94, 0.4)); }
+    .result-icon.err svg { color: var(--err); filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.4)); }
 
     .result-title {
         font-size: 1.3rem;
@@ -61,7 +62,7 @@
 <div class="card result-card">
 
     {% if success %}
-    <div class="result-icon ok">&#x2714;&#xfe0f;</div>
+    <div class="result-icon ok"><svg class="icon"><use href="#icon-check-circle"></use></svg></div>
     <div class="result-title">{{ title }}</div>
 
     {% with messages = get_flashed_messages() %}
@@ -86,7 +87,7 @@
     </div>
 
     {% else %}
-    <div class="result-icon err">&#x274c;</div>
+    <div class="result-icon err"><svg class="icon"><use href="#icon-x-circle"></use></svg></div>
     <div class="result-title">{{ title }}</div>
 
     {% with messages = get_flashed_messages() %}

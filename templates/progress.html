@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block title %}Processing&hellip; — ImaGUIck{% endblock %}
+
 {% block head %}
 <style>
     .progress-card {
@@ -75,10 +77,16 @@
 
     .file-icon {
         width: 20px;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         flex-shrink: 0;
-        font-size: 0.85rem;
     }
+    .file-icon .icon { width: 14px; height: 14px; }
+    .status-done .file-icon .icon   { color: var(--ok); }
+    .status-error .file-icon .icon  { color: var(--err); }
+    .status-processing .file-icon .icon,
+    .status-queued .file-icon .icon { color: var(--text-muted); }
 
     .file-name {
         flex: 1;
@@ -137,18 +145,22 @@
 
     .completion-icon {
         display: none;
-        font-size: 2.5rem;
-        line-height: 1;
         margin-bottom: var(--sp-lg);
+    }
+    .completion-icon svg {
+        width: 40px;
+        height: 40px;
         filter: drop-shadow(0 0 16px rgba(139, 92, 246, 0.5));
     }
     .completion-icon.visible { display: block; }
+    .completion-icon.error svg { color: var(--err); filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.4)); }
+    .completion-icon.success svg { color: var(--ok); }
 
     .page-wrapper {
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        min-height: 100vh;
+        min-height: calc(100vh - var(--header-height));
         padding: var(--sp-xl) var(--sp-md);
         position: relative;
         z-index: 1;
@@ -166,8 +178,8 @@
 <div class="card progress-card">
 
     <div class="page-header">
-        <div class="completion-icon" id="completion-icon">&#x2714;&#xfe0f;</div>
-        <h1 id="page-title">Processing batch&hellip;</h1>
+        <div class="completion-icon" id="completion-icon"><svg class="icon"><use href="#icon-check-circle"></use></svg></div>
+        <h1 id="page-title">{{ 'Building animation…' if job_kind == 'gif_create' else 'Processing batch…' }}</h1>
     </div>
 
     <div class="global-progress">
@@ -180,12 +192,12 @@
         </div>
     </div>
 
-    <div class="file-list" id="file-list"></div>
+    <div class="file-list" id="file-list" role="status" aria-live="polite"></div>
 
-    <div class="status-line" id="status-summary">Initialising&hellip;</div>
+    <div class="status-line" id="status-summary" aria-live="polite">Initialising&hellip;</div>
 
     <div class="action-row" id="action-area">
-        <a id="download-btn" href="#" class="btn btn-primary" style="display:none">Download ZIP</a>
+        <a id="download-btn" href="#" class="btn btn-primary" style="display:none">Download</a>
         <a href="{{ url_for('index') }}" class="btn btn-secondary">New upload</a>
     </div>
 
@@ -209,10 +221,10 @@
     const pageWrapper    = document.getElementById('page-wrapper');
 
     const ICONS = {
-        queued:     '&#x23F3;',
+        queued:     '<svg class="icon"><use href="#icon-clock"></use></svg>',
         processing: '<span class="spinner"></span>',
-        done:       '&#x2714;',
-        error:      '&#x2716;'
+        done:       '<svg class="icon"><use href="#icon-check"></use></svg>',
+        error:      '<svg class="icon"><use href="#icon-x"></use></svg>'
     };
     const LABELS = { queued: 'Queued', processing: 'Processing', done: 'Done', error: 'Error' };
 
@@ -270,19 +282,35 @@
             completionIcon.classList.add('visible');
             pageWrapper.classList.add('complete');
 
+            const isGif = data.kind === 'gif_create';
+            const doneWord = isGif ? 'Animation' : 'Batch';
+
             if (data.errors === 0) {
-                pageTitle.textContent = 'Batch complete';
-                statusLine.textContent = 'All ' + data.total + ' files processed successfully.';
+                completionIcon.classList.add('success');
+                completionIcon.querySelector('use').setAttribute('href', '#icon-check-circle');
+                pageTitle.textContent = doneWord + ' complete';
+                statusLine.textContent = isGif
+                    ? 'Your animation was created successfully.'
+                    : 'All ' + data.total + ' files processed successfully.';
             } else if (data.done === 0) {
-                pageTitle.textContent = 'Batch failed';
-                statusLine.textContent = 'Processing failed for all files.';
+                completionIcon.classList.add('error');
+                completionIcon.querySelector('use').setAttribute('href', '#icon-x-circle');
+                pageTitle.textContent = doneWord + ' failed';
+                statusLine.textContent = isGif
+                    ? 'Animation creation failed.'
+                    : 'Processing failed for all files.';
             } else {
-                pageTitle.textContent = 'Batch complete';
+                completionIcon.classList.add('error');
+                completionIcon.querySelector('use').setAttribute('href', '#icon-alert-triangle');
+                pageTitle.textContent = doneWord + ' complete';
                 statusLine.textContent = data.done + ' file(s) done, ' + data.errors + ' error(s).';
             }
 
             actionArea.classList.add('visible');
-            if (data.zip) {
+            if (data.output) {
+                downloadBtn.href = '/download/' + encodeURIComponent(data.output);
+                downloadBtn.style.display = 'inline-flex';
+            } else if (data.zip) {
                 downloadBtn.href = '/download_batch/' + encodeURIComponent(data.zip);
                 downloadBtn.style.display = 'inline-flex';
             }
