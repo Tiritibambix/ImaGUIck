@@ -161,10 +161,22 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: var(--sp-md);
         font-size: 0.78rem;
         color: var(--text-muted);
         font-family: 'DM Mono', monospace;
         margin-top: var(--sp-sm);
+    }
+
+    .build-note {
+        margin-top: var(--sp-sm);
+        font-size: 0.76rem;
+        line-height: 1.45;
+        color: var(--text-muted);
+        background: var(--surface-raised);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-md);
+        padding: var(--sp-sm) var(--sp-md);
     }
 
     /* Until ImageMagick reports its first progress event there is nothing
@@ -245,6 +257,7 @@
                 <span id="build-phase">Starting&hellip;</span>
                 <span id="build-detail"></span>
             </div>
+            <p class="build-note" id="build-note" hidden></p>
         </div>
         <p class="building-text">Assembling {{ total }} frames into your animation&hellip;</p>
         <p class="building-elapsed" id="building-elapsed">0s elapsed</p>
@@ -293,10 +306,16 @@
     const buildFill       = document.getElementById('build-fill');
     const buildPhase      = document.getElementById('build-phase');
     const buildDetail     = document.getElementById('build-detail');
+    const buildNote       = document.getElementById('build-note');
+    const IDLE_HINT_SECONDS = {{ idle_hint_seconds | default(20) }};
+
+    function formatDuration(seconds) {
+        if (seconds < 60) return seconds + 's';
+        return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's';
+    }
 
     function formatElapsed(seconds) {
-        if (seconds < 60) return seconds + 's elapsed';
-        return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's elapsed';
+        return formatDuration(seconds) + ' elapsed';
     }
 
     let elapsedInterval = null;
@@ -362,9 +381,26 @@
             if (data.percent > 0) {
                 buildFill.classList.remove('indeterminate');
                 buildFill.style.width = data.percent + '%';
-                buildDetail.textContent = data.phase_detail || '';
             }
-            if (data.phase) buildPhase.textContent = data.phase;
+            // Naming the ImageMagick operation alongside the stage is what makes
+            // a long palette build legible: the bar barely moves during it, but
+            // the operation and the stage timer both keep changing.
+            if (data.phase) {
+                const op = data.operation && data.operation !== data.phase ? ' · ' + data.operation : '';
+                buildPhase.textContent = data.phase + op;
+            }
+            buildDetail.textContent = data.phase_detail || formatDuration(data.stage_seconds || 0);
+
+            // `-layers optimize` emits no progress at all, so silence here is
+            // expected rather than a hang. Say so instead of leaving the user
+            // guessing whether it died.
+            if (data.idle_seconds >= IDLE_HINT_SECONDS) {
+                buildNote.textContent = 'Still working. This step reports no progress of its own and can run for '
+                    + 'several minutes on a large animation — nothing has crashed.';
+                buildNote.hidden = false;
+            } else {
+                buildNote.hidden = true;
+            }
         }
 
         if (!isGif) {

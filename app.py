@@ -983,21 +983,37 @@ _MONITOR_LINE_RE = re.compile(
 # (tag keyword, label, start%, end%) listed in pipeline execution order, so the
 # overall bar only moves forward as ImageMagick walks from reading to writing.
 # Reading dominates the runtime for large frames, hence its share of the range.
+#
+# The keywords match the tags ImageMagick actually emits, which are not named
+# after the command-line options that trigger them: `-colors` reports as
+# Classify/Image then Assign/Image (MagickCore/quantize.c), never "quantize".
+# Missing those two is what used to freeze the bar for minutes on end — every
+# event of the longest stage was silently dropped.
 _MONITOR_STAGES = (
     ('load',     'Reading frames',           0, 55),
-    ('coalesce', 'Aligning frames',         55, 62),
-    ('resize',   'Resizing frames',         62, 72),
-    ('scale',    'Resizing frames',         62, 72),
-    ('extent',   'Fitting canvas',          72, 76),
-    ('quantize', 'Building colour palette', 76, 90),
-    ('reduce',   'Building colour palette', 76, 90),
-    ('dither',   'Building colour palette', 76, 90),
-    ('optimize', 'Optimizing animation',    90, 96),
-    ('layers',   'Optimizing animation',    90, 96),
-    ('save',     'Writing file',            96, 100),
-    ('write',    'Writing file',            96, 100),
-    ('encode',   'Writing file',            96, 100),
+    ('coalesce', 'Aligning frames',         55, 60),
+    ('resize',   'Resizing frames',         60, 68),
+    ('scale',    'Resizing frames',         60, 68),
+    ('extent',   'Fitting canvas',          68, 72),
+    ('classify', 'Building colour palette', 72, 82),
+    ('reduce',   'Building colour palette', 82, 85),
+    ('assign',   'Building colour palette', 85, 90),
+    ('dither',   'Building colour palette', 85, 90),
+    ('kmeans',   'Building colour palette', 72, 90),
+    ('quantize', 'Building colour palette', 72, 90),
+    ('merge',    'Optimizing animation',    90, 95),
+    ('optimize', 'Optimizing animation',    90, 95),
+    ('layers',   'Optimizing animation',    90, 95),
+    ('save',     'Writing file',            95, 100),
+    ('write',    'Writing file',            95, 100),
+    ('encode',   'Writing file',            95, 100),
 )
+
+# Some steps genuinely report nothing: OptimizeLayerFrames(), which is what
+# `-layers optimize` runs, has no progress monitor at all. On a long animation
+# that is minutes of real work with zero events, so the UI needs to say so
+# rather than look hung.
+MONITOR_IDLE_HINT_SECONDS = 20
 
 
 def match_monitor_stage(tag):
@@ -1078,14 +1094,29 @@ def run_with_progress(command, timeout, on_progress):
     return stderr_text
 
 
+def humanize_monitor_tag(tag):
+    """Turn a raw monitor tag such as "Classify/Image" into "Classify", so an
+    operation we have no mapping for can still be named on screen."""
+    return tag.split('/')[0].strip() or tag.strip()
+
+
 def make_gif_progress_reporter(job_id, total_frames):
     """Build the on_progress callback for a GIF creation job: turns raw monitor
     events into the phase/detail/percent the progress page renders."""
     state = {'frames': 0, 'percent': 0.0, 'label': '', 'pushed_at': 0.0}
 
     def report(tag, fraction):
+        operation = humanize_monitor_tag(tag)
         stage = match_monitor_stage(tag)
         if not stage:
+            # An unmapped operation is still ImageMagick doing work, so report
+            # it by name and keep the bar where it is rather than dropping the
+            # event and leaving the page looking frozen.
+            with jobs_lock:
+                job = jobs.get(job_id)
+                if job:
+                    job['operation'] = operation
+                    job['last_event_at'] = time.time()
             return
         label, start, end = stage
 
@@ -1105,9 +1136,9 @@ def make_gif_progress_reporter(job_id, total_frames):
             current = min(total_frames, state['frames'] + (1 if reading else 0))
             detail = f'{current} of {total_frames}'
         else:
-            # Only the reading stage has a countable unit to report; for the
-            # rest the bar itself carries the number, and a second percentage
-            # next to it (at a different scale) would just be confusing.
+            # Outside the reading stage the bar carries the number, so the
+            # detail slot names the ImageMagick operation instead — that is
+            # what tells you a long palette build is still moving.
             percent = start + (end - start) * fraction
             detail = ''
 
@@ -1116,7 +1147,12 @@ def make_gif_progress_reporter(job_id, total_frames):
         now = time.monotonic()
         if (label == state['label'] and percent - state['percent'] < 0.5
                 and now - state['pushed_at'] < 0.5):
+            with jobs_lock:
+                job = jobs.get(job_id)
+                if job:
+                    job['last_event_at'] = time.time()
             return
+        stage_changed = label != state['label']
         state.update({'percent': percent, 'label': label, 'pushed_at': now})
 
         with jobs_lock:
@@ -1124,7 +1160,11 @@ def make_gif_progress_reporter(job_id, total_frames):
             if job:
                 job['phase'] = label
                 job['phase_detail'] = detail
+                job['operation'] = operation
                 job['percent'] = round(percent)
+                job['last_event_at'] = time.time()
+                if stage_changed:
+                    job['stage_started_at'] = time.time()
 
     return report
 
@@ -1925,7 +1965,10 @@ def gif_create():
             'status': 'processing',
             'phase': 'Starting',
             'phase_detail': '',
+            'operation': '',
             'percent': 0,
+            'stage_started_at': time.time(),
+            'last_event_at': time.time(),
             'created_at': time.time(),
         }
 
@@ -2163,7 +2206,9 @@ def job_progress(job_id):
     if not job:
         flash('Job not found', 'error')
         return redirect(url_for('index'))
-    return render_template('progress.html', job_id=job_id, total=job['total'], job_kind=job.get('kind', 'batch'))
+    return render_template('progress.html', job_id=job_id, total=job['total'],
+                           job_kind=job.get('kind', 'batch'),
+                           idle_hint_seconds=MONITOR_IDLE_HINT_SECONDS)
 
 
 @app.route('/job/<job_id>/status')
@@ -2195,7 +2240,14 @@ def job_status(job_id):
                     'output': job.get('output_filename'),
                     'phase': job.get('phase'),
                     'phase_detail': job.get('phase_detail'),
+                    'operation': job.get('operation'),
                     'percent': job.get('percent'),
+                    # Computed here rather than sent as timestamps, so the page
+                    # never has to trust that the browser clock agrees with the
+                    # server's. These are what show the job is alive while a
+                    # silent step like `-layers optimize` is running.
+                    'stage_seconds': int(time.time() - job.get('stage_started_at', time.time())),
+                    'idle_seconds': int(time.time() - job.get('last_event_at', time.time())),
                     'complete': job.get('status') == 'complete'
                 }
             yield f'data: {json.dumps(payload)}\n\n'
