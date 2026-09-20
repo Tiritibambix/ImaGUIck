@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash, Response
+import io
 import os
 import subprocess
 import uuid
@@ -46,6 +47,11 @@ GIF_CREATE_OUTPUT_FORMATS = {'GIF', 'WEBP'}
 GIF_EXTRACT_FORMATS = {'PNG', 'WEBP'}
 GIF_EDIT_MODES = {'resize', 'optimize', 'speed', 'reverse', 'rotate', 'extract', 'loop'}
 ANIMATED_EXTENSIONS = {'.gif', '.webp'}
+
+# GIF-creation preview: frames are served to the browser downscaled, so playback
+# stays smooth even when the uploaded frames are full-resolution photos.
+PREVIEW_MAX_WIDTH = 960
+PREVIEW_CACHE_MAX_ENTRIES = 64
 
 # Allowlist of accepted output formats — prevents path injection via format field
 ALLOWED_OUTPUT_FORMATS = {
@@ -815,6 +821,166 @@ def purge_old_jobs():
         app.logger.info(f"Purged {len(stale)} completed job(s) older than {JOBS_TTL_HOURS}h")
 
 
+# ImageMagick's -monitor flag reports progress on stderr as
+# "<Operation>/<Type>: <offset> of <extent>, <pct>% complete", carriage-return
+# terminated. Parsing it is what lets a GIF job report where it actually is
+# instead of only how long it has been running. If a future ImageMagick ever
+# stops matching this, nothing breaks: no line parses, no progress is reported,
+# and the UI stays on its indeterminate state.
+_MONITOR_LINE_RE = re.compile(
+    r'^(?P<tag>.+?):\s+(?P<offset>[0-9.]+)\s+of\s+(?P<extent>[0-9.]+),\s+'
+    r'(?P<pct>[0-9.]+)%\s+complete\s*$'
+)
+
+# (tag keyword, label, start%, end%) listed in pipeline execution order, so the
+# overall bar only moves forward as ImageMagick walks from reading to writing.
+# Reading dominates the runtime for large frames, hence its share of the range.
+_MONITOR_STAGES = (
+    ('load',     'Reading frames',           0, 55),
+    ('coalesce', 'Aligning frames',         55, 62),
+    ('resize',   'Resizing frames',         62, 72),
+    ('scale',    'Resizing frames',         62, 72),
+    ('extent',   'Fitting canvas',          72, 76),
+    ('quantize', 'Building colour palette', 76, 90),
+    ('reduce',   'Building colour palette', 76, 90),
+    ('dither',   'Building colour palette', 76, 90),
+    ('optimize', 'Optimizing animation',    90, 96),
+    ('layers',   'Optimizing animation',    90, 96),
+    ('save',     'Writing file',            96, 100),
+    ('write',    'Writing file',            96, 100),
+    ('encode',   'Writing file',            96, 100),
+)
+
+
+def match_monitor_stage(tag):
+    """Map an ImageMagick monitor tag onto a user-facing stage label and the
+    slice of the overall progress bar it owns."""
+    lowered = tag.lower()
+    for keyword, label, start, end in _MONITOR_STAGES:
+        if keyword in lowered:
+            return label, start, end
+    return None
+
+
+def run_with_progress(command, timeout, on_progress):
+    """Run an ImageMagick command with -monitor, feeding parsed progress events
+    to on_progress(tag, fraction) as they stream in.
+
+    Raises exactly what subprocess.run(check=True) would (CalledProcessError /
+    TimeoutExpired, both carrying stderr) so callers keep their error handling.
+    Progress lines are stripped out of the captured stderr, leaving only real
+    warnings and errors for the message shown to the user.
+    """
+    monitored = [command[0], '-monitor'] + list(command[1:])
+    proc = subprocess.Popen(monitored, stdout=subprocess.DEVNULL,
+                            stderr=subprocess.PIPE, shell=False)
+    timed_out = threading.Event()
+
+    def _kill_on_timeout():
+        timed_out.set()
+        proc.kill()
+
+    watchdog = threading.Timer(timeout, _kill_on_timeout)
+    watchdog.start()
+
+    stderr_lines = []
+    buffer = ''
+    try:
+        while True:
+            # os.read returns as soon as any bytes are available, unlike
+            # stderr.read(n), which would hold updates back until n bytes or EOF.
+            try:
+                chunk = os.read(proc.stderr.fileno(), 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            buffer += chunk.decode('utf-8', errors='replace')
+            parts = re.split(r'[\r\n]', buffer)
+            buffer = parts.pop()
+            for line in parts:
+                line = line.strip()
+                if not line:
+                    continue
+                match = _MONITOR_LINE_RE.match(line)
+                if match:
+                    try:
+                        on_progress(match.group('tag'), float(match.group('pct')) / 100.0)
+                    except Exception as e:
+                        app.logger.warning(f"Progress reporting failed: {e}")
+                else:
+                    stderr_lines.append(line)
+                    if len(stderr_lines) > 60:
+                        del stderr_lines[:-40]
+        returncode = proc.wait()
+    finally:
+        watchdog.cancel()
+        try:
+            proc.stderr.close()
+        except Exception:
+            pass
+        if proc.poll() is None:
+            proc.kill()
+
+    stderr_text = '\n'.join(stderr_lines)
+    if timed_out.is_set():
+        raise subprocess.TimeoutExpired(monitored, timeout, stderr=stderr_text)
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode, monitored, stderr=stderr_text)
+    return stderr_text
+
+
+def make_gif_progress_reporter(job_id, total_frames):
+    """Build the on_progress callback for a GIF creation job: turns raw monitor
+    events into the phase/detail/percent the progress page renders."""
+    state = {'frames': 0, 'percent': 0.0, 'label': '', 'pushed_at': 0.0}
+
+    def report(tag, fraction):
+        stage = match_monitor_stage(tag)
+        if not stage:
+            return
+        label, start, end = stage
+
+        if label == 'Reading frames' and total_frames:
+            # Each frame's read ends with its own 100% line, so counting those
+            # gives a real "frame k of N" rather than an interpolated guess.
+            in_flight = 0.0
+            reading = fraction < 0.995
+            if reading:
+                in_flight = fraction
+            else:
+                state['frames'] = min(total_frames, state['frames'] + 1)
+            reached = min(total_frames, state['frames'] + in_flight)
+            percent = start + (end - start) * (reached / total_frames)
+            # A frame that has only just started still counts as the one being
+            # read, so the counter opens at "1 of N" rather than "0 of N".
+            current = min(total_frames, state['frames'] + (1 if reading else 0))
+            detail = f'{current} of {total_frames}'
+        else:
+            # Only the reading stage has a countable unit to report; for the
+            # rest the bar itself carries the number, and a second percentage
+            # next to it (at a different scale) would just be confusing.
+            percent = start + (end - start) * fraction
+            detail = ''
+
+        # Never move backwards, and hold short of 100 until the job really ends.
+        percent = max(state['percent'], min(99.0, percent))
+        now = time.monotonic()
+        if (label == state['label'] and percent - state['percent'] < 0.5
+                and now - state['pushed_at'] < 0.5):
+            return
+        state.update({'percent': percent, 'label': label, 'pushed_at': now})
+
+        with jobs_lock:
+            job = jobs.get(job_id)
+            if job:
+                job['phase'] = label
+                job['phase_detail'] = detail
+                job['percent'] = round(percent)
+
+    return report
+
+
 def process_gif_create_job(job_id):
     """Process a GIF/WEBP creation job: builds one animated file from the ordered
     set of uploaded frames via a single ImageMagick invocation. Runs in a
@@ -848,7 +1014,8 @@ def process_gif_create_job(job_id):
             if not command:
                 raise RuntimeError("Could not build GIF creation command")
             app.logger.info(f"[Job {job_id}] Executing: {' '.join(command)}")
-            subprocess.run(command, check=True, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT_LONG)
+            run_with_progress(command, SUBPROCESS_TIMEOUT_LONG,
+                              make_gif_progress_reporter(job_id, len(file_infos)))
         except subprocess.CalledProcessError as e:
             app.logger.error(f"[Job {job_id}] GIF creation error: {e.stderr}")
             error_msg = classify_processing_error(e, e.stderr)
@@ -870,6 +1037,9 @@ def process_gif_create_job(job_id):
                 for f in file_infos:
                     f['status'] = 'done'
                 jobs[job_id]['done'] = len(file_infos)
+                jobs[job_id]['phase'] = 'Complete'
+                jobs[job_id]['phase_detail'] = ''
+                jobs[job_id]['percent'] = 100
             for f in file_infos:
                 try:
                     src = secure_path(f['path'])
@@ -1585,6 +1755,9 @@ def gif_create():
             'done': 0,
             'errors': 0,
             'status': 'processing',
+            'phase': 'Starting',
+            'phase_detail': '',
+            'percent': 0,
             'created_at': time.time(),
         }
 
@@ -1852,6 +2025,9 @@ def job_status(job_id):
                     ],
                     'zip': job.get('zip'),
                     'output': job.get('output_filename'),
+                    'phase': job.get('phase'),
+                    'phase_detail': job.get('phase_detail'),
+                    'percent': job.get('percent'),
                     'complete': job.get('status') == 'complete'
                 }
             yield f'data: {json.dumps(payload)}\n\n'
@@ -1897,19 +2073,80 @@ def download(filename):
     return response
 
 
+_preview_cache = {}
+_preview_cache_lock = threading.Lock()
+
+
+def build_preview_thumbnail(filepath, width):
+    """Downscale an uploaded frame for the GIF-creation preview, returning
+    (bytes, mimetype) or None if the format can't be read here.
+
+    Uses PIL rather than ImageMagick: the preview only runs on formats the GIF
+    creation flow already accepts, and JPEG draft mode lets libjpeg decode a
+    12 MP frame straight to roughly preview size, which is what keeps a
+    full-resolution sequence from taking seconds per frame to load.
+    """
+    try:
+        stat = os.stat(filepath)
+    except OSError:
+        return None
+    key = (filepath, stat.st_mtime_ns, stat.st_size, width)
+
+    with _preview_cache_lock:
+        cached = _preview_cache.get(key)
+    if cached:
+        return cached
+
+    try:
+        with Image.open(filepath) as img:
+            img.draft('RGB', (width, width))  # JPEG fast path; a no-op elsewhere
+            img.load()
+            has_alpha = 'A' in img.getbands() or 'transparency' in img.info
+            img = img.convert('RGBA' if has_alpha else 'RGB')
+            img.thumbnail((width, width * 4), Image.LANCZOS)
+            buffer = io.BytesIO()
+            if has_alpha:
+                img.save(buffer, 'PNG', optimize=True)
+                mimetype = 'image/png'
+            else:
+                img.save(buffer, 'JPEG', quality=82, progressive=True)
+                mimetype = 'image/jpeg'
+    except Exception as e:
+        app.logger.info(f"Preview thumbnail unavailable for {os.path.basename(filepath)}: {e}")
+        return None
+
+    result = (buffer.getvalue(), mimetype)
+    with _preview_cache_lock:
+        if len(_preview_cache) >= PREVIEW_CACHE_MAX_ENTRIES:
+            _preview_cache.pop(next(iter(_preview_cache)), None)
+        _preview_cache[key] = result
+    return result
+
+
 @app.route('/preview_frame/<filename>')
 def preview_frame(filename):
     """Serve an already-uploaded (not yet processed) image back to the browser,
     for the client-side GIF-creation timing preview only. Read-only, same
-    path-confinement as download() but via send_file() so the browser renders
-    it inline instead of forcing a download. Plain 404 on failure since this
-    is only ever hit as an <img src> target, not a user-facing navigation."""
+    path-confinement as download() but rendered inline instead of downloaded.
+    With ?w=<px> a downscaled copy is returned, which is what the preview asks
+    for; the original is only served as a fallback. Plain 404 on failure since
+    this is only ever hit as an <img src> target, not a user-facing navigation."""
     safe_name = os.path.basename(filename)
     if is_unsafe_filename(safe_name):
         return ('', 404)
     filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], safe_name))
     if not filepath or not os.path.exists(filepath):
         return ('', 404)
+
+    width = request.args.get('w', type=int)
+    if width:
+        thumbnail = build_preview_thumbnail(filepath, max(120, min(PREVIEW_MAX_WIDTH, width)))
+        if thumbnail:
+            data, mimetype = thumbnail
+            response = Response(data, mimetype=mimetype)
+            response.headers['Cache-Control'] = 'private, max-age=3600'
+            return response
+
     return send_file(filepath)
 
 

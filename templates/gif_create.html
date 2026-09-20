@@ -44,9 +44,7 @@
     }
 
     .gif-preview-wrap {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        position: relative;
         height: 220px;
         background: var(--surface-bg);
         border: 1px solid var(--surface-line);
@@ -54,11 +52,34 @@
         overflow: hidden;
         margin-top: var(--sp-sm);
     }
-    .gif-preview-wrap img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
+    .gif-preview-wrap canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
     }
+    .gif-preview-status {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--sp-sm);
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-family: 'DM Mono', monospace;
+        background: var(--surface-bg);
+    }
+    .gif-preview-status.hidden { display: none; }
+    .gif-preview-status .spinner {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 1.5px solid var(--accent-glow);
+        border-top-color: var(--accent-bright);
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 {% endblock %}
 
@@ -100,9 +121,12 @@
             <div class="section-block col-full">
                 <div class="section-title">Preview</div>
                 <div class="gif-preview-wrap">
-                    <img id="gif-preview-img" alt="Animation preview">
+                    <canvas id="gif-preview-canvas"></canvas>
+                    <div class="gif-preview-status" id="gif-preview-status">
+                        <span class="spinner"></span><span id="gif-preview-status-text">Loading frames&hellip;</span>
+                    </div>
                 </div>
-                <small>Approximate order and timing only — canvas size and palette are applied during processing, not shown here.</small>
+                <small>Real frame order and playback speed — canvas size and palette are applied during processing, not shown here.</small>
             </div>
 
             <div class="section-block">
@@ -177,23 +201,94 @@
 <script>
 (function () {
     const frameNames = {{ files | tojson }};
-    const frameUrls = frameNames.map(f => '/preview_frame/' + encodeURIComponent(f));
-    let previewIndex = 0, previewTimer = null;
-    const previewImg = document.getElementById('gif-preview-img');
-    const fpsInput = document.getElementById('fps');
+    const canvas    = document.getElementById('gif-preview-canvas');
+    const statusBox = document.getElementById('gif-preview-status');
+    const statusTxt = document.getElementById('gif-preview-status-text');
+    const fpsInput  = document.getElementById('fps');
+    const ctx = canvas.getContext('2d');
 
-    function startPreview() {
-        clearInterval(previewTimer);
-        if (!frameUrls.length) return;
-        const fps = Math.max(1, parseInt(fpsInput.value, 10) || 12);
-        previewImg.src = frameUrls[previewIndex];
-        previewTimer = setInterval(() => {
-            previewIndex = (previewIndex + 1) % frameUrls.length;
-            previewImg.src = frameUrls[previewIndex];
-        }, 1000 / fps);
+    // Every frame is decoded once up front and then drawn from memory, so
+    // playback timing is never gated on a network fetch or an image decode —
+    // which is what made swapping <img src> per tick uneven on large frames.
+    const frames = [];
+    let index = 0, accumulator = 0, lastTimestamp = 0, running = false;
+
+    function currentFps() {
+        const value = parseInt(fpsInput.value, 10);
+        return Math.min(30, Math.max(1, value || 12));
     }
-    fpsInput.addEventListener('input', startPreview);
-    startPreview();
+
+    function fitCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width  = Math.max(1, Math.round(rect.width * ratio));
+        canvas.height = Math.max(1, Math.round(rect.height * ratio));
+        if (frames.length) draw(index);
+    }
+
+    function draw(i) {
+        const img = frames[i];
+        if (!img) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const scale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+        const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+        ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    }
+
+    function tick(timestamp) {
+        if (!lastTimestamp) lastTimestamp = timestamp;
+        const frameMs = 1000 / currentFps();
+        // Clamp so a backgrounded tab doesn't come back and race through frames.
+        accumulator = Math.min(accumulator + (timestamp - lastTimestamp), frameMs * 2);
+        lastTimestamp = timestamp;
+        if (accumulator >= frameMs) {
+            accumulator -= frameMs;
+            index = (index + 1) % frames.length;
+            draw(index);
+        }
+        requestAnimationFrame(tick);
+    }
+
+    // Every frame is held decoded for the whole session, so a long sequence
+    // gets smaller thumbnails to keep that from adding up to hundreds of MB.
+    const previewWidth = frameNames.length > 80 ? 320 : (frameNames.length > 24 ? 480 : 720);
+
+    function loadFrame(name) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.decoding = 'async';
+            img.onload  = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = '/preview_frame/' + encodeURIComponent(name) + '?w=' + previewWidth;
+        });
+    }
+
+    async function start() {
+        let done = 0;
+        const loaded = await Promise.all(frameNames.map(name => loadFrame(name).then(img => {
+            statusTxt.textContent = 'Loading frames ' + (++done) + '/' + frameNames.length + '…';
+            return img;
+        })));
+        loaded.forEach(img => { if (img) frames.push(img); });
+
+        if (!frames.length) {
+            statusTxt.textContent = 'Preview unavailable';
+            statusBox.querySelector('.spinner').remove();
+            return;
+        }
+
+        statusBox.classList.add('hidden');
+        fitCanvas();
+        draw(0);
+        if (frames.length > 1 && !running) {
+            running = true;
+            requestAnimationFrame(tick);
+        }
+    }
+
+    window.addEventListener('resize', fitCanvas);
+    fitCanvas();
+    start();
 })();
 </script>
 {% endblock %}

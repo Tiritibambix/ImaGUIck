@@ -152,6 +152,33 @@
         font-family: 'DM Mono', monospace;
     }
 
+    .build-progress {
+        width: 100%;
+        margin-bottom: var(--sp-xs);
+    }
+
+    .build-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        font-family: 'DM Mono', monospace;
+        margin-top: var(--sp-sm);
+    }
+
+    /* Until ImageMagick reports its first progress event there is nothing
+       truthful to put on the bar, so it sweeps instead of claiming a value. */
+    .global-fill.indeterminate {
+        width: 35%;
+        animation: sweep 1.4s ease-in-out infinite;
+    }
+
+    @keyframes sweep {
+        0%   { margin-left: -35%; }
+        100% { margin-left: 100%; }
+    }
+
     .status-line {
         text-align: center;
         font-size: 0.84rem;
@@ -210,7 +237,15 @@
 
     {% if job_kind == 'gif_create' %}
     <div class="building-indicator" id="building-indicator">
-        <span class="spinner spinner-lg"></span>
+        <div class="build-progress">
+            <div class="global-track">
+                <div class="global-fill indeterminate" id="build-fill"></div>
+            </div>
+            <div class="build-meta">
+                <span id="build-phase">Starting&hellip;</span>
+                <span id="build-detail"></span>
+            </div>
+        </div>
         <p class="building-text">Assembling {{ total }} frames into your animation&hellip;</p>
         <p class="building-elapsed" id="building-elapsed">0s elapsed</p>
     </div>
@@ -253,13 +288,22 @@
     const pageTitle      = document.getElementById('page-title');
     const completionIcon = document.getElementById('completion-icon');
     const pageWrapper    = document.getElementById('page-wrapper');
+    const buildingBlock   = document.getElementById('building-indicator');
     const buildingElapsed = document.getElementById('building-elapsed');
+    const buildFill       = document.getElementById('build-fill');
+    const buildPhase      = document.getElementById('build-phase');
+    const buildDetail     = document.getElementById('build-detail');
+
+    function formatElapsed(seconds) {
+        if (seconds < 60) return seconds + 's elapsed';
+        return Math.floor(seconds / 60) + 'm ' + (seconds % 60) + 's elapsed';
+    }
 
     let elapsedInterval = null;
     if (buildingElapsed) {
         const startTime = Date.now();
         elapsedInterval = setInterval(() => {
-            buildingElapsed.textContent = Math.floor((Date.now() - startTime) / 1000) + 's elapsed';
+            buildingElapsed.textContent = formatElapsed(Math.floor((Date.now() - startTime) / 1000));
         }, 1000);
     }
 
@@ -304,9 +348,24 @@
         let data;
         try { data = JSON.parse(e.data); } catch(_) { return; }
 
-        if (data.error) { statusLine.textContent = 'Error: ' + data.error; evtSource.close(); return; }
+        if (data.error) {
+            statusLine.textContent = 'Error: ' + data.error;
+            if (elapsedInterval) clearInterval(elapsedInterval);
+            if (buildingBlock) buildingBlock.remove();
+            evtSource.close();
+            return;
+        }
 
         const isGif = data.kind === 'gif_create';
+
+        if (isGif && buildFill && !data.complete) {
+            if (data.percent > 0) {
+                buildFill.classList.remove('indeterminate');
+                buildFill.style.width = data.percent + '%';
+                buildDetail.textContent = data.phase_detail || '';
+            }
+            if (data.phase) buildPhase.textContent = data.phase;
+        }
 
         if (!isGif) {
             if (!initialised && data.files && data.files.length) {
@@ -326,6 +385,7 @@
         if (data.complete) {
             evtSource.close();
             if (elapsedInterval) clearInterval(elapsedInterval);
+            if (buildingBlock) buildingBlock.remove();
 
             completionIcon.classList.add('visible');
             pageWrapper.classList.add('complete');
