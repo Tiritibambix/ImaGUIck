@@ -1,8 +1,9 @@
-# Base image
-FROM --platform=$BUILDPLATFORM python:3.9-slim
+# Base image. Do NOT pin this to $BUILDPLATFORM: buildx then bakes the builder's
+# architecture into every target image, so the arm64 manifest entry would ship
+# amd64 binaries.
+FROM python:3.9-slim
 
-# Target architecture (amd64 or arm64)
-ARG TARGETARCH
+ARG IMAGEMAGICK_VERSION=7.1.2-31
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -20,8 +21,6 @@ RUN apt-get update && apt-get install -y \
     libgif-dev \
     libx11-dev \
     libxt-dev \
-    libmagickcore-dev \
-    libmagickwand-dev \
     libjxl-tools \
     libjxl-dev \
     libwebp-dev \
@@ -38,26 +37,31 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 
-# ARM64: use the pre-compiled apt package; AMD64: build from source for JXL support
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        echo "Using pre-compiled ImageMagick for ARM64"; \
-        apt-get update && apt-get install -y imagemagick; \
-    else \
-        echo "Building ImageMagick from source for AMD64"; \
-        wget https://github.com/ImageMagick/ImageMagick/archive/refs/tags/7.1.2-18.tar.gz -O /tmp/imagemagick.tar.gz && \
-        tar -xvzf /tmp/imagemagick.tar.gz -C /tmp && \
-        cd /tmp/ImageMagick-7.1.2-18 && \
-        ./configure --prefix=/usr/local --disable-shared --without-x --disable-openmp --with-jxl && \
-        make -j$(nproc) && \
-        make install && \
-        rm -rf /tmp/*; \
-    fi
+# Build ImageMagick from source on every architecture. Debian's `imagemagick`
+# package is ImageMagick 6, which ships no `magick` binary at all — and this app
+# calls `magick` exclusively — so an apt path for arm64 was never viable.
+RUN wget "https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${IMAGEMAGICK_VERSION}.tar.gz" -O /tmp/imagemagick.tar.gz && \
+    tar -xzf /tmp/imagemagick.tar.gz -C /tmp && \
+    cd "/tmp/ImageMagick-${IMAGEMAGICK_VERSION}" && \
+    ./configure --prefix=/usr/local --disable-shared --without-x --with-jxl && \
+    make -j$(nproc) && \
+    make install && \
+    rm -rf /tmp/*
 
 # Ensure /usr/local/bin is on PATH (source-compiled binaries land there)
 ENV PATH="/usr/local/bin:${PATH}"
 
-# Verify ImageMagick is correctly installed
-RUN magick -version
+# Bound ImageMagick's resource use. THREAD_LIMIT matters because the build now
+# has OpenMP enabled: the app already caps concurrent ImageMagick processes at 4
+# (BoundedSemaphore), so leaving threads unbounded would oversubscribe the CPU.
+# Memory and map limits are deliberately left to ImageMagick's own host-based
+# detection; override any of these in docker-compose.yml if needed.
+ENV MAGICK_THREAD_LIMIT=4 \
+    MAGICK_AREA_LIMIT=512MP \
+    MAGICK_DISK_LIMIT=8GiB
+
+# Fail the build on a wrong or missing tarball rather than shipping it
+RUN magick -version | grep -q "ImageMagick ${IMAGEMAGICK_VERSION}"
 
 # Copy application source
 WORKDIR /app

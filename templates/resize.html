@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block %}
+{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field %}
 
 {% block title %}Resize — {{ filename }}{% endblock %}
 
@@ -60,6 +60,13 @@
                 <div class="options-row">
                     {{ quality_format_field(formats, defaults.quality if defaults else '100', 'Output format', 'Keep original format') }}
                 </div>
+
+                {{ framing_fields() }}
+
+                {% set is_vector = filename.lower().split('.')[-1] in ['svg', 'pdf', 'eps', 'ai'] %}
+                {% if is_vector %}
+                {{ density_field() }}
+                {% endif %}
 
                 {{ auto_level_gamma_pills() }}
 

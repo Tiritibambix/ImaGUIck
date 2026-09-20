@@ -48,6 +48,48 @@
         <input type="checkbox" name="auto_gamma" id="auto_gamma"> Auto-Gamma
         {{ info_tip("Intelligent gamma correction for balanced exposure.") }}
     </label>
+    <label class="check-pill">
+        <input type="checkbox" name="strip_metadata" id="strip_metadata"> Remove metadata
+        {{ info_tip("Strips EXIF, GPS coordinates and colour profiles from the output. Orientation is applied before stripping, so the image stays the right way up.") }}
+    </label>
+</div>
+{% endmacro %}
+
+{% macro framing_fields(id_prefix='') %}
+<div class="options-row">
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}crop_ratio">Crop to ratio</label>
+        <select name="crop_ratio" id="{{ id_prefix }}crop_ratio">
+            <option value="">No crop</option>
+            <option value="1:1">1:1 &middot; square</option>
+            <option value="4:3">4:3</option>
+            <option value="3:2">3:2</option>
+            <option value="16:9">16:9 &middot; widescreen</option>
+        </select>
+        <small>Centred crop, applied before resizing.</small>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}background_color">Background when flattening</label>
+        <select name="background_color" id="{{ id_prefix }}background_color">
+            <option value="white">White</option>
+            <option value="black">Black</option>
+            <option value="gray">Gray</option>
+        </select>
+        <small>Used only when the output format has no transparency (JPEG, BMP&hellip;).</small>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro density_field(id_prefix='') %}
+<div class="form-group" style="margin-bottom:0">
+    <label for="{{ id_prefix }}density">Vector import density</label>
+    <select name="density" id="{{ id_prefix }}density">
+        <option value="">Default (72 dpi)</option>
+        <option value="150">150 dpi</option>
+        <option value="300">300 dpi</option>
+        <option value="600">600 dpi</option>
+    </select>
+    <small>Only affects SVG, PDF, EPS and AI sources, which rasterize soft at the default density.</small>
 </div>
 {% endmacro %}
 

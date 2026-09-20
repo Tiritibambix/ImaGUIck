@@ -10,7 +10,7 @@ import atexit
 import shutil
 from zipfile import ZipFile
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageOps
 import requests
 import logging
 import re
@@ -63,6 +63,20 @@ ALLOWED_OUTPUT_FORMATS = {
 }
 
 ALLOWED_SHARPEN_LEVELS = {'low', 'standard', 'high'}
+
+# Output formats with no alpha channel: converting a transparent source to one
+# of these without flattening first renders the transparent areas black.
+OPAQUE_OUTPUT_FORMATS = {'JPEG', 'JPG', 'BMP', 'PCX', 'PPM', 'PGM'}
+ALLOWED_BACKGROUND_COLORS = {'white', 'black', 'gray'}
+HEX_COLOR_RE = re.compile(r'^#[0-9a-fA-F]{6}$')
+
+# Vector sources are rasterized at 72 dpi unless told otherwise, which is why
+# an imported SVG/PDF looks soft. Density is a read-time setting.
+VECTOR_INPUT_EXTENSIONS = {'.svg', '.pdf', '.eps', '.ai'}
+ALLOWED_DENSITIES = {'72', '150', '300', '600'}
+
+# Aspect ratios offered for centred cropping, as (width, height) multipliers.
+ALLOWED_CROP_RATIOS = {'1:1': (1, 1), '4:3': (4, 3), '3:2': (3, 2), '16:9': (16, 9)}
 
 # Formats that require potrace (raster-to-vector delegate)
 POTRACE_FORMATS = {'SVG', 'EPS', 'AI', 'PDF', 'WMF', 'EMF'}
@@ -263,13 +277,17 @@ def get_image_dimensions(filepath):
             return None, None
         else:
             app.logger.info(f"Getting dimensions for non-ARW file")
-            cmd = ['magick', 'identify', secure_file_path]
+            # -ping reads the header only instead of decoding the whole image,
+            # and -format asks for exactly the two numbers we want, which
+            # replaces scraping them out of identify's free-form line. [0]
+            # selects the first frame so an animation yields a single row.
+            cmd = ['magick', 'identify', '-ping', '-format', '%w %h', f'{secure_file_path}[0]']
             app.logger.info(f"Running ImageMagick command")
             result = subprocess.run(cmd, capture_output=True, text=True, shell=False, timeout=SUBPROCESS_TIMEOUT_SHORT)
             if result.returncode != 0:
                 raise Exception(f"Error getting image dimensions: {result.stderr}")
 
-            match = re.search(r'\s(\d+)x(\d+)\s', result.stdout)
+            match = re.match(r'^\s*(\d+)\s+(\d+)\s*$', result.stdout)
             if match:
                 width = int(match.group(1))
                 height = int(match.group(2))
@@ -362,6 +380,27 @@ def get_recommended_formats_for_image(image_type, original_format):
     return sorted(list(recommended))
 
 
+# A `magick -list format` row is "<Format> <Module> <Mode> <Description>". The
+# mode is located by its shape rather than by column index: reading it
+# positionally means reading Module instead, which is how the format list used
+# to drop PNG and JPEG while keeping WEBP (whose module name happens to contain
+# a "w"). Mode is read / write / multi-image, e.g. "rw+", and is sometimes
+# printed with only two characters.
+_FORMAT_MODE_RE = re.compile(r'^[r-][w-][+-]?$')
+
+
+def parse_format_row(line):
+    """Pull (FORMAT, mode) out of one `magick -list format` row, or None if the
+    line is a header, a rule, or otherwise not a format row."""
+    parts = line.split()
+    if len(parts) < 2:
+        return None
+    for token in parts[1:]:
+        if _FORMAT_MODE_RE.match(token):
+            return parts[0].strip('*').upper(), token.lower()
+    return None
+
+
 def get_available_formats(filepath=None):
     """Get all formats supported by ImageMagick and organize them by category."""
     try:
@@ -374,16 +413,12 @@ def get_available_formats(filepath=None):
 
         available_formats = set()
         for line in result.stdout.split('\n'):
-            if not line.strip() or line.startswith('Format') or line.startswith('--'):
+            row = parse_format_row(line)
+            if not row:
                 continue
-
-            parts = line.split()
-            if len(parts) >= 2:
-                format_name = parts[0].strip('* ')
-                format_flags = parts[1].lower()
-                if 'r' in format_flags or 'w' in format_flags:
-                    if format_name.upper() not in VIDEO_FORMATS:
-                        available_formats.add(format_name.upper())
+            format_name, format_mode = row
+            if ('r' in format_mode or 'w' in format_mode) and format_name not in VIDEO_FORMATS:
+                available_formats.add(format_name)
 
         if not available_formats:
             raise Exception("No formats found in ImageMagick output")
@@ -449,19 +484,30 @@ _webp_anim_supported_cache = None
 
 
 def webp_animation_supported():
-    """Check (once, cached) whether the installed ImageMagick has the WebP
-    mux/demux delegate needed for *animated* WEBP output. Single-frame WEBP
-    can work without it, so this must be checked separately before offering
-    WEBP as a GIF-creation/editing output format."""
+    """Check (once, cached) whether this ImageMagick can write *animated* WEBP.
+    Single-frame WEBP can work without it, so it must be checked separately
+    before offering WEBP as a GIF-creation/editing output format.
+
+    Read from the WEBP row of `magick -list format`, where the mode's `+` means
+    the coder handles multiple images in one file — exactly what an animation
+    needs. The previous check looked for the string "webp" anywhere in
+    `-list delegate`, which reports *external* delegate programs; libwebp is
+    linked in as a coder, so that test did not measure what it claimed to."""
     global _webp_anim_supported_cache
     if _webp_anim_supported_cache is not None:
         return _webp_anim_supported_cache
     try:
-        result = subprocess.run(['magick', '-list', 'delegate'], capture_output=True,
+        result = subprocess.run(['magick', '-list', 'format'], capture_output=True,
                                  text=True, timeout=SUBPROCESS_TIMEOUT_SHORT)
-        _webp_anim_supported_cache = 'webp' in result.stdout.lower()
+        supported = False
+        for line in result.stdout.split('\n'):
+            row = parse_format_row(line)
+            if row and row[0] == 'WEBP':
+                supported = 'w' in row[1] and row[1].endswith('+')
+                break
+        _webp_anim_supported_cache = supported
     except Exception as e:
-        app.logger.warning(f"Could not determine WebP delegate support: {e}")
+        app.logger.warning(f"Could not determine WebP animation support: {e}")
         _webp_anim_supported_cache = False
     return _webp_anim_supported_cache
 
@@ -587,6 +633,16 @@ def extract_processing_params(form):
     raw_sharpen = form.get('sharpen_level', 'standard').strip().lower()
     sharpen_level = raw_sharpen if raw_sharpen in ALLOWED_SHARPEN_LEVELS else 'standard'
 
+    raw_background = form.get('background_color', 'white').strip().lower()
+    if raw_background not in ALLOWED_BACKGROUND_COLORS and not HEX_COLOR_RE.match(raw_background):
+        raw_background = 'white'
+
+    raw_density = form.get('density', '').strip()
+    density = raw_density if raw_density in ALLOWED_DENSITIES else ''
+
+    raw_ratio = form.get('crop_ratio', '').strip()
+    crop_ratio = raw_ratio if raw_ratio in ALLOWED_CROP_RATIOS else ''
+
     return {
         'width': form.get('width', DEFAULTS['width']),
         'height': form.get('height', DEFAULTS['height']),
@@ -600,14 +656,57 @@ def extract_processing_params(form):
         'use_1920p': form.get('use_1920p') == 'on',
         'use_sharpen': form.get('use_sharpen') == 'on',
         'sharpen_level': sharpen_level,
+        'strip_metadata': form.get('strip_metadata') == 'on',
+        'background_color': raw_background,
+        'density': density,
+        'crop_ratio': crop_ratio,
     }
+
+
+def jpeg_decode_hint(width, height, use_1080p, use_1920p):
+    """Target box for `-define jpeg:size=`, or None when the hint isn't safe.
+
+    The hint makes libjpeg decode at a reduced DCT scale, so it is only sound
+    for geometries expressed as an absolute bounding box: libjpeg rounds up to
+    the next scale, guaranteeing the resampler still has enough pixels. It must
+    NOT be combined with anything measured against the decoded image — a
+    percentage resize or a pixel crop box computed from the original size would
+    both silently operate on a smaller image than they were calculated for."""
+    if use_1920p:
+        return '1920x1920'
+    if use_1080p:
+        return '1080x1080'
+    if width and height:
+        return f'{width}x{height}'
+    return None
+
+
+def centered_crop_box(src_width, src_height, crop_ratio):
+    """Largest centred WxH+0+0 box of the given aspect ratio, or None if the
+    source dimensions aren't known."""
+    if not (src_width and src_height):
+        return None
+    ratio_w, ratio_h = ALLOWED_CROP_RATIOS[crop_ratio]
+    if src_width * ratio_h > src_height * ratio_w:
+        box_h = src_height
+        box_w = round(src_height * ratio_w / ratio_h)
+    else:
+        box_w = src_width
+        box_h = round(src_width * ratio_h / ratio_w)
+    return f'{max(1, box_w)}x{max(1, box_h)}+0+0'
 
 
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                               auto_level=False, auto_gamma=False, use_1080p=False, use_1920p=False,
-                              use_sharpen=False, sharpen_level='standard'):
+                              use_sharpen=False, sharpen_level='standard', strip_metadata=False,
+                              background_color='white', density='', crop_ratio=''):
     """Build ImageMagick command for resizing and formatting.
-    filepath must already be decoded (JXL → PNG via prepare_input_file before calling this)."""
+    filepath must already be decoded (JXL → PNG via prepare_input_file before calling this).
+
+    Argument order carries meaning: -density and -define are read-time settings
+    and must precede the input file, -auto-orient has to run before -strip
+    discards the EXIF orientation it reads, and cropping happens before -resize
+    so the resize geometry applies to the final framing."""
     if not (secure_path(filepath) or is_valid_tmp_path(filepath)):
         app.logger.error("Insecure input file path detected")
         return None
@@ -623,7 +722,32 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             app.logger.error(f"Output format {ext} requires potrace which is not installed")
             return None
 
-    command = ['magick', filepath]
+    source_ext = os.path.splitext(filepath)[1].lower()
+    command = ['magick']
+
+    if density and source_ext in VECTOR_INPUT_EXTENSIONS:
+        command.extend(['-density', density])
+
+    # Skipped when cropping: the crop box is computed from the original
+    # dimensions, so it must not run against a differently-scaled decode.
+    if source_ext in {'.jpg', '.jpeg'} and not crop_ratio:
+        hint = jpeg_decode_hint(width, height, use_1080p, use_1920p)
+        if hint:
+            # Lets libjpeg decode straight to a reduced scale rather than
+            # unpacking every pixel only to throw most of them away.
+            command.extend(['-define', f'jpeg:size={hint}'])
+
+    command.append(filepath)
+    command.append('-auto-orient')
+
+    if strip_metadata:
+        command.append('-strip')
+
+    if crop_ratio in ALLOWED_CROP_RATIOS:
+        src_width, src_height = get_image_dimensions(filepath)
+        crop_box = centered_crop_box(src_width, src_height, crop_ratio)
+        if crop_box:
+            command.extend(['-gravity', 'center', '-crop', crop_box, '+repage'])
 
     if auto_gamma:
         command.append('-auto-gamma')
@@ -686,6 +810,11 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             except ValueError:
                 return None
 
+    if ext in OPAQUE_OUTPUT_FORMATS:
+        # These formats carry no alpha channel, so transparency has to be
+        # composited onto a colour first — otherwise it is written as black.
+        command.extend(['-background', background_color, '-alpha', 'remove', '-alpha', 'off'])
+
     if quality and quality != "100":
         try:
             quality_value = int(quality)
@@ -719,7 +848,12 @@ def build_gif_create_command(input_paths, output_path, fps, width, height, loop,
     delay_ticks = max(1, round(100 / fps))  # -delay is in 1/100s ticks
     command = ['magick', '-delay', str(delay_ticks), '-loop', str(loop)]
     command.extend(input_paths)
-    command.append('-coalesce')
+    # -auto-orient after the inputs applies to every frame, so a sequence shot
+    # on a phone isn't assembled sideways. No -coalesce here: these are still
+    # images with no frame-disposal history to flatten, and coalescing them
+    # forces a full RGBA materialisation of the whole sequence. -extent below
+    # is what actually normalises differing frame sizes onto one canvas.
+    command.append('-auto-orient')
 
     if width and height:
         # -resize alone won't force a common canvas when source frames differ in
@@ -1156,6 +1290,10 @@ def process_single_file(job_id, file_info, params, batch_folder):
                     use_1920p=params['use_1920p'],
                     use_sharpen=params['use_sharpen'],
                     sharpen_level=params['sharpen_level'],
+                    strip_metadata=params['strip_metadata'],
+                    background_color=params['background_color'],
+                    density=params['density'],
+                    crop_ratio=params['crop_ratio'],
                 )
                 if not command:
                     raise RuntimeError(f"Could not build ImageMagick command for {fname}")
@@ -1386,6 +1524,9 @@ def resize_image(filename):
         use_sharpen = request.form.get('use_sharpen') == 'on'
         raw_sharpen = request.form.get('sharpen_level', 'standard').strip().lower()
         sharpen_level = raw_sharpen if raw_sharpen in ALLOWED_SHARPEN_LEVELS else 'standard'
+        # Reused rather than re-read field by field, so the allowlisting of the
+        # newer options lives in exactly one place.
+        options = extract_processing_params(request.form)
 
         app.logger.info(f"Processing resize request for {filename}")
         app.logger.info(f"Sharpening: enabled={use_sharpen}, level={sharpen_level}")
@@ -1429,7 +1570,11 @@ def resize_image(filename):
                 use_1080p=request.form.get('use_1080p') == 'on',
                 use_1920p=request.form.get('use_1920p') == 'on',
                 use_sharpen=use_sharpen,
-                sharpen_level=sharpen_level
+                sharpen_level=sharpen_level,
+                strip_metadata=options['strip_metadata'],
+                background_color=options['background_color'],
+                density=options['density'],
+                crop_ratio=options['crop_ratio'],
             )
 
             if not command:
@@ -2124,6 +2269,9 @@ def build_preview_thumbnail(filepath, width):
         with Image.open(filepath) as img:
             img.draft('RGB', (width, width))  # JPEG fast path; a no-op elsewhere
             img.load()
+            # Matches the -auto-orient the real pipeline applies, so the preview
+            # isn't sideways for frames that the finished animation gets right.
+            img = ImageOps.exif_transpose(img)
             has_alpha = 'A' in img.getbands() or 'transparency' in img.info
             img = img.convert('RGBA' if has_alpha else 'RGB')
             img.thumbnail((width, width * 4), Image.LANCZOS)

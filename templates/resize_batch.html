@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block %}
+{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field %}
 
 {% block title %}Batch resize — {{ files | length }} files{% endblock %}
 
@@ -56,6 +56,10 @@
                 <div class="options-row">
                     {{ quality_format_field(formats, defaults.quality if defaults else '100', 'Convert all to format', 'Keep original formats') }}
                 </div>
+
+                {{ framing_fields('batch_') }}
+
+                {{ density_field('batch_') }}
 
                 {{ auto_level_gamma_pills() }}
 

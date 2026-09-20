@@ -115,7 +115,7 @@ Batch uploads and GIF/WEBP creation are both processed **asynchronously** — th
 | Dependency | Version | Notes |
 |---|---|---|
 | Python | 3.9+ | |
-| [ImageMagick](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-18) | 7.1.2-18+ | Add to PATH on Windows; install `libmagickwand-dev` on Linux |
+| [ImageMagick](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-31) | 7.1.2-31+ | ImageMagick 7 only — the app calls `magick`, which ImageMagick 6 does not provide |
 | ExifTool | any | Required for RAW metadata |
 | potrace | any | Required for vector output (SVG, EPS, PDF) |
 | libwebp (+ pkg-config) | any | Required for animated WEBP creation/editing — single-frame WEBP works without it |
@@ -191,7 +191,7 @@ pip install -r requirements.txt
 Verify dependencies:
 
 ```bash
-magick -version    # ImageMagick 7.1.2-18 or newer
+magick -version    # ImageMagick 7.1.2-31 or newer
 exiftool -ver
 potrace --version  # required for SVG/EPS/PDF output
 magick -list delegate | grep -i webp   # confirms animated WEBP support
@@ -255,7 +255,7 @@ You can also get there from the resize options page of an animated file, via the
 | Layer | Technology |
 |---|---|
 | Backend | Flask (Python 3.9+), Gunicorn (gthread, 1 worker × 16 threads — job/session state is in-process memory, so it must stay a single process) |
-| Image processing | ImageMagick 7.1.2-18, ExifTool, Pillow, potrace |
+| Image processing | ImageMagick 7.1.2-31, ExifTool, Pillow, potrace |
 | Async pipeline | `ThreadPoolExecutor` + `BoundedSemaphore(4)` — no external queue required |
 | Progress streaming | Server-Sent Events (SSE) via `/job/<id>/status` |
 | Frontend | Vanilla HTML / CSS / JavaScript, zero build step (dark theme, DM Sans + DM Mono, inline SVG icon sprite) |
