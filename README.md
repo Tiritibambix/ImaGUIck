@@ -224,13 +224,17 @@ The application is available at `http://localhost:5000`.
 ### Create an animated GIF/WEBP
 
 1. On the upload page, switch to the **Create GIF · WEBP** tab.
-2. Select at least two images — drag the rows to set the frame order.
+2. Select two or more images — drag the rows to set the frame order.
 3. Upload, then set FPS, loop count, an optional shared canvas size, palette size / quality, and output format (GIF or WEBP).
 4. Submit — a live progress page tracks the build, then offers the animation for download.
 
 ### Edit an existing animation
 
-From the resize options page of any animated GIF/WEBP you've uploaded, follow the **Edit as animation** link, pick an operation (resize, optimize, speed, reverse, rotate/flip, loop count, or frame extraction), and apply it.
+1. On the upload page, switch to the **Create GIF · WEBP** tab.
+2. Select a single animated GIF or WEBP — one animated file means editing, several images mean building a new animation.
+3. Pick an operation (resize, optimize, speed, reverse, rotate/flip, loop count, or frame extraction) and apply it.
+
+You can also get there from the resize options page of an animated file, via the **Edit as animation** link shown once the animation is detected.
 
 ---
 

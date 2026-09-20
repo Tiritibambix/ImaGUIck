@@ -72,6 +72,7 @@ static/media/           # Logo, banner, favicon
 - XHR upload with progress bar in `index.html`; batch/GIF-creation progress via EventSource (SSE) in `progress.html`
 - **GIF creation preview** (`gif_create.html`) preloads every frame as a decoded `Image` and then plays them on a `<canvas>` from a `requestAnimationFrame` accumulator. Both halves matter: frames are fetched from `/preview_frame/<filename>?w=<px>` as PIL-generated thumbnails (`build_preview_thumbnail()`, JPEG draft mode + an in-memory cache bounded by `PREVIEW_CACHE_MAX_ENTRIES`) rather than full-resolution originals, and playback is driven by elapsed time rather than `setInterval` + `<img src>` swapping, which used to make frame duration depend on network and decode latency. Thumbnail width scales down as frame count grows, since every frame stays decoded in memory for the session
 - `index.html` has a Resize / Create GIF·WEBP tab switcher; the GIF tab enables drag-to-reorder on the selected-files list (order becomes frame order) and sets a hidden `intent` field read by `/upload`
+- **The GIF tab covers both creation and editing**, decided by what was uploaded: several images go to `gif_create_options`, a single animated file (`is_animated_file()`, extension-gated on `ANIMATED_EXTENSIONS` then confirmed with PIL) goes to `gif_edit_options`. Before this, the editor was only reachable from an inline link on the resize options page, so users looking for it on the GIF tab hit "at least 2 images" and never found it. That resize-page link is kept as a second way in.
 
 ---
 

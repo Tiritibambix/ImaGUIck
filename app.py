@@ -469,6 +469,20 @@ def webp_animation_supported():
 app.logger.info(f"WebP animation (muxing) support: {'yes' if webp_animation_supported() else 'no'}")
 
 
+def is_animated_file(filepath):
+    """True if the file is a multi-frame GIF/WEBP, i.e. something the animation
+    editor can work on. Gated on extension first so nothing else pays for a PIL
+    open, and scoped to the formats that editor actually handles."""
+    if os.path.splitext(filepath)[1].lower() not in ANIMATED_EXTENSIONS:
+        return False
+    try:
+        with Image.open(filepath) as img:
+            return bool(getattr(img, 'is_animated', False))
+    except Exception as e:
+        app.logger.info(f"Could not inspect {os.path.basename(filepath)} for animation: {e}")
+        return False
+
+
 def _analyze_with_pil(filepath):
     """Analyze image with PIL and return type dict."""
     with Image.open(filepath) as img:
@@ -1241,7 +1255,16 @@ def upload_file():
         msg = errors[0] if errors else 'No valid file'
         return _error(msg)
 
-    if intent == 'gif_create':
+    if intent == 'gif_create' and len(uploaded_files) == 1:
+        # One animated file can only mean editing, never assembling, so the
+        # GIF tab routes it to the editor instead of dead-ending on "at least
+        # 2 images" — which is what made that whole page hard to find.
+        single_path = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], uploaded_files[0]))
+        if not (single_path and is_animated_file(single_path)):
+            return _error('Select at least 2 images to build an animation, '
+                          'or upload a single animated GIF/WEBP to edit it')
+        redirect_url = url_for('gif_edit_options', filename=uploaded_files[0])
+    elif intent == 'gif_create':
         # Creation always goes through upload_sessions (even for 2 files),
         # since frame order matters and the query string can't carry it safely.
         upload_key = uuid.uuid4().hex

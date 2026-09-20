@@ -525,7 +525,7 @@
         modeTabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
         if (mode === 'gif_create') {
             sectionTitle.textContent = 'Select frames';
-            dropHint.textContent = 'Select 2+ images, in the order you want them animated';
+            dropHint.textContent = 'Several images to build an animation · one animated GIF/WEBP to edit it';
             fileListLabel.textContent = 'Frames (drag to reorder)';
         } else {
             sectionTitle.textContent = 'Upload images';
@@ -572,8 +572,13 @@
         e.preventDefault();
         if (!fileInput.files || !fileInput.files.length) { showError('Please select at least one file.'); return; }
         if (currentMode === 'gif_create' && fileInput.files.length < 2) {
-            showError('Select at least 2 images to create an animation.');
-            return;
+            // A lone GIF/WEBP is an edit, so only reject what can't be either.
+            // Whether it is really animated is the server's call.
+            const name = (fileInput.files[0].name || '').toLowerCase();
+            if (!name.endsWith('.gif') && !name.endsWith('.webp')) {
+                showError('Select at least 2 images to build an animation, or a single animated GIF/WEBP to edit it.');
+                return;
+            }
         }
         const formData = new FormData(this);
         uploadSubmitBtn.disabled = true;
@@ -596,6 +601,8 @@
                 if (data.redirect) {
                     navOverlayText.textContent = data.redirect.includes('gif_create_options')
                         ? 'Preparing your frames\u2026'
+                        : data.redirect.includes('gif_edit_options')
+                        ? 'Opening the animation editor\u2026'
                         : data.redirect.includes('resize_batch_options')
                         ? 'Analysing your images\u2026'
                         : 'Loading options\u2026';
