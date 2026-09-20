@@ -827,13 +827,43 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     return command
 
 
-def build_gif_create_command(input_paths, output_path, fps, width, height, loop, quality, output_format):
-    """Build an ImageMagick command that assembles a sequence of already-decoded
-    static images into a single animated GIF or WEBP. input_paths order is frame
-    order, as chosen by the caller (route)."""
-    for p in input_paths:
-        if not (secure_path(p) or is_valid_tmp_path(p)):
-            app.logger.error("Insecure GIF frame path detected")
+# GIF/WEBP creation runs as one ImageMagick process per frame followed by a
+# single assembly, rather than one process over the whole sequence. That is what
+# makes progress measurable: "9 of 14" counts finished processes instead of
+# interpreting ImageMagick's internal monitor output. It also keeps peak memory
+# to one frame rather than the entire coalesced sequence, and lets the assembly
+# work on already-resized frames — which is where the bulk of the time went.
+
+def build_gif_frame_command(input_path, output_path, width, height):
+    """Normalise one source image into a frame ready for assembly: orientation
+    applied, and scaled onto the shared canvas when one was requested."""
+    if not (secure_path(input_path) or is_valid_tmp_path(input_path)):
+        app.logger.error("Insecure GIF frame path detected")
+        return None
+    if not secure_path(output_path):
+        app.logger.error("Insecure GIF frame output path detected")
+        return None
+    if width and height and (width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION):
+        app.logger.error(f"Requested GIF canvas {width}x{height} exceeds GIF_MAX_OUTPUT_DIMENSION ({GIF_MAX_OUTPUT_DIMENSION}px)")
+        return None
+
+    command = ['magick', input_path, '-auto-orient']
+    if width and height:
+        # -resize alone won't force a common canvas when source frames differ in
+        # aspect ratio; -extent normalizes every frame onto the same canvas.
+        command.extend(['-resize', f'{width}x{height}', '-gravity', 'center',
+                        '-background', 'none', '-extent', f'{width}x{height}'])
+    command.append(output_path)
+    return command
+
+
+def build_gif_assemble_command(frame_paths, output_path, fps, loop, quality, output_format):
+    """Assemble already-normalised frames into the animation. frame_paths order
+    is frame order. No -coalesce: these are still images with no frame-disposal
+    history to flatten."""
+    for p in frame_paths:
+        if not secure_path(p):
+            app.logger.error("Insecure GIF assembly frame path detected")
             return None
     if not secure_path(output_path):
         app.logger.error("Insecure GIF output path detected")
@@ -841,25 +871,10 @@ def build_gif_create_command(input_paths, output_path, fps, width, height, loop,
     if output_format not in GIF_CREATE_OUTPUT_FORMATS:
         app.logger.error(f"Unsupported GIF creation output format: {output_format}")
         return None
-    if width and height and (width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION):
-        app.logger.error(f"Requested GIF canvas {width}x{height} exceeds GIF_MAX_OUTPUT_DIMENSION ({GIF_MAX_OUTPUT_DIMENSION}px)")
-        return None
 
     delay_ticks = max(1, round(100 / fps))  # -delay is in 1/100s ticks
     command = ['magick', '-delay', str(delay_ticks), '-loop', str(loop)]
-    command.extend(input_paths)
-    # -auto-orient after the inputs applies to every frame, so a sequence shot
-    # on a phone isn't assembled sideways. No -coalesce here: these are still
-    # images with no frame-disposal history to flatten, and coalescing them
-    # forces a full RGBA materialisation of the whole sequence. -extent below
-    # is what actually normalises differing frame sizes onto one canvas.
-    command.append('-auto-orient')
-
-    if width and height:
-        # -resize alone won't force a common canvas when source frames differ in
-        # aspect ratio; -extent normalizes every frame onto the same canvas.
-        command.extend(['-resize', f'{width}x{height}', '-gravity', 'center',
-                         '-background', 'none', '-extent', f'{width}x{height}'])
+    command.extend(frame_paths)
 
     if output_format == 'GIF':
         if quality:  # reused here as palette size, 2-256
@@ -980,33 +995,29 @@ _MONITOR_LINE_RE = re.compile(
     r'(?P<pct>[0-9.]+)%\s+complete\s*$'
 )
 
-# (tag keyword, label, start%, end%) listed in pipeline execution order, so the
-# overall bar only moves forward as ImageMagick walks from reading to writing.
-# Reading dominates the runtime for large frames, hence its share of the range.
-#
-# The keywords match the tags ImageMagick actually emits, which are not named
-# after the command-line options that trigger them: `-colors` reports as
-# Classify/Image then Assign/Image (MagickCore/quantize.c), never "quantize".
-# Missing those two is what used to freeze the bar for minutes on end — every
-# event of the longest stage was silently dropped.
-_MONITOR_STAGES = (
-    ('load',     'Reading frames',           0, 55),
-    ('coalesce', 'Aligning frames',         55, 60),
-    ('resize',   'Resizing frames',         60, 68),
-    ('scale',    'Resizing frames',         60, 68),
-    ('extent',   'Fitting canvas',          68, 72),
-    ('classify', 'Building colour palette', 72, 82),
-    ('reduce',   'Building colour palette', 82, 85),
-    ('assign',   'Building colour palette', 85, 90),
-    ('dither',   'Building colour palette', 85, 90),
-    ('kmeans',   'Building colour palette', 72, 90),
-    ('quantize', 'Building colour palette', 72, 90),
-    ('merge',    'Optimizing animation',    90, 95),
-    ('optimize', 'Optimizing animation',    90, 95),
-    ('layers',   'Optimizing animation',    90, 95),
-    ('save',     'Writing file',            95, 100),
-    ('write',    'Writing file',            95, 100),
-    ('encode',   'Writing file',            95, 100),
+# Monitor tags mapped to a readable name, used only to say what the assembly
+# pass is doing — never to derive a percentage. These keywords match the tags
+# ImageMagick actually emits, which are not named after the options that
+# trigger them: `-colors` reports as Classify/Image then Assign/Image (see
+# MagickCore/quantize.c), never "quantize".
+_MONITOR_STAGE_NAMES = (
+    ('load',     'reading frames'),
+    ('coalesce', 'aligning frames'),
+    ('resize',   'resizing'),
+    ('scale',    'resizing'),
+    ('extent',   'fitting the canvas'),
+    ('classify', 'building the colour palette'),
+    ('reduce',   'building the colour palette'),
+    ('assign',   'applying the colour palette'),
+    ('dither',   'dithering'),
+    ('kmeans',   'building the colour palette'),
+    ('quantize', 'building the colour palette'),
+    ('merge',    'merging layers'),
+    ('optimize', 'optimizing frames'),
+    ('layers',   'optimizing frames'),
+    ('save',     'writing the file'),
+    ('write',    'writing the file'),
+    ('encode',   'writing the file'),
 )
 
 # Some steps genuinely report nothing: OptimizeLayerFrames(), which is what
@@ -1015,15 +1026,21 @@ _MONITOR_STAGES = (
 # rather than look hung.
 MONITOR_IDLE_HINT_SECONDS = 20
 
+# Share of the progress bar owned by the per-frame stage. That stage is a real
+# count of finished ImageMagick processes; the rest is the assembly, which is a
+# single pass and is shown as indeterminate rather than given a fake number.
+GIF_FRAME_PHASE_PERCENT = 80
+
 
 def match_monitor_stage(tag):
-    """Map an ImageMagick monitor tag onto a user-facing stage label and the
-    slice of the overall progress bar it owns."""
+    """Readable name for what an ImageMagick monitor tag represents, falling
+    back to the tag's own operation name when it isn't one we recognise — an
+    unknown operation is still worth showing, and is never dropped."""
     lowered = tag.lower()
-    for keyword, label, start, end in _MONITOR_STAGES:
+    for keyword, name in _MONITOR_STAGE_NAMES:
         if keyword in lowered:
-            return label, start, end
-    return None
+            return name
+    return humanize_monitor_tag(tag).lower()
 
 
 def run_with_progress(command, timeout, on_progress):
@@ -1100,80 +1117,90 @@ def humanize_monitor_tag(tag):
     return tag.split('/')[0].strip() or tag.strip()
 
 
-def make_gif_progress_reporter(job_id, total_frames):
-    """Build the on_progress callback for a GIF creation job: turns raw monitor
-    events into the phase/detail/percent the progress page renders."""
-    state = {'frames': 0, 'percent': 0.0, 'label': '', 'pushed_at': 0.0}
+def make_gif_assembly_reporter(job_id):
+    """Report what the assembly pass is doing, without inventing a percentage.
+
+    The assembly is one indivisible ImageMagick invocation: there is no honest
+    way to weigh its internal operations against each other, so the bar stays
+    indeterminate and only the operation name and the liveness clock change.
+    Percentages here are what made the old bar meaningless."""
+    state = {'name': '', 'pushed_at': 0.0}
 
     def report(tag, fraction):
-        operation = humanize_monitor_tag(tag)
-        stage = match_monitor_stage(tag)
-        if not stage:
-            # An unmapped operation is still ImageMagick doing work, so report
-            # it by name and keep the bar where it is rather than dropping the
-            # event and leaving the page looking frozen.
-            with jobs_lock:
-                job = jobs.get(job_id)
-                if job:
-                    job['operation'] = operation
-                    job['last_event_at'] = time.time()
-            return
-        label, start, end = stage
-
-        if label == 'Reading frames' and total_frames:
-            # Each frame's read ends with its own 100% line, so counting those
-            # gives a real "frame k of N" rather than an interpolated guess.
-            in_flight = 0.0
-            reading = fraction < 0.995
-            if reading:
-                in_flight = fraction
-            else:
-                state['frames'] = min(total_frames, state['frames'] + 1)
-            reached = min(total_frames, state['frames'] + in_flight)
-            percent = start + (end - start) * (reached / total_frames)
-            # A frame that has only just started still counts as the one being
-            # read, so the counter opens at "1 of N" rather than "0 of N".
-            current = min(total_frames, state['frames'] + (1 if reading else 0))
-            detail = f'{current} of {total_frames}'
-        else:
-            # Outside the reading stage the bar carries the number, so the
-            # detail slot names the ImageMagick operation instead — that is
-            # what tells you a long palette build is still moving.
-            percent = start + (end - start) * fraction
-            detail = ''
-
-        # Never move backwards, and hold short of 100 until the job really ends.
-        percent = max(state['percent'], min(99.0, percent))
+        name = match_monitor_stage(tag)
         now = time.monotonic()
-        if (label == state['label'] and percent - state['percent'] < 0.5
-                and now - state['pushed_at'] < 0.5):
+        if name == state['name'] and now - state['pushed_at'] < 0.5:
             with jobs_lock:
                 job = jobs.get(job_id)
                 if job:
                     job['last_event_at'] = time.time()
             return
-        stage_changed = label != state['label']
-        state.update({'percent': percent, 'label': label, 'pushed_at': now})
-
+        changed = name != state['name']
+        state.update({'name': name, 'pushed_at': now})
         with jobs_lock:
             job = jobs.get(job_id)
             if job:
-                job['phase'] = label
-                job['phase_detail'] = detail
-                job['operation'] = operation
-                job['percent'] = round(percent)
+                job['phase_detail'] = name
                 job['last_event_at'] = time.time()
-                if stage_changed:
+                if changed:
                     job['stage_started_at'] = time.time()
 
     return report
 
 
+def set_gif_phase(job_id, phase, detail='', percent=None, indeterminate=False):
+    """Update what the progress page reports for a GIF creation job."""
+    with jobs_lock:
+        job = jobs.get(job_id)
+        if not job:
+            return
+        job['phase'] = phase
+        job['phase_detail'] = detail
+        job['indeterminate'] = indeterminate
+        job['last_event_at'] = time.time()
+        if percent is not None:
+            job['percent'] = percent
+        if job.get('phase') != phase:
+            job['stage_started_at'] = time.time()
+
+
+def prepare_gif_frame(job_id, file_info, params, frame_path):
+    """Normalise one frame, then record it as finished. Runs on the shared
+    executor under the ImageMagick semaphore, exactly like a batch file."""
+    with _processing_semaphore:
+        with jobs_lock:
+            file_info['status'] = 'processing'
+        command = build_gif_frame_command(
+            input_path=file_info['path'],
+            output_path=frame_path,
+            width=params['width'],
+            height=params['height'],
+        )
+        if not command:
+            raise RuntimeError(f"Could not build frame command for {file_info['original']}")
+        subprocess.run(command, check=True, capture_output=True, text=True,
+                       timeout=SUBPROCESS_TIMEOUT_LONG)
+
+    with jobs_lock:
+        job = jobs.get(job_id)
+        file_info['status'] = 'done'
+        if job:
+            job['done'] = sum(1 for f in job['files'] if f['status'] == 'done')
+            total = max(1, job['total'])
+            # The bar is a count of finished frames, not an estimate. Frame work
+            # owns the first GIF_FRAME_PHASE_PERCENT of it; the assembly that
+            # follows is a single indivisible pass and says so.
+            job['percent'] = round(GIF_FRAME_PHASE_PERCENT * job['done'] / total)
+            job['phase'] = 'Processing frames'
+            job['phase_detail'] = f"{job['done']} of {total}"
+            job['indeterminate'] = False
+            job['last_event_at'] = time.time()
+
+
 def process_gif_create_job(job_id):
-    """Process a GIF/WEBP creation job: builds one animated file from the ordered
-    set of uploaded frames via a single ImageMagick invocation. Runs in a
-    background daemon thread, reusing the same jobs dict + semaphore the batch
-    resize pipeline uses, but as one unit of work rather than N independent ones."""
+    """Process a GIF/WEBP creation job in two measurable stages: one ImageMagick
+    process per frame (counted, parallel, bounded memory), then one assembly of
+    the normalised frames. Runs in a background daemon thread."""
     with jobs_lock:
         job = jobs.get(job_id)
         if not job:
@@ -1182,59 +1209,75 @@ def process_gif_create_job(job_id):
         file_infos = job['files']
         output_path = job['output_path']
 
-    with jobs_lock:
-        for f in file_infos:
-            f['status'] = 'processing'
+    frame_dir = os.path.join(app.config['OUTPUT_FOLDER'], f'gifframes_{job_id}')
+    failed = False
+    try:
+        os.makedirs(frame_dir, exist_ok=True)
+        frame_paths = [os.path.join(frame_dir, f'frame_{i:04d}.png') for i in range(len(file_infos))]
 
-    with _processing_semaphore:
-        try:
-            input_paths = [f['path'] for f in file_infos]
-            command = build_gif_create_command(
-                input_paths=input_paths,
-                output_path=output_path,
-                fps=params['fps'],
-                width=params['width'],
-                height=params['height'],
-                loop=params['loop'],
-                quality=params['quality'],
-                output_format=params['output_format'],
-            )
-            if not command:
-                raise RuntimeError("Could not build GIF creation command")
-            app.logger.info(f"[Job {job_id}] Executing: {' '.join(command)}")
+        set_gif_phase(job_id, 'Processing frames', f'0 of {len(file_infos)}', percent=0)
+        futures = [
+            executor.submit(prepare_gif_frame, job_id, file_info, params, frame_paths[i])
+            for i, file_info in enumerate(file_infos)
+        ]
+        for future in as_completed(futures):
+            future.result()
+
+        set_gif_phase(job_id, 'Assembling animation', percent=GIF_FRAME_PHASE_PERCENT,
+                      indeterminate=True)
+        command = build_gif_assemble_command(
+            frame_paths=frame_paths,
+            output_path=output_path,
+            fps=params['fps'],
+            loop=params['loop'],
+            quality=params['quality'],
+            output_format=params['output_format'],
+        )
+        if not command:
+            raise RuntimeError("Could not build GIF assembly command")
+        app.logger.info(f"[Job {job_id}] Assembling: {' '.join(command)}")
+        with _processing_semaphore:
+            # -monitor is kept here only to name the current operation and prove
+            # the pass is alive; it deliberately does not drive the bar, since
+            # there is no honest way to weight these operations against one
+            # another. The bar stays indeterminate for the whole assembly.
             run_with_progress(command, SUBPROCESS_TIMEOUT_LONG,
-                              make_gif_progress_reporter(job_id, len(file_infos)))
-        except subprocess.CalledProcessError as e:
-            app.logger.error(f"[Job {job_id}] GIF creation error: {e.stderr}")
-            error_msg = classify_processing_error(e, e.stderr)
-            with jobs_lock:
-                for f in file_infos:
-                    f['status'] = 'error'
-                    f['error'] = error_msg
-                jobs[job_id]['errors'] = len(file_infos)
-        except Exception as e:
-            app.logger.error(f"[Job {job_id}] GIF creation error: {e}")
-            error_msg = classify_processing_error(e, getattr(e, 'stderr', ''))
-            with jobs_lock:
-                for f in file_infos:
-                    f['status'] = 'error'
-                    f['error'] = error_msg
-                jobs[job_id]['errors'] = len(file_infos)
-        else:
-            with jobs_lock:
-                for f in file_infos:
-                    f['status'] = 'done'
-                jobs[job_id]['done'] = len(file_infos)
-                jobs[job_id]['phase'] = 'Complete'
-                jobs[job_id]['phase_detail'] = ''
-                jobs[job_id]['percent'] = 100
+                              make_gif_assembly_reporter(job_id))
+    except subprocess.CalledProcessError as e:
+        failed = True
+        app.logger.error(f"[Job {job_id}] GIF creation error: {e.stderr}")
+        error_msg = classify_processing_error(e, e.stderr)
+    except Exception as e:
+        failed = True
+        app.logger.error(f"[Job {job_id}] GIF creation error: {e}")
+        error_msg = classify_processing_error(e, getattr(e, 'stderr', ''))
+    finally:
+        shutil.rmtree(frame_dir, ignore_errors=True)
+
+    if failed:
+        with jobs_lock:
             for f in file_infos:
-                try:
-                    src = secure_path(f['path'])
-                    if src and os.path.exists(src):
-                        os.remove(src)
-                except Exception as e:
-                    app.logger.warning(f"[Job {job_id}] Could not remove source frame {f['path']}: {e}")
+                f['status'] = 'error'
+                f['error'] = error_msg
+            jobs[job_id]['errors'] = len(file_infos)
+            jobs[job_id]['done'] = 0
+            jobs[job_id]['indeterminate'] = False
+    else:
+        with jobs_lock:
+            for f in file_infos:
+                f['status'] = 'done'
+            jobs[job_id]['done'] = len(file_infos)
+            jobs[job_id]['phase'] = 'Complete'
+            jobs[job_id]['phase_detail'] = ''
+            jobs[job_id]['percent'] = 100
+            jobs[job_id]['indeterminate'] = False
+        for f in file_infos:
+            try:
+                src = secure_path(f['path'])
+                if src and os.path.exists(src):
+                    os.remove(src)
+            except Exception as e:
+                app.logger.warning(f"[Job {job_id}] Could not remove source frame {f['path']}: {e}")
 
     with jobs_lock:
         jobs[job_id]['status'] = 'complete'
@@ -1965,8 +2008,8 @@ def gif_create():
             'status': 'processing',
             'phase': 'Starting',
             'phase_detail': '',
-            'operation': '',
             'percent': 0,
+            'indeterminate': True,
             'stage_started_at': time.time(),
             'last_event_at': time.time(),
             'created_at': time.time(),
@@ -2240,8 +2283,8 @@ def job_status(job_id):
                     'output': job.get('output_filename'),
                     'phase': job.get('phase'),
                     'phase_detail': job.get('phase_detail'),
-                    'operation': job.get('operation'),
                     'percent': job.get('percent'),
+                    'indeterminate': bool(job.get('indeterminate')),
                     # Computed here rather than sent as timestamps, so the page
                     # never has to trust that the browser clock agrees with the
                     # server's. These are what show the job is alive while a

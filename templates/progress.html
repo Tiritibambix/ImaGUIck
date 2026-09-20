@@ -378,18 +378,22 @@
         const isGif = data.kind === 'gif_create';
 
         if (isGif && buildFill && !data.complete) {
-            if (data.percent > 0) {
+            // Determinate only while the bar means something: during the frame
+            // stage it is a count of finished frames. The assembly that follows
+            // is one indivisible pass, so it sweeps rather than claiming a
+            // figure nobody can measure.
+            if (data.indeterminate) {
+                buildFill.classList.add('indeterminate');
+                buildFill.style.width = '';
+            } else {
                 buildFill.classList.remove('indeterminate');
-                buildFill.style.width = data.percent + '%';
+                buildFill.style.width = (data.percent || 0) + '%';
             }
-            // Naming the ImageMagick operation alongside the stage is what makes
-            // a long palette build legible: the bar barely moves during it, but
-            // the operation and the stage timer both keep changing.
             if (data.phase) {
-                const op = data.operation && data.operation !== data.phase ? ' · ' + data.operation : '';
-                buildPhase.textContent = data.phase + op;
+                const detail = data.phase_detail ? ' · ' + data.phase_detail : '';
+                buildPhase.textContent = data.phase + detail;
             }
-            buildDetail.textContent = data.phase_detail || formatDuration(data.stage_seconds || 0);
+            buildDetail.textContent = formatDuration(data.stage_seconds || 0);
 
             // `-layers optimize` emits no progress at all, so silence here is
             // expected rather than a hang. Say so instead of leaving the user
