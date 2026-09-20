@@ -59,13 +59,37 @@ This application has been coded with the help of AI and is designed for **local 
 
 ## Screenshots
 
-<!-- TODO: these were captured against an earlier version of the UI (pre-redesign) — regenerate against the current interface, and consider adding a GIF-creation screenshot. -->
+**Upload** — drag-and-drop or URL import, with a Resize / Create GIF·WEBP tab switcher
 
 ![Upload](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Upload.webp)
 
-![Options](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Options.webp)
+**Resize options** — single-image resizing with smart format recommendations
 
-![Results](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Results.webp)
+![Resize options](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Options.webp)
+
+**Batch resize** — shared options applied across every file, with per-image details
+
+![Batch resize](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/BatchOptions.webp)
+
+**Create GIF/WEBP** — live animation preview before processing, FPS/loop/canvas controls
+
+![Create GIF/WEBP](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/GifCreate.webp)
+
+**Edit animation** — resize, optimize, reverse, rotate, or extract frames from an existing GIF/WEBP
+
+![Edit animation](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/GifEdit.webp)
+
+**Batch progress** — real-time per-file status streamed over SSE
+
+![Batch progress](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Progress.webp)
+
+**GIF creation progress** — a single ImageMagick pass over all frames, shown honestly as one step rather than a fake per-file counter
+
+![GIF creation progress](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/GifProgress.webp)
+
+**Result**
+
+![Result](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Results.webp)
 
 ---
 
