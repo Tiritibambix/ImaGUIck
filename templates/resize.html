@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field %}
+{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field, clahe_block, denoise_block, modulate_fields %}
 
 {% block title %}Resize — {{ filename }}{% endblock %}
 
@@ -69,6 +69,12 @@
                 {% endif %}
 
                 {{ auto_level_gamma_pills() }}
+
+                {{ clahe_block('use_clahe') }}
+
+                {{ modulate_fields() }}
+
+                {{ denoise_block() }}
 
                 {{ sharpen_block('use_sharpen') }}
 

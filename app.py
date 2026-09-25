@@ -64,6 +64,26 @@ ALLOWED_OUTPUT_FORMATS = {
 
 ALLOWED_SHARPEN_LEVELS = {'low', 'standard', 'high'}
 
+# Contrast-limited adaptive histogram equalisation. Unlike -auto-level, which
+# stretches the whole image at once, this works tile by tile, so a photo that is
+# simultaneously dark in places and blown out in others gets both fixed. Tile
+# size and bin count stay at the documented defaults; the clip limit is the only
+# knob worth exposing, since it is what bounds noise amplification.
+ALLOWED_CLAHE_LEVELS = {'low', 'standard', 'high'}
+CLAHE_PARAMS = {'low': '25x25%+128+2', 'standard': '25x25%+128+3', 'high': '25x25%+128+5'}
+
+# Noise reduction. despeckle and enhance take no arguments and are cheap;
+# kuwahara is edge-preserving but superlinear in radius, hence the pixel ceiling.
+ALLOWED_DENOISE_MODES = {'', 'despeckle', 'enhance', 'kuwahara'}
+ALLOWED_KUWAHARA_LEVELS = {'low', 'standard', 'high'}
+KUWAHARA_RADII = {'low': '1', 'standard': '2', 'high': '3'}
+KUWAHARA_MAX_PIXELS = 16_000_000
+
+# -modulate takes brightness,saturation,hue as percentages where 100 leaves the
+# channel untouched. Values are clamped rather than allowlisted, and the flag is
+# omitted entirely when all three are neutral.
+MODULATE_RANGES = {'brightness': (50, 150), 'saturation': (0, 200), 'hue': (80, 120)}
+
 # Output formats with no alpha channel: converting a transparent source to one
 # of these without flattening first renders the transparent areas black.
 OPAQUE_OUTPUT_FORMATS = {'JPEG', 'JPG', 'BMP', 'PCX', 'PPM', 'PGM'}
@@ -90,9 +110,15 @@ IMAGE_EXTENSIONS = {
     '.avif', '.apng',
 }
 
+# Documents rasterized by Ghostscript rather than decoded by an image coder.
+# Kept out of IMAGE_EXTENSIONS because they are *interpreted*: a crafted
+# PostScript stream is executed by gs, which is a different risk from decoding
+# a malformed pixel buffer (see the Ghostscript note in CLAUDE.md).
+DOCUMENT_INPUT_EXTENSIONS = {'.pdf', '.eps'}
+
 # Extensions accepted for URL import (is_safe_url) — a superset of IMAGE_EXTENSIONS
-# that also allows a few vector/document formats not offered for direct upload.
-URL_IMPORT_EXTENSIONS = IMAGE_EXTENSIONS | {'.svg', '.pdf', '.eps'}
+# that also allows SVG, which is not offered for direct upload.
+URL_IMPORT_EXTENSIONS = IMAGE_EXTENSIONS | DOCUMENT_INPUT_EXTENSIONS | {'.svg'}
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -101,7 +127,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
-app.config['UPLOAD_EXTENSIONS'] = sorted(IMAGE_EXTENSIONS)
+app.config['UPLOAD_EXTENSIONS'] = sorted(IMAGE_EXTENSIONS | DOCUMENT_INPUT_EXTENSIONS)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-insecure-key-change-in-prod')
 app.logger.setLevel(logging.INFO)
 
@@ -467,14 +493,16 @@ def get_available_formats(filepath=None):
 
     except Exception as e:
         app.logger.error(f"Error retrieving format list: {e}")
+        # Only formats this build actually links: HEIC and AVIF are deliberately
+        # absent, since libheif/libaom are not compiled in and offering them here
+        # is the one path by which an unsupported format could reach the menu.
         return {
             'other': {
                 'name': 'Available Formats',
                 'formats': sorted([
                     'PNG', 'JPEG', 'JPG', 'GIF', 'TIFF', 'BMP', 'WEBP',
                     'ICO', 'CUR', 'ICON', 'PICON',
-                    'PDF', 'SVG', 'PSD',
-                    'HEIC', 'AVIF'
+                    'PDF', 'SVG', 'PSD', 'JXL',
                 ])
             }
         }
@@ -625,6 +653,16 @@ def classify_processing_error(exc, stderr=''):
     return 'Processing error'
 
 
+def modulate_component(form, field):
+    """One -modulate component, clamped to its allowed range. Anything
+    unparseable falls back to 100, which is the neutral value for all three."""
+    low, high = MODULATE_RANGES[field]
+    try:
+        return max(low, min(high, int(form.get(f'modulate_{field}', 100))))
+    except (TypeError, ValueError):
+        return 100
+
+
 def extract_processing_params(form):
     """Extract all image processing parameters from a form."""
     raw_format = form.get('format', '').upper().strip()
@@ -643,6 +681,15 @@ def extract_processing_params(form):
     raw_ratio = form.get('crop_ratio', '').strip()
     crop_ratio = raw_ratio if raw_ratio in ALLOWED_CROP_RATIOS else ''
 
+    raw_clahe = form.get('clahe_level', 'standard').strip().lower()
+    clahe_level = raw_clahe if raw_clahe in ALLOWED_CLAHE_LEVELS else 'standard'
+
+    raw_denoise = form.get('denoise_mode', '').strip().lower()
+    denoise_mode = raw_denoise if raw_denoise in ALLOWED_DENOISE_MODES else ''
+
+    raw_kuwahara = form.get('kuwahara_level', 'standard').strip().lower()
+    kuwahara_level = raw_kuwahara if raw_kuwahara in ALLOWED_KUWAHARA_LEVELS else 'standard'
+
     return {
         'width': form.get('width', DEFAULTS['width']),
         'height': form.get('height', DEFAULTS['height']),
@@ -660,6 +707,13 @@ def extract_processing_params(form):
         'background_color': raw_background,
         'density': density,
         'crop_ratio': crop_ratio,
+        'use_clahe': form.get('use_clahe') == 'on',
+        'clahe_level': clahe_level,
+        'denoise_mode': denoise_mode,
+        'kuwahara_level': kuwahara_level,
+        'modulate_brightness': modulate_component(form, 'brightness'),
+        'modulate_saturation': modulate_component(form, 'saturation'),
+        'modulate_hue': modulate_component(form, 'hue'),
     }
 
 
@@ -699,14 +753,20 @@ def centered_crop_box(src_width, src_height, crop_ratio):
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                               auto_level=False, auto_gamma=False, use_1080p=False, use_1920p=False,
                               use_sharpen=False, sharpen_level='standard', strip_metadata=False,
-                              background_color='white', density='', crop_ratio=''):
+                              background_color='white', density='', crop_ratio='',
+                              use_clahe=False, clahe_level='standard', denoise_mode='',
+                              kuwahara_level='standard', modulate_brightness=100,
+                              modulate_saturation=100, modulate_hue=100):
     """Build ImageMagick command for resizing and formatting.
     filepath must already be decoded (JXL → PNG via prepare_input_file before calling this).
 
     Argument order carries meaning: -density and -define are read-time settings
     and must precede the input file, -auto-orient has to run before -strip
     discards the EXIF orientation it reads, and cropping happens before -resize
-    so the resize geometry applies to the final framing."""
+    so the resize geometry applies to the final framing. Denoising runs before
+    the tonal operations because both CLAHE and -unsharp amplify whatever noise
+    they are handed, and -modulate runs last of them so the one manual setting
+    is not re-equalised by an automatic one."""
     if not (secure_path(filepath) or is_valid_tmp_path(filepath)):
         app.logger.error("Insecure input file path detected")
         return None
@@ -726,6 +786,15 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     command = ['magick']
 
     if density and source_ext in VECTOR_INPUT_EXTENSIONS:
+        # Dimensions are probed at 72 dpi, so rasterizing at a higher density
+        # multiplies them — a check made against the probe alone would never see
+        # a large page blowing past MAX_DIMENSION.
+        probe_width, probe_height = get_image_dimensions(filepath)
+        if probe_width and probe_height:
+            scale = int(density) / 72
+            if probe_width * scale > MAX_DIMENSION or probe_height * scale > MAX_DIMENSION:
+                app.logger.error(f"Rasterizing at {density} dpi would exceed MAX_DIMENSION ({MAX_DIMENSION}px)")
+                return None
         command.extend(['-density', density])
 
     # Skipped when cropping: the crop box is computed from the original
@@ -737,7 +806,12 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             # unpacking every pixel only to throw most of them away.
             command.extend(['-define', f'jpeg:size={hint}'])
 
-    command.append(filepath)
+    # A multi-page PDF would otherwise make ImageMagick write out-0.png,
+    # out-1.png … and never create the single output_path the caller expects,
+    # breaking the download link. [0] selects the first page; same subimage
+    # syntax build_gif_extract_command() uses, and it is an argument suffix
+    # rather than a path, so it is applied after secure_path() validation.
+    command.append(f'{filepath}[0]' if source_ext in DOCUMENT_INPUT_EXTENSIONS else filepath)
     command.append('-auto-orient')
 
     if strip_metadata:
@@ -749,10 +823,42 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         if crop_box:
             command.extend(['-gravity', 'center', '-crop', crop_box, '+repage'])
 
+    if denoise_mode == 'despeckle':
+        command.append('-despeckle')
+    elif denoise_mode == 'enhance':
+        command.append('-enhance')
+    elif denoise_mode == 'kuwahara':
+        # Superlinear in radius: on a large photo this outruns the subprocess
+        # timeout, so refuse up front instead of failing as a timeout later.
+        src_width, src_height = get_image_dimensions(filepath)
+        if src_width and src_height and src_width * src_height > KUWAHARA_MAX_PIXELS:
+            app.logger.error(f"Kuwahara refused: {src_width}x{src_height} exceeds KUWAHARA_MAX_PIXELS")
+            return None
+        command.extend(['-kuwahara', KUWAHARA_RADII.get(kuwahara_level, '2')])
+
     if auto_gamma:
         command.append('-auto-gamma')
     if auto_level:
         command.append('-auto-level')
+
+    if use_clahe:
+        clahe_value = CLAHE_PARAMS.get(clahe_level, CLAHE_PARAMS['standard'])
+        app.logger.info(f"Applying CLAHE level {clahe_level}: -clahe {clahe_value}")
+        command.extend(['-clahe', clahe_value])
+
+    # Re-clamped here as well as in extract_processing_params, the same
+    # defence in depth crop_ratio gets above.
+    modulate = []
+    for value, field in ((modulate_brightness, 'brightness'),
+                         (modulate_saturation, 'saturation'),
+                         (modulate_hue, 'hue')):
+        low, high = MODULATE_RANGES[field]
+        try:
+            modulate.append(str(max(low, min(high, int(value)))))
+        except (TypeError, ValueError):
+            return None
+    if modulate != ['100', '100', '100']:
+        command.extend(['-modulate', ','.join(modulate)])
 
     if use_sharpen:
         sharpen_params = {
@@ -1377,6 +1483,13 @@ def process_single_file(job_id, file_info, params, batch_folder):
                     background_color=params['background_color'],
                     density=params['density'],
                     crop_ratio=params['crop_ratio'],
+                    use_clahe=params['use_clahe'],
+                    clahe_level=params['clahe_level'],
+                    denoise_mode=params['denoise_mode'],
+                    kuwahara_level=params['kuwahara_level'],
+                    modulate_brightness=params['modulate_brightness'],
+                    modulate_saturation=params['modulate_saturation'],
+                    modulate_hue=params['modulate_hue'],
                 )
                 if not command:
                     raise RuntimeError(f"Could not build ImageMagick command for {fname}")
@@ -1597,22 +1710,16 @@ def resize_image(filename):
                                title='Error',
                                return_url=url_for('index'))
     try:
-        width = request.form.get('width', '')
-        height = request.form.get('height', '')
-        keep_ratio = request.form.get('keep_ratio') == 'on'
-        raw_format = request.form.get('format', '').upper().strip()
-        output_format = raw_format if raw_format in ALLOWED_OUTPUT_FORMATS else ''
-        auto_level = request.form.get('auto_level') == 'on'
-        auto_gamma = request.form.get('auto_gamma') == 'on'
-        use_sharpen = request.form.get('use_sharpen') == 'on'
-        raw_sharpen = request.form.get('sharpen_level', 'standard').strip().lower()
-        sharpen_level = raw_sharpen if raw_sharpen in ALLOWED_SHARPEN_LEVELS else 'standard'
-        # Reused rather than re-read field by field, so the allowlisting of the
-        # newer options lives in exactly one place.
+        # Every option comes from here, so allowlisting and defaulting live in
+        # exactly one place and the batch path cannot drift away from this one.
         options = extract_processing_params(request.form)
+        width = options['width']
+        height = options['height']
+        keep_ratio = options['keep_ratio']
+        output_format = options['output_format']
 
         app.logger.info(f"Processing resize request for {filename}")
-        app.logger.info(f"Sharpening: enabled={use_sharpen}, level={sharpen_level}")
+        app.logger.info(f"Sharpening: enabled={options['use_sharpen']}, level={options['sharpen_level']}")
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
 
         filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
@@ -1645,19 +1752,26 @@ def resize_image(filename):
                 output_path=output_path,
                 width=width,
                 height=height,
-                percentage=request.form.get('percentage', DEFAULTS["percentage"]),
-                quality=request.form.get('quality', DEFAULTS["quality"]),
+                percentage=options['percentage'],
+                quality=options['quality'],
                 keep_ratio=keep_ratio,
-                auto_level=auto_level,
-                auto_gamma=auto_gamma,
-                use_1080p=request.form.get('use_1080p') == 'on',
-                use_1920p=request.form.get('use_1920p') == 'on',
-                use_sharpen=use_sharpen,
-                sharpen_level=sharpen_level,
+                auto_level=options['auto_level'],
+                auto_gamma=options['auto_gamma'],
+                use_1080p=options['use_1080p'],
+                use_1920p=options['use_1920p'],
+                use_sharpen=options['use_sharpen'],
+                sharpen_level=options['sharpen_level'],
                 strip_metadata=options['strip_metadata'],
                 background_color=options['background_color'],
                 density=options['density'],
                 crop_ratio=options['crop_ratio'],
+                use_clahe=options['use_clahe'],
+                clahe_level=options['clahe_level'],
+                denoise_mode=options['denoise_mode'],
+                kuwahara_level=options['kuwahara_level'],
+                modulate_brightness=options['modulate_brightness'],
+                modulate_saturation=options['modulate_saturation'],
+                modulate_hue=options['modulate_hue'],
             )
 
             if not command:

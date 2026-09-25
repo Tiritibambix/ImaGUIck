@@ -93,6 +93,68 @@
 </div>
 {% endmacro %}
 
+{% macro clahe_block(checkbox_id) %}
+<div class="sharpen-block">
+    <label class="check-pill" style="margin:0; flex-shrink:0">
+        <input type="checkbox" name="use_clahe" id="{{ checkbox_id }}"> Local contrast
+        {{ info_tip("Adaptive contrast, tile by tile. Unlike Auto-Level, which stretches the whole image at once, this lifts a dark corner without blowing out an already-bright sky. Higher strength means more contrast and more visible noise.") }}
+    </label>
+    <div class="sharpen-intensity">
+        <span>Strength:</span>
+        <div class="intensity-options">
+            <label class="intensity-radio"><input type="radio" name="clahe_level" value="low"> Low</label>
+            <label class="intensity-radio"><input type="radio" name="clahe_level" value="standard" checked> Standard</label>
+            <label class="intensity-radio"><input type="radio" name="clahe_level" value="high"> High</label>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro denoise_block() %}
+<div class="sharpen-block">
+    <div class="sharpen-intensity">
+        <span>Noise reduction:</span>
+        <div class="intensity-options">
+            <label class="intensity-radio"><input type="radio" name="denoise_mode" value="" checked> None</label>
+            <label class="intensity-radio"><input type="radio" name="denoise_mode" value="despeckle"> Despeckle</label>
+            <label class="intensity-radio"><input type="radio" name="denoise_mode" value="enhance"> Smooth</label>
+            <label class="intensity-radio"><input type="radio" name="denoise_mode" value="kuwahara"> Edge-preserving</label>
+        </div>
+        {{ info_tip("Despeckle removes isolated speckles, Smooth averages out fine grain, Edge-preserving keeps outlines crisp but is slow and is refused on images above 16 megapixels.") }}
+    </div>
+    <div class="sharpen-intensity">
+        <span>Strength:</span>
+        <div class="intensity-options">
+            <label class="intensity-radio"><input type="radio" name="kuwahara_level" value="low"> Low</label>
+            <label class="intensity-radio"><input type="radio" name="kuwahara_level" value="standard" checked> Standard</label>
+            <label class="intensity-radio"><input type="radio" name="kuwahara_level" value="high"> High</label>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro modulate_fields(id_prefix='') %}
+{# Three across: the shared .options-row grid is two columns, which would drop hue onto its own line. #}
+<div class="options-row" style="grid-template-columns: repeat(3, 1fr)">
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}modulate_brightness">Brightness</label>
+        <input type="number" name="modulate_brightness" id="{{ id_prefix }}modulate_brightness"
+               min="50" max="150" step="1" value="100">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}modulate_saturation">Saturation</label>
+        <input type="number" name="modulate_saturation" id="{{ id_prefix }}modulate_saturation"
+               min="0" max="200" step="1" value="100">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}modulate_hue">Hue</label>
+        <input type="number" name="modulate_hue" id="{{ id_prefix }}modulate_hue"
+               min="80" max="120" step="1" value="100">
+    </div>
+</div>
+<small>100 = unchanged. Leave all three at 100 and nothing is applied.</small>
+{% endmacro %}
+
 {% macro sharpen_block(checkbox_id) %}
 <div class="sharpen-block">
     <label class="check-pill" style="margin:0; flex-shrink:0">

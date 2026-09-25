@@ -31,10 +31,10 @@ This application has been coded with the help of AI and is designed for **local 
 - **Wide format support**
   - Common: JPG, PNG, GIF, BMP, TIFF, WEBP
   - RAW: ARW, CR2, CR3, NEF, RAF, RW2, DNG
-  - Modern: AVIF, HEIC, JXL
+  - Modern: JXL
   - Animation: GIF, WEBP, APNG
-  - Vector / document: SVG, PDF, EPS (requires `potrace`)
-- **Image enhancement** — auto-level, auto-gamma, and three-level unsharp masking (low / standard / high)
+  - Vector / document: SVG, PDF, EPS in (rasterized by Ghostscript, first page only) and out (requires `potrace`)
+- **Image enhancement** — auto-level, auto-gamma, adaptive local contrast (CLAHE), brightness / saturation / hue, noise reduction, and three-level unsharp masking (low / standard / high)
 - **Smart format recommendations** — context-aware suggestions based on image type and transparency
 - **URL import** — fetch and process an image directly from a URL
 - **Real-time progress** — per-file status streamed via Server-Sent Events (SSE) during batch jobs

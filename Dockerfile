@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     exiftool \
     dcraw \
     potrace \
+    ghostscript \
     zip \
     unzip \
     cron \
