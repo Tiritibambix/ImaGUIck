@@ -87,8 +87,10 @@ static/media/           # Logo, banner, favicon
 
 These are non-negotiable — do not remove or weaken them:
 
-- `secure_filename(os.path.basename(filename))` applied at the **top of every route** that takes a filename from the URL or form
-- `secure_path()` used on every file path before filesystem access — confines to `uploads/` and `output/`
+- **Serving a file the request named goes through `resolve_stored_file(name, folder)`**, never through joining the request value onto a folder. It matches the basename against a `os.scandir()` listing and returns the matching entry's own absolute path, so nothing a client sends ever forms a filesystem path — traversal, absolute paths and symlink tricks simply fail to match. It returns an **absolute** path deliberately: `send_file()` resolves a relative path against the Flask app root rather than the working directory.
+- `secure_path()` is for paths the application *builds* (output files, temp frames), not for request-named ones. It resolves both sides and tests containment against `base + os.sep` — a bare prefix test would also accept a sibling directory whose name merely starts with the folder's (`uploads_elsewhere` next to `uploads`).
+- `safe_display_filename()` applied to any filename from the URL or form before it is displayed, stored or logged. It preserves spaces, `&` and accents, and strips a leading `-`, which would otherwise be read as an option by a tool the name is handed to as an argv element.
+- **Directories that get created, listed and `rmtree`d are named from a UUID alone** (the GIF frame-extraction scratch dir), with nothing derived from the request. A readable name is used for the resulting download instead.
 - `ALLOWED_OUTPUT_FORMATS` — explicit set; any format value not in it is rejected to `''`
 - `ALLOWED_SHARPEN_LEVELS` — `{'low', 'standard', 'high'}`; unknown values fall back to `'standard'`
 - `POTRACE_FORMATS` — vector formats checked for `potrace` availability before building the command

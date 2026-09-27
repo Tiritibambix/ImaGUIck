@@ -165,22 +165,51 @@ def allowed_file(filename):
 
 
 def secure_path(filepath):
-    """Ensure the filepath is secure and within allowed directories."""
+    """Confine a path to the upload/output folders, returning the resolved path
+    or None.
+
+    Containment is tested against `base + os.sep`, not a bare prefix: comparing
+    against the folder name alone would also accept a sibling directory that
+    merely starts with it, so an `uploads_elsewhere` next to `uploads` would
+    pass. Both sides are resolved first, so symlinks and `..` segments are
+    collapsed before the comparison rather than after it.
+
+    This is the check for paths the application *builds* (output files, temp
+    frames). For serving a file the request named, prefer resolve_stored_file(),
+    which picks from a directory listing instead of constructing a path."""
     try:
-        abs_path = os.path.abspath(filepath)
-        base_path = os.path.abspath(os.path.join(app.config['UPLOAD_FOLDER'], ''))
-        output_path = os.path.abspath(os.path.join(app.config['OUTPUT_FOLDER'], ''))
-
-        if not (abs_path.startswith(base_path) or abs_path.startswith(output_path)):
-            return None
-
-        real_path = os.path.realpath(abs_path)
-        if not (real_path.startswith(base_path) or real_path.startswith(output_path)):
-            return None
-
-        return abs_path
+        real_path = os.path.realpath(filepath)
+        for folder in (app.config['UPLOAD_FOLDER'], app.config['OUTPUT_FOLDER']):
+            base = os.path.realpath(folder)
+            if real_path == base or real_path.startswith(base + os.sep):
+                return real_path
+        return None
     except Exception:
         return None
+
+
+def resolve_stored_file(filename, folder):
+    """Return the path of a file the app already stores in `folder`, or None.
+
+    The returned path is taken from the directory listing rather than built by
+    joining the request value onto a folder, so nothing a client sends is ever
+    used to form a filesystem path — it only ever has to match a name that is
+    already there. This is the allowlist form of path validation: traversal,
+    absolute paths and symlink tricks cannot express a name the listing will
+    match, so they fail by simply not being found."""
+    requested = os.path.basename(filename or '')
+    if not requested or is_unsafe_filename(requested):
+        return None
+    try:
+        with os.scandir(folder) as entries:
+            for entry in entries:
+                if entry.name == requested and entry.is_file():
+                    # Absolute: send_file() resolves a relative path against the
+                    # Flask app root rather than the working directory.
+                    return os.path.realpath(entry.path)
+    except OSError as e:
+        app.logger.warning(f"Could not list {folder}: {e}")
+    return None
 
 
 def is_valid_tmp_path(filepath):
@@ -212,6 +241,9 @@ def safe_display_filename(filename, fallback='file'):
     name = os.path.basename(filename or '').strip()
     name = re.sub(r'[\x00-\x1f\x7f<>:"|?*\\/]', '', name)
     name = re.sub(r'\s+', ' ', name).strip(' .')
+    # A leading dash would be read as an option by the tools this name is later
+    # handed to as an argv element, not as a filename.
+    name = name.lstrip('-')
     if not name:
         return fallback
     base, ext = os.path.splitext(name)
@@ -1593,7 +1625,7 @@ def upload_file():
         # One animated file can only mean editing, never assembling, so the
         # GIF tab routes it to the editor instead of dead-ending on "at least
         # 2 images" — which is what made that whole page hard to find.
-        single_path = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], uploaded_files[0]))
+        single_path = resolve_stored_file(uploaded_files[0], app.config['UPLOAD_FOLDER'])
         if not (single_path and is_animated_file(single_path)):
             return _error('Select at least 2 images to build an animation, '
                           'or upload a single animated GIF/WEBP to edit it')
@@ -1676,8 +1708,8 @@ def upload_url():
 def resize_options(filename):
     """Resize options page for a single image."""
     sanitized_filename = safe_display_filename(os.path.basename(filename))
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], sanitized_filename)
-    if not os.path.exists(filepath):
+    filepath = resolve_stored_file(sanitized_filename, app.config['UPLOAD_FOLDER'])
+    if not filepath:
         flash_error("File not found.")
         return redirect(url_for('index'))
 
@@ -1722,8 +1754,8 @@ def resize_image(filename):
         app.logger.info(f"Sharpening: enabled={options['use_sharpen']}, level={options['sharpen_level']}")
         app.logger.info(f"Initial parameters: width={width}, height={height}, keep_ratio={keep_ratio}")
 
-        filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        if not filepath or not os.path.exists(filepath):
+        filepath = resolve_stored_file(filename, app.config['UPLOAD_FOLDER'])
+        if not filepath:
             flash('File not found')
             return render_template('result.html',
                                    success=False,
@@ -1848,8 +1880,8 @@ def resize_batch_options(filenames=None):
 
     for filename in filenames:
         filename = safe_display_filename(os.path.basename(filename))
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(filepath):
+        filepath = resolve_stored_file(filename, app.config['UPLOAD_FOLDER'])
+        if not filepath:
             continue
 
         if first_file_path is None:
@@ -1905,8 +1937,8 @@ def resize_batch():
     file_list = []
     for fname in filenames:
         fname = safe_display_filename(os.path.basename(fname))
-        fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-        if fpath and os.path.isfile(fpath):
+        fpath = resolve_stored_file(fname, app.config['UPLOAD_FOLDER'])
+        if fpath:
             # Strip UUID prefix (32 hex chars + underscore) to restore original filename
             original_name = re.sub(r'^[a-f0-9]{32}_', '', fname)
             file_list.append({
@@ -1972,8 +2004,7 @@ def gif_create_options():
     valid_files = []
     for filename in filenames:
         filename = safe_display_filename(os.path.basename(filename))
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        if os.path.exists(filepath):
+        if resolve_stored_file(filename, app.config['UPLOAD_FOLDER']):
             valid_files.append(filename)
 
     if len(valid_files) < 2:
@@ -2051,7 +2082,7 @@ def gif_create():
         # first frame's own aspect ratio, mirroring resolve_missing_dimension()
         # in the single-image resize flow, instead of silently dropping it.
         first_fname = safe_display_filename(os.path.basename(filenames[0]))
-        first_fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], first_fname))
+        first_fpath = resolve_stored_file(first_fname, app.config['UPLOAD_FOLDER'])
         first_w, first_h = get_image_dimensions(first_fpath) if first_fpath else (None, None)
         if first_w and first_h:
             if w_raw.isdigit():
@@ -2069,8 +2100,8 @@ def gif_create():
     total_pixels = 0
     for fname in filenames:
         fname = safe_display_filename(os.path.basename(fname))
-        fpath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-        if not fpath or not os.path.isfile(fpath):
+        fpath = resolve_stored_file(fname, app.config['UPLOAD_FOLDER'])
+        if not fpath:
             continue
         frame_w, frame_h = get_image_dimensions(fpath)
         if not frame_w or not frame_h:
@@ -2142,8 +2173,8 @@ def gif_create():
 def gif_edit_options(filename):
     """Options page for editing an existing animated GIF/WEBP."""
     sanitized_filename = safe_display_filename(os.path.basename(filename))
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], sanitized_filename)
-    if not os.path.exists(filepath):
+    filepath = resolve_stored_file(sanitized_filename, app.config['UPLOAD_FOLDER'])
+    if not filepath:
         flash_error("File not found.")
         return redirect(url_for('index'))
 
@@ -2190,8 +2221,8 @@ def gif_edit(filename):
                                return_url=url_for('gif_edit_options', filename=filename))
 
     try:
-        filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        if not filepath or not os.path.exists(filepath):
+        filepath = resolve_stored_file(filename, app.config['UPLOAD_FOLDER'])
+        if not filepath:
             flash('File not found')
             return render_template('result.html', success=False, title='Error',
                                    return_url=url_for('index'))
@@ -2240,7 +2271,11 @@ def gif_edit(filename):
                 command = build_gif_extract_command(filepath, output_path, extract_mode,
                                                      frame_number, frame_start, frame_end, extract_format)
             else:
-                zip_dir_name = safe_display_filename(f'{base_name}_frames_{uuid.uuid4().hex[:8]}')
+                # Named from a UUID alone, with nothing derived from the request:
+                # this directory is created, listed and then recursively deleted,
+                # and none of those three should ever act on a path a client had
+                # a hand in shaping. The download keeps a readable name instead.
+                zip_dir_name = f'frames_{uuid.uuid4().hex}'
                 zip_dir = os.path.join(app.config['OUTPUT_FOLDER'], zip_dir_name)
                 os.makedirs(zip_dir, exist_ok=True)
                 output_pattern = os.path.join(zip_dir, f'frame_%03d.{extract_format.lower()}')
@@ -2260,7 +2295,9 @@ def gif_edit(filename):
                 return render_template('result.html', success=True, title='Success',
                                        filename=output_filename, batch=False)
             else:
-                zip_filename = safe_display_filename(f'{zip_dir_name}.zip')
+                # Readable name for the download; only the scratch directory
+                # above is anonymous, and it is gone by the end of this block.
+                zip_filename = safe_display_filename(f'{base_name}_frames_{uuid.uuid4().hex[:8]}.zip')
                 zip_path = os.path.join(app.config['OUTPUT_FOLDER'], zip_filename)
                 with ZipFile(zip_path, 'w') as zipf:
                     for fn in sorted(os.listdir(zip_dir)):
@@ -2422,12 +2459,8 @@ def job_status(job_id):
 @app.route('/download_batch/<filename>')
 def download_batch(filename):
     """Serve the ZIP file for download."""
-    safe_name = safe_display_filename(os.path.basename(filename))
-    if is_unsafe_filename(safe_name):
-        flash('Invalid filename', 'error')
-        return redirect(url_for('index'))
-    zip_path = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], safe_name))
-    if not zip_path or not os.path.exists(zip_path):
+    zip_path = resolve_stored_file(safe_display_filename(filename), app.config['OUTPUT_FOLDER'])
+    if not zip_path:
         flash('File not found', 'error')
         return redirect(url_for('index'))
     return send_file(zip_path, as_attachment=True)
@@ -2436,12 +2469,9 @@ def download_batch(filename):
 @app.route('/download/<filename>')
 def download(filename):
     """Serve a single file for download."""
-    safe_name = safe_display_filename(os.path.basename(filename))
-    if is_unsafe_filename(safe_name):
-        flash('Invalid filename', 'error')
-        return redirect(url_for('index'))
-    filepath = secure_path(os.path.join(app.config['OUTPUT_FOLDER'], safe_name))
-    if not filepath or not os.path.exists(filepath):
+    safe_name = safe_display_filename(filename)
+    filepath = resolve_stored_file(safe_name, app.config['OUTPUT_FOLDER'])
+    if not filepath:
         flash('File not found', 'error')
         return redirect(url_for('index'))
     with open(filepath, 'rb') as f:
@@ -2511,11 +2541,8 @@ def preview_frame(filename):
     With ?w=<px> a downscaled copy is returned, which is what the preview asks
     for; the original is only served as a fallback. Plain 404 on failure since
     this is only ever hit as an <img src> target, not a user-facing navigation."""
-    safe_name = os.path.basename(filename)
-    if is_unsafe_filename(safe_name):
-        return ('', 404)
-    filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], safe_name))
-    if not filepath or not os.path.exists(filepath):
+    filepath = resolve_stored_file(filename, app.config['UPLOAD_FOLDER'])
+    if not filepath:
         return ('', 404)
 
     width = request.args.get('w', type=int)
