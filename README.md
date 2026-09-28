@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  A self-hosted web interface for image resizing, format conversion, and animated GIF/WEBP creation — powered by ImageMagick, with no accounts, no database, and no tracking.
+  A self-hosted web interface for image resizing, format conversion, and animated GIF/WEBP creation, powered by ImageMagick, with no accounts, no database, and no tracking.
 </p>
 
 ---
@@ -26,64 +26,64 @@ This application has been coded with the help of AI and is designed for **local 
 
 ### Resize & convert
 
-- **Single and batch processing** — handle one image or hundreds at once
-- **Flexible resizing** — by exact dimensions, percentage, or one-click presets (1080p / 1920p) with optional aspect-ratio lock
+- **Single and batch processing**: handle one image or hundreds at once
+- **Flexible resizing**: by exact dimensions, percentage, or one-click presets (1080p / 1920p) with optional aspect-ratio lock
 - **Wide format support**
   - Common: JPG, PNG, GIF, BMP, TIFF, WEBP
   - RAW: ARW, CR2, CR3, NEF, RAF, RW2, DNG
   - Modern: JXL
   - Animation: GIF, WEBP, APNG
   - Vector / document: SVG, PDF, EPS in (rasterized by Ghostscript, first page only) and out (requires `potrace`)
-- **Image enhancement** — auto-level, auto-gamma, adaptive local contrast (CLAHE), brightness / saturation / hue, noise reduction, and three-level unsharp masking (low / standard / high)
-- **Smart format recommendations** — context-aware suggestions based on image type and transparency
-- **URL import** — fetch and process an image directly from a URL
-- **Real-time progress** — per-file status streamed via Server-Sent Events (SSE) during batch jobs
-- **Automatic ZIP export** — processed batch files packaged and ready to download
+- **Image enhancement**: auto-level, auto-gamma, noise reduction (despeckle, smooth, or edge-preserving), and three-level unsharp masking (low / standard / high)
+- **Smart format recommendations**: context-aware suggestions based on image type and transparency
+- **URL import**: fetch and process an image directly from a URL
+- **Real-time progress**: per-file status streamed via Server-Sent Events (SSE) during batch jobs
+- **Automatic ZIP export**: processed batch files packaged and ready to download
 
 ### Animated GIF / WEBP
 
-- **Create** an animation from a sequence of images — drag to reorder frames, set FPS, loop count, and an optional shared canvas size, output as GIF or WEBP
+- **Create** an animation from a sequence of images: drag to reorder frames, set FPS, loop count, and an optional shared canvas size, output as GIF or WEBP
 - **Edit** an existing animated GIF/WEBP:
   - Resize (by dimensions or percentage)
-  - Optimize (palette size, Floyd–Steinberg dithering)
+  - Optimize (palette size, Floyd-Steinberg dithering)
   - Change playback speed
   - Reverse
   - Rotate / flip
   - Change loop count
   - Extract a single frame, a frame range, or every frame (as PNG or WEBP, zipped when extracting more than one)
-- Animated WEBP output is automatically offered or hidden depending on whether the server's ImageMagick build actually supports WEBP muxing — no dead options in the UI
+- Animated WEBP output is automatically offered or hidden depending on whether the server's ImageMagick build actually supports WEBP muxing, with no dead options in the UI
 
 ### Housekeeping
 
-- **Automatic cleanup** — uploaded and output files purged after 48 hours; completed batch/GIF jobs purged from memory after 2 hours
+- **Automatic cleanup**: uploaded and output files purged after 48 hours; completed batch/GIF jobs purged from memory after 2 hours
 
 ## Screenshots
 
-**Upload** — drag-and-drop or URL import, with a Resize / Create GIF·WEBP tab switcher
+**Upload**: drag-and-drop or URL import, with a Resize / Create GIF·WEBP tab switcher
 
 ![Upload](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Upload.webp)
 
-**Resize options** — single-image resizing with smart format recommendations
+**Resize options**: single-image resizing with smart format recommendations
 
 ![Resize options](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Options.webp)
 
-**Batch resize** — shared options applied across every file, with per-image details
+**Batch resize**: shared options applied across every file, with per-image details
 
 ![Batch resize](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/BatchOptions.webp)
 
-**Create GIF/WEBP** — live animation preview before processing, FPS/loop/canvas controls
+**Create GIF/WEBP**: live animation preview before processing, FPS/loop/canvas controls
 
 ![Create GIF/WEBP](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/GifCreate.webp)
 
-**Edit animation** — resize, optimize, reverse, rotate, or extract frames from an existing GIF/WEBP
+**Edit animation**: resize, optimize, reverse, rotate, or extract frames from an existing GIF/WEBP
 
 ![Edit animation](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/GifEdit.webp)
 
-**Batch progress** — real-time per-file status streamed over SSE
+**Batch progress**: real-time per-file status streamed over SSE
 
 ![Batch progress](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/Progress.webp)
 
-**GIF creation progress** — a single ImageMagick pass over all frames, shown honestly as one step rather than a fake per-file counter
+**GIF creation progress**: frames are normalised one process at a time and counted, then a final assembly pass runs on its own with a per-stage timer
 
 ![GIF creation progress](https://raw.githubusercontent.com/tiritibambix/ImaGUIck/refs/heads/main/screenshots/GifProgress.webp)
 
@@ -104,7 +104,7 @@ This application has been coded with the help of AI and is designed for **local 
 | Maximum frames per animation | 500 |
 | Concurrent ImageMagick workers | 4 (semaphore-controlled) |
 
-Batch uploads and GIF/WEBP creation are both processed **asynchronously** — the browser redirects to a live progress page immediately after the transfer completes, and each item shows its own status (queued / processing / done / error) via SSE. A ZIP archive is created automatically for batch resizes and multi-frame extractions.
+Batch uploads and GIF/WEBP creation are both processed **asynchronously**: the browser redirects to a live progress page immediately after the transfer completes, and each item shows its own status (queued / processing / done / error) via SSE. A ZIP archive is created automatically for batch resizes and multi-frame extractions.
 
 ---
 
@@ -115,15 +115,15 @@ Batch uploads and GIF/WEBP creation are both processed **asynchronously** — th
 | Dependency | Version | Notes |
 |---|---|---|
 | Python | 3.9+ | |
-| [ImageMagick](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-31) | 7.1.2-31+ | ImageMagick 7 only — the app calls `magick`, which ImageMagick 6 does not provide |
+| [ImageMagick](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-31) | 7.1.2-31+ | ImageMagick 7 only: the app calls `magick`, which ImageMagick 6 does not provide |
 | ExifTool | any | Required for RAW metadata |
 | potrace | any | Required for vector output (SVG, EPS, PDF) |
-| libwebp (+ pkg-config) | any | Required for animated WEBP creation/editing — single-frame WEBP works without it |
+| libwebp (+ pkg-config) | any | Required for animated WEBP creation/editing; single-frame WEBP works without it |
 | Docker | any | Recommended deployment method |
 
 ### Docker (recommended)
 
-**Option 1 — Docker Compose**
+**Option 1: Docker Compose**
 
 Create a `docker-compose.yml`:
 
@@ -155,7 +155,7 @@ Then run:
 docker compose up -d
 ```
 
-**Option 2 — docker run**
+**Option 2: docker run**
 
 ```bash
 docker run -it --rm \
@@ -166,7 +166,7 @@ docker run -it --rm \
     tiritibambix/imaguick:latest
 ```
 
-**Option 3 — build from source**
+**Option 3: build from source**
 
 ```bash
 git clone https://github.com/tiritibambix/ImaGUIck.git
@@ -194,7 +194,7 @@ Verify dependencies:
 magick -version    # ImageMagick 7.1.2-31 or newer
 exiftool -ver
 potrace --version  # required for SVG/EPS/PDF output
-magick -list delegate | grep -i webp   # confirms animated WEBP support
+magick -list format | grep -i WEBP   # a + in the WEBP row's mode means animation is supported
 ```
 
 Start the server:
@@ -215,23 +215,23 @@ The application is available at `http://localhost:5000`.
 
 1. Open `http://localhost:5000` in your browser.
 2. Select your import method:
-   - **Upload** — drag-and-drop or file picker (single file or batch, folders accepted)
-   - **URL** — paste a direct image URL
-3. Configure processing options: output format, resize mode (dimensions, percentage, or preset), and enhancement options (auto-level, auto-gamma, sharpening level).
-4. Submit — for batches, a live progress page tracks each file in real time.
+   - **Upload**: drag-and-drop or file picker (single file or batch, folders accepted)
+   - **URL**: paste a direct image URL
+3. Configure processing options: resize mode (dimensions, percentage, or preset), enhancement options (auto-level, auto-gamma, noise reduction, sharpening level), and output format.
+4. Submit: for batches, a live progress page tracks each file in real time.
 5. Download the result or ZIP archive when processing completes.
 
 ### Create an animated GIF/WEBP
 
 1. On the upload page, switch to the **Create GIF · WEBP** tab.
-2. Select two or more images — drag the rows to set the frame order.
+2. Select two or more images: drag the rows to set the frame order.
 3. Upload, then set FPS, loop count, an optional shared canvas size, palette size / quality, and output format (GIF or WEBP).
-4. Submit — a live progress page tracks the build, then offers the animation for download.
+4. Submit: a live progress page tracks the build, then offers the animation for download.
 
 ### Edit an existing animation
 
 1. On the upload page, switch to the **Create GIF · WEBP** tab.
-2. Select a single animated GIF or WEBP — one animated file means editing, several images mean building a new animation.
+2. Select a single animated GIF or WEBP: one animated file means editing, several images mean building a new animation.
 3. Pick an operation (resize, optimize, speed, reverse, rotate/flip, loop count, or frame extraction) and apply it.
 
 You can also get there from the resize options page of an animated file, via the **Edit as animation** link shown once the animation is detected.
@@ -243,8 +243,8 @@ You can also get there from the resize options page of an animated file, via the
 | Method | Command |
 |---|---|
 | Automatic (every 12 h, files > 48 h) | Runs via cron inside the container |
-| Manual — files older than 48 h | `docker exec <container> /app/cleanup.sh` |
-| Manual — all files immediately | `docker exec <container> /app/cleanup.sh --all` |
+| Manual: files older than 48 h | `docker exec <container> /app/cleanup.sh` |
+| Manual: all files immediately | `docker exec <container> /app/cleanup.sh --all` |
 
 ---
 
@@ -254,9 +254,9 @@ You can also get there from the resize options page of an animated file, via the
 
 | Layer | Technology |
 |---|---|
-| Backend | Flask (Python 3.9+), Gunicorn (gthread, 1 worker × 16 threads — job/session state is in-process memory, so it must stay a single process) |
+| Backend | Flask (Python 3.9+), Gunicorn (gthread, 1 worker × 16 threads: job/session state is in-process memory, so it must stay a single process) |
 | Image processing | ImageMagick 7.1.2-31, ExifTool, Pillow, potrace |
-| Async pipeline | `ThreadPoolExecutor` + `BoundedSemaphore(4)` — no external queue required |
+| Async pipeline | `ThreadPoolExecutor` + `BoundedSemaphore(4)`: no external queue required |
 | Progress streaming | Server-Sent Events (SSE) via `/job/<id>/status` |
 | Frontend | Vanilla HTML / CSS / JavaScript, zero build step (dark theme, DM Sans + DM Mono, inline SVG icon sprite) |
 | Container | Docker (multi-arch: amd64 + arm64) |
@@ -268,18 +268,18 @@ imaguick/
 ├── Dockerfile                        # Multi-arch container build
 ├── docker-compose.yml                # Compose deployment example
 ├── start.sh                          # Container entrypoint (cron + Gunicorn)
-├── app.py                            # Flask application — routes and processing logic
+├── app.py                            # Flask application: routes and processing logic
 ├── cleanup.py                        # File cleanup script (stdout logging, Docker-compatible)
 ├── cleanup.sh                        # Manual cleanup helper
 ├── requirements.txt                  # Python dependencies
 ├── templates/
 │   ├── base.html                     # Design system: CSS variables, header/nav, SVG icon sprite
-│   ├── index.html                    # Upload page — Resize / Create GIF·WEBP tabs
+│   ├── index.html                    # Upload page: Resize / Create GIF·WEBP tabs
 │   ├── resize.html                   # Single-image resize options
 │   ├── resize_batch.html             # Batch resize options
 │   ├── gif_create.html               # Create an animation from a sequence of images
 │   ├── gif_edit.html                 # Edit an existing animated GIF/WEBP
-│   ├── progress.html                 # Real-time job progress (SSE) — batch resize and GIF creation
+│   ├── progress.html                 # Real-time job progress (SSE): batch resize and GIF creation
 │   ├── result.html                   # Success / error feedback
 │   ├── _resize_options_styles.html   # Shared CSS partial for options-page layouts
 │   └── _resize_form_fields.html      # Shared Jinja macros for repeated form fields
@@ -301,26 +301,26 @@ Browser                     Flask (Gunicorn)              ThreadPoolExecutor
   ├─ GET /download_batch/<zip> ─> │                              │
 ```
 
-GIF/WEBP creation reuses this same job/SSE machinery as a single unit of work (one ImageMagick invocation over the ordered frame list) rather than one task per file.
+GIF/WEBP creation reuses this same job/SSE machinery, running one ImageMagick process per frame (each counted toward the progress bar) followed by a single assembly pass over the normalised frames.
 
 ### Security
 
 - All filenames sanitised with `werkzeug.utils.secure_filename` at route entry
-- Path traversal prevented by `secure_path()` — confines all file access to `uploads/` and `output/`
+- Path traversal prevented by `secure_path()`: confines all file access to `uploads/` and `output/`
 - Output formats validated against an explicit allowlist (`ALLOWED_OUTPUT_FORMATS`)
 - Sharpen level validated against `ALLOWED_SHARPEN_LEVELS`
 - Vector output formats checked for `potrace` availability before building the ImageMagick command
 - Resize/GIF dimensions are capped (`MAX_DIMENSION`, `GIF_MAX_OUTPUT_DIMENSION`) on both input **and** requested output, and GIF creation enforces a maximum frame count and combined pixel budget before any processing starts
-- SSRF prevented by `is_safe_url()` — DNS resolution + rejection of private/loopback/link-local IPs
+- SSRF prevented by `is_safe_url()`: DNS resolution + rejection of private/loopback/link-local IPs
 - Every subprocess call uses list-form arguments (never `shell=True`) and an explicit timeout
 - GitHub Actions workflows use minimal `permissions: contents: read` and SHA-pinned actions
 
 ### Customisation
 
-- **Supported formats** — edit `get_available_formats()` in `app.py`
-- **Resize options** — extend `build_imagemagick_command()` in `app.py`
-- **GIF/WEBP creation or editing** — extend `build_gif_create_command()` / `build_gif_edit_command()` / `build_gif_extract_command()` in `app.py`
-- **Secret key** — set the `FLASK_SECRET_KEY` environment variable (required in production)
+- **Supported formats**: edit `get_available_formats()` in `app.py`
+- **Resize options**: extend `build_imagemagick_command()` in `app.py`
+- **GIF/WEBP creation or editing**: extend `build_gif_frame_command()` / `build_gif_assemble_command()` / `build_gif_edit_command()` / `build_gif_extract_command()` in `app.py`
+- **Secret key**: set the `FLASK_SECRET_KEY` environment variable (required in production)
 
 ---
 
@@ -336,9 +336,9 @@ GIF/WEBP creation reuses this same job/SSE machinery as a single unit of work (o
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU General Public License v3.0**: see the [LICENSE](LICENSE) file for details.
 
-ImageMagick is licensed separately — see the [ImageMagick license](https://imagemagick.org/script/license.php).
+ImageMagick is licensed separately: see the [ImageMagick license](https://imagemagick.org/script/license.php).
 
 ---
 

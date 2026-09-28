@@ -16,12 +16,15 @@
 </div>
 {% endmacro %}
 
-{% macro quality_format_field(formats, quality_value, format_label, format_placeholder) %}
-<div class="form-group" style="margin-bottom:0">
+{% macro quality_field(quality_value) %}
+<div class="form-group">
     <label for="quality">Quality (1&ndash;100)</label>
     <input type="number" name="quality" id="quality" min="1" max="100" value="{{ quality_value }}">
 </div>
-<div class="form-group" style="margin-bottom:0">
+{% endmacro %}
+
+{% macro format_field(formats, format_label, format_placeholder) %}
+<div class="form-group">
     <label for="format">{{ format_label }}</label>
     <select name="format" id="format">
         <option value="">{{ format_placeholder }}</option>

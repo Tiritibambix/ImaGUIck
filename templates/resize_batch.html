@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field, clahe_block, denoise_block, modulate_fields %}
+{% from "_resize_form_fields.html" import pixel_check_pills, quality_field, format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field, denoise_block %}
 
 {% block title %}Batch resize — {{ files | length }} files{% endblock %}
 
@@ -53,19 +53,13 @@
             <div class="section-block col-full">
                 <div class="section-title">Additional options</div>
 
-                <div class="options-row">
-                    {{ quality_format_field(formats, defaults.quality if defaults else '100', 'Convert all to format', 'Keep original formats') }}
-                </div>
+                {{ quality_field(defaults.quality if defaults else '100') }}
 
                 {{ framing_fields('batch_') }}
 
                 {{ density_field('batch_') }}
 
                 {{ auto_level_gamma_pills() }}
-
-                {{ clahe_block('batch_use_clahe') }}
-
-                {{ modulate_fields('batch_') }}
 
                 {{ denoise_block() }}
 
@@ -114,6 +108,8 @@
                     {% endif %}
                 </div>
                 {% endif %}
+
+                {{ format_field(formats, 'Convert all to format', 'Keep original formats') }}
             </div>
 
         </div>

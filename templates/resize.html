@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_resize_form_fields.html" import pixel_check_pills, quality_format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field, clahe_block, denoise_block, modulate_fields %}
+{% from "_resize_form_fields.html" import pixel_check_pills, quality_field, format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field, denoise_block %}
 
 {% block title %}Resize — {{ filename }}{% endblock %}
 
@@ -57,9 +57,7 @@
             <div class="section-block col-full">
                 <div class="section-title">Additional options</div>
 
-                <div class="options-row">
-                    {{ quality_format_field(formats, defaults.quality if defaults else '100', 'Output format', 'Keep original format') }}
-                </div>
+                {{ quality_field(defaults.quality if defaults else '100') }}
 
                 {{ framing_fields() }}
 
@@ -69,10 +67,6 @@
                 {% endif %}
 
                 {{ auto_level_gamma_pills() }}
-
-                {{ clahe_block('use_clahe') }}
-
-                {{ modulate_fields() }}
 
                 {{ denoise_block() }}
 
@@ -109,6 +103,8 @@
                     </span>
                 </div>
                 {% endif %}
+
+                {{ format_field(formats, 'Output format', 'Keep original format') }}
             </div>
 
         </div>
