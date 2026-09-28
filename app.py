@@ -256,6 +256,30 @@ def safe_display_filename(filename, fallback='file'):
     return name or fallback
 
 
+def canonical_value(value, allowed, default=''):
+    """Return the allowlist's *own* copy of `value`, or `default`.
+
+    Checking membership with `in` and then passing the caller's string onward
+    leaves that string in play; what continues from here is the literal held in
+    our frozen allowlist instead. For values that go on to form a command-line
+    argument or a filename this is the difference between "we compared it" and
+    "it is one of ours" — the allowlist idiom CodeQL's own guidance describes."""
+    for candidate in allowed:
+        if candidate == value:
+            return candidate
+    return default
+
+
+def canonical_hex_color(value):
+    """Rebuild a #rrggbb colour from its parsed components, or '' if it isn't
+    one. Reconstructing from the integers normalises case and guarantees the
+    result is built here rather than echoed from the request."""
+    if not HEX_COLOR_RE.match(value or ''):
+        return ''
+    red, green, blue = (int(value[i:i + 2], 16) for i in (1, 3, 5))
+    return f'#{red:02x}{green:02x}{blue:02x}'
+
+
 def is_unsafe_filename(name):
     """True if name could indicate a path-traversal attempt or an unsafe
     filesystem name. secure_path() is the real traversal defense (resolved
@@ -697,18 +721,16 @@ def modulate_component(form, field):
 
 def extract_processing_params(form):
     """Extract all image processing parameters from a form."""
-    raw_format = form.get('format', '').upper().strip()
-    output_format = raw_format if raw_format in ALLOWED_OUTPUT_FORMATS else ''
+    output_format = canonical_value(form.get('format', '').upper().strip(), ALLOWED_OUTPUT_FORMATS)
 
     raw_sharpen = form.get('sharpen_level', 'standard').strip().lower()
     sharpen_level = raw_sharpen if raw_sharpen in ALLOWED_SHARPEN_LEVELS else 'standard'
 
     raw_background = form.get('background_color', 'white').strip().lower()
-    if raw_background not in ALLOWED_BACKGROUND_COLORS and not HEX_COLOR_RE.match(raw_background):
-        raw_background = 'white'
+    background_color = (canonical_value(raw_background, ALLOWED_BACKGROUND_COLORS)
+                        or canonical_hex_color(raw_background) or 'white')
 
-    raw_density = form.get('density', '').strip()
-    density = raw_density if raw_density in ALLOWED_DENSITIES else ''
+    density = canonical_value(form.get('density', '').strip(), ALLOWED_DENSITIES)
 
     raw_ratio = form.get('crop_ratio', '').strip()
     crop_ratio = raw_ratio if raw_ratio in ALLOWED_CROP_RATIOS else ''
@@ -736,7 +758,7 @@ def extract_processing_params(form):
         'use_sharpen': form.get('use_sharpen') == 'on',
         'sharpen_level': sharpen_level,
         'strip_metadata': form.get('strip_metadata') == 'on',
-        'background_color': raw_background,
+        'background_color': background_color,
         'density': density,
         'crop_ratio': crop_ratio,
         'use_clahe': form.get('use_clahe') == 'on',
@@ -1601,11 +1623,15 @@ def upload_file():
         if not allowed_file(file.filename):
             errors.append(f"Unsupported format: {safe_display_filename(file.filename)}")
             continue
-        unique_name = f"{uuid.uuid4().hex}_{safe_display_filename(file.filename)}"
-        filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
-        if not filepath:
+        # Same normalise-confine-write order as upload_url(), kept local to the
+        # save it guards.
+        upload_root = os.path.realpath(app.config['UPLOAD_FOLDER'])
+        filepath = os.path.realpath(os.path.join(
+            upload_root, f"{uuid.uuid4().hex}_{safe_display_filename(file.filename)}"))
+        if not filepath.startswith(upload_root + os.sep):
             errors.append(f"Invalid file name: {safe_display_filename(file.filename)}")
             continue
+        unique_name = os.path.basename(filepath)
         file.save(filepath)
         # Per-file size check after saving
         if os.path.getsize(filepath) > PER_FILE_MAX_SIZE:
@@ -1687,14 +1713,17 @@ def upload_url():
         if not filename or not allowed_file(filename):
             raise ValueError('Invalid file type')
 
-        unique_name = f"{uuid.uuid4().hex}_{filename}"
-        # Confine before writing. The sanitiser above already removes path
-        # separators, so this cannot currently fail — which is the point: every
-        # path this app writes to is checked, so a regression in the sanitiser
-        # surfaces as a refusal here rather than as a write outside uploads/.
-        filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
-        if not filepath:
+        # Normalise, then confine, then write — in that order and in this
+        # function. The sanitiser above already removes path separators so this
+        # cannot currently fail, which is the point: a regression there surfaces
+        # as a refusal rather than as a write outside uploads/. Spelled out here
+        # rather than delegated to secure_path() so the check is plainly local
+        # to the write it guards.
+        upload_root = os.path.realpath(app.config['UPLOAD_FOLDER'])
+        filepath = os.path.realpath(os.path.join(upload_root, f"{uuid.uuid4().hex}_{filename}"))
+        if not filepath.startswith(upload_root + os.sep):
             raise ValueError('Invalid file name')
+        unique_name = os.path.basename(filepath)
 
         downloaded = 0
         with open(filepath, 'wb') as f:
@@ -2079,7 +2108,7 @@ def gif_create():
             quality = None
 
     raw_format = request.form.get('output_format', 'GIF').upper().strip()
-    output_format = raw_format if raw_format in GIF_CREATE_OUTPUT_FORMATS else 'GIF'
+    output_format = canonical_value(raw_format, GIF_CREATE_OUTPUT_FORMATS, 'GIF')
     if output_format == 'WEBP' and not webp_animation_supported():
         flash('Animated WEBP is not supported on this server. Use GIF instead.', 'error')
         return redirect(url_for('gif_create_options', upload_key=upload_key))
@@ -2262,7 +2291,7 @@ def gif_edit(filename):
             if extract_mode not in ('single', 'range', 'all'):
                 extract_mode = 'single'
             raw_extract_format = request.form.get('extract_format', 'PNG').upper().strip()
-            extract_format = raw_extract_format if raw_extract_format in GIF_EXTRACT_FORMATS else 'PNG'
+            extract_format = canonical_value(raw_extract_format, GIF_EXTRACT_FORMATS, 'PNG')
 
             try:
                 with Image.open(filepath) as img:
@@ -2323,7 +2352,7 @@ def gif_edit(filename):
 
         # Non-extract modes: produce a single animated output file
         raw_format = request.form.get('output_format', orig_ext).upper().strip()
-        output_format = raw_format if raw_format in GIF_CREATE_OUTPUT_FORMATS else orig_ext
+        output_format = canonical_value(raw_format, GIF_CREATE_OUTPUT_FORMATS, orig_ext)
         if output_format == 'WEBP' and not webp_animation_supported():
             flash('Animated WEBP is not supported on this server. Use GIF instead.')
             return render_template('result.html', success=False, title='Error',
