@@ -1602,7 +1602,10 @@ def upload_file():
             errors.append(f"Unsupported format: {safe_display_filename(file.filename)}")
             continue
         unique_name = f"{uuid.uuid4().hex}_{safe_display_filename(file.filename)}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+        filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
+        if not filepath:
+            errors.append(f"Invalid file name: {safe_display_filename(file.filename)}")
+            continue
         file.save(filepath)
         # Per-file size check after saving
         if os.path.getsize(filepath) > PER_FILE_MAX_SIZE:
@@ -1685,7 +1688,13 @@ def upload_url():
             raise ValueError('Invalid file type')
 
         unique_name = f"{uuid.uuid4().hex}_{filename}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+        # Confine before writing. The sanitiser above already removes path
+        # separators, so this cannot currently fail — which is the point: every
+        # path this app writes to is checked, so a regression in the sanitiser
+        # surfaces as a refusal here rather than as a write outside uploads/.
+        filepath = secure_path(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
+        if not filepath:
+            raise ValueError('Invalid file name')
 
         downloaded = 0
         with open(filepath, 'wb') as f:
@@ -1765,8 +1774,11 @@ def resize_image(filename):
         width, height = resolve_missing_dimension(width, height, keep_ratio, filepath)
         app.logger.info(f"Final parameters: width={width}, height={height}, format={output_format}")
 
-        # Strip UUID prefix (32 hex chars + underscore) to restore original filename
-        clean_name = re.sub(r'^[a-f0-9]{32}_', '', filename)
+        # Strip UUID prefix (32 hex chars + underscore) to restore original
+        # filename. Taken from the resolved file's own name rather than from the
+        # request parameter: the two are equal by construction, but only the
+        # former is known to name a file we actually store.
+        clean_name = re.sub(r'^[a-f0-9]{32}_', '', os.path.basename(filepath))
         base_name = os.path.splitext(clean_name)[0]
         if output_format:
             output_filename = f"{base_name}_imaGUIck.{output_format.lower()}"
@@ -2227,7 +2239,9 @@ def gif_edit(filename):
             return render_template('result.html', success=False, title='Error',
                                    return_url=url_for('index'))
 
-        clean_name = re.sub(r'^[a-f0-9]{32}_', '', filename)
+        # From the resolved file's own name, not the request parameter — see
+        # the equivalent note in resize_image().
+        clean_name = re.sub(r'^[a-f0-9]{32}_', '', os.path.basename(filepath))
         base_name, orig_ext = os.path.splitext(clean_name)
         orig_ext = orig_ext.lstrip('.').upper() or 'GIF'
         if orig_ext not in GIF_CREATE_OUTPUT_FORMATS:
