@@ -799,6 +799,22 @@ def jpeg_decode_hint(width, height, use_1080p, use_1920p):
     return None
 
 
+def resize_dimension(value):
+    """One resize dimension as an int, 0 when it was left blank, or None when it
+    is not an integer at all — which the caller turns into a refused command.
+
+    It exists so the parsed value gets its own name. Converting in place with
+    `height = int(height)` under an `if height:` leaves two definitions of
+    height reaching the geometry below, and on the branch that skipped the
+    conversion the unconverted string is still one of them."""
+    if not value:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def centered_crop_box(src_width, src_height, crop_ratio):
     """Largest centred WxH+0+0 box of the given aspect ratio, or None if the
     source dimensions aren't known."""
@@ -953,32 +969,34 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             except ValueError:
                 return None
         elif width or height:
-            try:
-                if width:
-                    width = int(width)
-                    if width > MAX_DIMENSION:
-                        app.logger.error(f"Requested width {width} exceeds MAX_DIMENSION ({MAX_DIMENSION}px)")
-                        return None
-                if height:
-                    height = int(height)
-                    if height > MAX_DIMENSION:
-                        app.logger.error(f"Requested height {height} exceeds MAX_DIMENSION ({MAX_DIMENSION}px)")
-                        return None
-
-                resize_value = ''
-                if width and height:
-                    resize_value = f"{width}x{height}"
-                    if keep_ratio:
-                        resize_value += '>'
-                elif width:
-                    resize_value = f"{width}"
-                elif height:
-                    resize_value = f"x{height}"
-
-                if resize_value:
-                    command.extend(['-resize', resize_value])
-            except ValueError:
+            # Parsed into names of their own rather than over the parameters:
+            # the guards below mean an unconverted value could never actually
+            # reach the geometry string, but nothing in the code says so, which
+            # is both why it is reported as a tainted command argument and why
+            # jpeg_decode_hint() parses into its own names too.
+            target_width = resize_dimension(width)
+            target_height = resize_dimension(height)
+            if target_width is None or target_height is None:
                 return None
+            if target_width > MAX_DIMENSION:
+                app.logger.error(f"Requested width {target_width} exceeds MAX_DIMENSION ({MAX_DIMENSION}px)")
+                return None
+            if target_height > MAX_DIMENSION:
+                app.logger.error(f"Requested height {target_height} exceeds MAX_DIMENSION ({MAX_DIMENSION}px)")
+                return None
+
+            resize_value = ''
+            if target_width and target_height:
+                resize_value = f"{target_width}x{target_height}"
+                if keep_ratio:
+                    resize_value += '>'
+            elif target_width:
+                resize_value = f"{target_width}"
+            elif target_height:
+                resize_value = f"x{target_height}"
+
+            if resize_value:
+                command.extend(['-resize', resize_value])
 
     if ext in OPAQUE_OUTPUT_FORMATS:
         # These formats carry no alpha channel, so transparency has to be
