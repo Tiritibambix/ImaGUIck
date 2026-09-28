@@ -779,13 +779,23 @@ def jpeg_decode_hint(width, height, use_1080p, use_1920p):
     the next scale, guaranteeing the resampler still has enough pixels. It must
     NOT be combined with anything measured against the decoded image — a
     percentage resize or a pixel crop box computed from the original size would
-    both silently operate on a smaller image than they were calculated for."""
+    both silently operate on a smaller image than they were calculated for.
+
+    The geometry is rebuilt from the parsed integers rather than interpolated
+    from the submitted strings: this runs before the resize block's own
+    conversions, so without it a non-numeric width would reach ImageMagick as a
+    malformed `-define`."""
     if use_1920p:
         return '1920x1920'
     if use_1080p:
         return '1080x1080'
     if width and height:
-        return f'{width}x{height}'
+        try:
+            box_width, box_height = int(width), int(height)
+        except (TypeError, ValueError):
+            return None
+        if box_width > 0 and box_height > 0:
+            return f'{box_width}x{box_height}'
     return None
 
 
