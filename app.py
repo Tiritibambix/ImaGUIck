@@ -38,6 +38,17 @@ SUBPROCESS_TIMEOUT_SHORT = 30    # format probing, delegate checks, dimension lo
 SUBPROCESS_TIMEOUT_MEDIUM = 120  # single-image processing
 SUBPROCESS_TIMEOUT_LONG = 300    # batch per-file / GIF creation processing
 
+# The GIF/WEBP assembly is one pass over every frame. `-layers optimize` plus
+# `-colors` on many full-resolution frames runs well past the flat timeout
+# above (23 frames at 2304x1536 did not finish in 300 s), so the assembly gets
+# a timeout scaled to the work instead: a budget per frame-megapixel, floored
+# at the flat timeout so small jobs are unchanged and capped so a runaway pass
+# is still killed. The per-megapixel figure is an estimate for `-layers
+# optimize` on photographic frames; tune it against real container timings.
+GIF_ASSEMBLE_TIMEOUT_FLOOR = SUBPROCESS_TIMEOUT_LONG
+GIF_ASSEMBLE_TIMEOUT_CEILING = 900
+GIF_ASSEMBLE_SECONDS_PER_MEGAPIXEL = 8
+
 # GIF/WEBP animation creation & editing limits — checked before any decode/
 # processing work, to keep memory and CPU use bounded regardless of user input.
 GIF_MAX_FRAMES = 500
@@ -1075,6 +1086,25 @@ def build_gif_assemble_command(frame_paths, output_path, fps, loop, quality, out
     return command
 
 
+def gif_assembly_timeout(frame_paths):
+    """Timeout for the assembly pass, scaled to the frames it has to process.
+
+    Reads each normalised frame's size from its header (cheap, no decode) and
+    budgets GIF_ASSEMBLE_SECONDS_PER_MEGAPIXEL per frame-megapixel, clamped to
+    [floor, ceiling]. A frame that can't be read contributes nothing rather
+    than failing the whole job; the clamp still keeps the result sane."""
+    total_pixels = 0
+    for p in frame_paths:
+        try:
+            with Image.open(p) as im:
+                width, height = im.size
+            total_pixels += width * height
+        except Exception as e:
+            app.logger.warning(f"Could not size frame {p} for assembly timeout: {e}")
+    budget = int(total_pixels / 1_000_000 * GIF_ASSEMBLE_SECONDS_PER_MEGAPIXEL)
+    return max(GIF_ASSEMBLE_TIMEOUT_FLOOR, min(GIF_ASSEMBLE_TIMEOUT_CEILING, budget))
+
+
 def build_gif_edit_command(filepath, output_path, mode, params):
     """Build an ImageMagick command for one editing operation on an existing
     animated GIF/WEBP. `params` holds mode-specific values already validated
@@ -1423,13 +1453,14 @@ def process_gif_create_job(job_id):
         )
         if not command:
             raise RuntimeError("Could not build GIF assembly command")
-        app.logger.info(f"[Job {job_id}] Assembling: {' '.join(command)}")
+        assemble_timeout = gif_assembly_timeout(frame_paths)
+        app.logger.info(f"[Job {job_id}] Assembling (timeout {assemble_timeout}s): {' '.join(command)}")
         with _processing_semaphore:
             # -monitor is kept here only to name the current operation and prove
             # the pass is alive; it deliberately does not drive the bar, since
             # there is no honest way to weight these operations against one
             # another. The bar stays indeterminate for the whole assembly.
-            run_with_progress(command, SUBPROCESS_TIMEOUT_LONG,
+            run_with_progress(command, assemble_timeout,
                               make_gif_assembly_reporter(job_id))
     except subprocess.CalledProcessError as e:
         failed = True
@@ -1471,7 +1502,10 @@ def process_gif_create_job(job_id):
         jobs[job_id]['status'] = 'complete'
         jobs[job_id]['completed_at'] = time.time()
 
-    app.logger.info(f"Job {job_id} (gif_create) complete")
+    # 'complete' is the job's terminal state, not a verdict: say which it was,
+    # so a timed-out assembly is not logged as if it had succeeded.
+    app.logger.info(f"Job {job_id} (gif_create) finished: "
+                    f"{'failed' if failed else 'success'}")
 
 
 def process_job(job_id):
