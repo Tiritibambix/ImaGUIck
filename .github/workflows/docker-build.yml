@@ -1,54 +1,106 @@
-name: Build and Push Docker Image - Multi-Arch
+name: Build and Push Docker Image - ImaGUIck
 
 on:
   push:
     branches:
-      - main
-    paths-ignore:
-      - 'LICENSE'
-      - 'README.md'
-      - 'TODO.md'
-  pull_request:
-    branches:
-      - main
-    paths-ignore:
-      - 'LICENSE'
-      - 'README.md'
-      - 'TODO.md'
+      - '**'
   workflow_dispatch:
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: tiritibambix/imaguick
 
-
 permissions:
   contents: read
 
 jobs:
-  setup:
+  check:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      actions: read
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      skip: ${{ steps.compare.outputs.skip }}
+      branch: ${{ steps.meta.outputs.branch }}
+      short_commit: ${{ steps.meta.outputs.short_commit }}
+      tags: ${{ steps.tags.outputs.tags }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Extract metadata
+        id: meta
+        run: |
+          # A Docker tag may only hold [a-zA-Z0-9._-] and may not start with a
+          # separator, while a branch name can hold almost anything. Replacing
+          # every other character (not just '/') is what keeps a branch such as
+          # "feat/café#2" from producing an unpushable tag.
+          branch=$(printf '%s' "$GITHUB_REF_NAME" | sed 's#[^a-zA-Z0-9._-]#-#g' | cut -c1-100)
+          case "$branch" in
+            [!a-zA-Z0-9_]*) branch="x$branch" ;;
+          esac
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "short_commit=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "date_tag=$(date +'%Y%m%d')" >> "$GITHUB_OUTPUT"
 
-      - name: Extract version from Git
-        id: version
-        run: echo "version=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      - name: Restore last built commit for this branch
+        uses: actions/cache/restore@v5
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          path: last_commit.txt
+          key: last-commit-${{ steps.meta.outputs.branch }}-${{ github.run_id }}
+          restore-keys: last-commit-${{ steps.meta.outputs.branch }}-
+
+      - name: Read last built commit
+        id: read
+        run: |
+          if [ -f last_commit.txt ]; then
+            echo "last_commit=$(cat last_commit.txt)" >> "$GITHUB_OUTPUT"
+          else
+            echo "last_commit=none" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compare commits
+        id: compare
+        run: |
+          if [ "${{ github.sha }}" = "${{ steps.read.outputs.last_commit }}" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "No new commit. Skipping build."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "New commit detected or manual trigger."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compose image tags
+        id: tags
+        if: steps.compare.outputs.skip == 'false'
+        run: |
+          # Every branch gets the three branch-scoped tags. main additionally
+          # keeps the bare `latest`, which docker-compose.yml and the README
+          # both pull by name: moving it to `main-latest` alone would silently
+          # freeze the documented install path at whatever it points to today.
+          {
+            echo 'tags<<TAGS_EOF'
+            echo "${REGISTRY}/${IMAGE_NAME}:${{ steps.meta.outputs.branch }}-latest"
+            echo "${REGISTRY}/${IMAGE_NAME}:${{ steps.meta.outputs.branch }}-${{ steps.meta.outputs.short_commit }}"
+            echo "${REGISTRY}/${IMAGE_NAME}:${{ steps.meta.outputs.branch }}-${{ steps.meta.outputs.date_tag }}"
+            if [ "$GITHUB_REF_NAME" = "main" ]; then
+              echo "${REGISTRY}/${IMAGE_NAME}:latest"
+            fi
+            echo 'TAGS_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Save new commit hash to cache
+        if: steps.compare.outputs.skip == 'false'
+        run: echo "${{ github.sha }}" > last_commit.txt
+
+      - name: Update cache
+        if: steps.compare.outputs.skip == 'false'
+        uses: actions/cache/save@v5
+        with:
+          path: last_commit.txt
+          key: last-commit-${{ steps.meta.outputs.branch }}-${{ github.run_id }}
 
   audit:
     runs-on: ubuntu-24.04
-    needs: setup
+    needs: check
+    if: needs.check.outputs.skip == 'false'
     permissions:
       contents: read
     steps:
@@ -66,7 +118,7 @@ jobs:
 
   build-and-push:
     runs-on: ubuntu-24.04
-    needs: [setup, audit]
+    needs: [check, audit]
     permissions:
       contents: read
     steps:
@@ -93,10 +145,11 @@ jobs:
           context: .
           file: Dockerfile
           push: true
+          # Both architectures build ImageMagick from source, and arm64 does it
+          # under QEMU emulation, so this job is long. The gha cache below is
+          # what keeps a second push to the same branch from paying it again.
           platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.version }}
+          tags: ${{ needs.check.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -104,6 +157,9 @@ jobs:
   update-dockerhub-description:
     runs-on: ubuntu-24.04
     needs: build-and-push
+    # Only main may rewrite the public description: a feature branch's README
+    # is not what should be shown on Docker Hub.
+    if: github.ref_name == 'main'
     permissions:
       contents: read
     steps:
@@ -117,4 +173,4 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           repository: ${{ env.IMAGE_NAME }}
           readme-filepath: ./README.md
-          short-description: "ImaGUIck - A GUI tool for image processing and batch operations"
+          short-description: "Self-hosted image resizing, conversion and animated GIF/WEBP creation, powered by ImageMagick."

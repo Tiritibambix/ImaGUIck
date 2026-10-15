@@ -33,8 +33,8 @@ templates/
   _resize_form_fields.html      # Shared Jinja macros for repeated form field groups
 static/media/           # Logo, banner, favicon
 .github/workflows/
-  docker-build.yml      # CI/CD: build + push multi-arch image to Docker Hub (main branch)
-  docker-build-test.yml # CI/CD: build + push test image (test branch)
+  docker-build.yml      # CI/CD: build + push multi-arch image to Docker Hub (every branch)
+  export-alerts.yml     # Manual export of code-scanning alerts as an artifact
 ```
 
 ---
@@ -114,15 +114,24 @@ These are non-negotiable — do not remove or weaken them:
 Workflows live in `.github/workflows/`. Key conventions:
 
 - Secrets: `DOCKER_USERNAME` and `DOCKER_PASSWORD` (not `DOCKERHUB_*`)
-- Actions are SHA-pinned where possible, with version comment (e.g. `# v4.2.2`)
+- Actions are SHA-pinned where possible, with version comment (e.g. `# v7.0.1`)
 - Each job has `permissions: contents: read`; a global `permissions: contents: read` block sits above `jobs:`
 - Standard action versions in use:
-  - `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` # v4.2.2
-  - `docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772` # v3.4.0
-  - `docker/setup-qemu-action@v3` (SHA pin pending)
-  - `docker/setup-buildx-action@v3` (SHA pin pending)
-  - `docker/build-push-action@v6` (SHA pin pending)
+  - `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` # v7.0.1
+  - `docker/login-action@dbcb813823bdd20940b903addbd779551569679f` # v4.6.0
+  - `actions/cache/restore@v5` / `actions/cache/save@v5` (SHA pin pending)
+  - `docker/setup-qemu-action@v4` (SHA pin pending)
+  - `docker/setup-buildx-action@v4` (SHA pin pending)
+  - `docker/build-push-action@v7` (SHA pin pending)
   - `peter-evans/dockerhub-description@v5` (SHA pin pending)
+
+**One workflow covers every branch.** `docker-build.yml` triggers on `push` to `'**'` plus `workflow_dispatch`; there is deliberately no `pull_request` trigger, because a fork PR cannot read the Docker Hub secrets and would only ever fail at the push step. There is no `paths-ignore` either: the point is a published image for every commit.
+
+- The `check` job caches `last_commit.txt` per branch (`actions/cache`) and sets `skip=true` when the current SHA was already built, so re-running a workflow does not rebuild and re-push the same commit. A `workflow_dispatch` always overrides the skip.
+- It also composes the whole tag list, as a multi-line step output consumed by `build-and-push` as `needs.check.outputs.tags`. Keeping tag composition in one shell step rather than in the `tags:` block is what makes the main-only `latest` a two-line conditional instead of a YAML expression per tag.
+- `update-dockerhub-description` is gated on `github.ref_name == 'main'`. Without that gate, pushing any branch would rewrite the public Docker Hub description from that branch's README.
+- `audit` (pip-audit) gates the build, so a known CVE in Flask/Pillow/requests stops the image from being published on any branch.
+- Both architectures build ImageMagick from source and arm64 runs under QEMU, so this workflow is slow by nature. `cache-from/to: type=gha` is what keeps a second push to the same branch from paying the full compile again; expect the first build on a new branch to be long.
 
 ---
 
@@ -130,7 +139,7 @@ Workflows live in `.github/workflows/`. Key conventions:
 
 - Account: `tiritibambix`
 - Image: `tiritibambix/imaguick`
-- Tags: `latest` (main branch), `test` (test branch), short Git SHA
+- Tags: every branch publishes `<branch>-latest`, `<branch>-<short-sha>` and `<branch>-<YYYYMMDD>`; `main` additionally keeps the bare `latest`, because `docker-compose.yml` and the README both pull it by name. Branch names are sanitised to the Docker tag charset (`feat/café#2` → `feat-caf-2`), and a name starting with a separator is prefixed, since a tag may not
 
 ---
 
