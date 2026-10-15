@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_resize_form_fields.html" import pixel_check_pills, quality_field, format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field, denoise_block, transform_fields, effect_fields, upscale_field, watermark_fields %}
+{% from "_resize_form_fields.html" import stage, group_import, group_size, group_frame, group_repair, group_tone, group_look, group_watermark, group_output, options_script %}
 
 {% block title %}Batch resize — {{ files | length }} files{% endblock %}
 
@@ -20,81 +20,53 @@
         <span class="badge">{{ files | length }} files</span>
     </div>
 
-    <form action="/resize_batch" method="post">
+    <form action="/resize_batch" method="post" class="options-form">
         <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
 
-        <div class="form-grid">
+        {{ stage(1, 'Source', 'read before anything else') }}
+        {{ group_import('batch_') }}
 
-            <div class="section-block">
-                <div class="section-title">By pixels</div>
-                <div class="dim-row">
-                    <div class="form-group" style="margin-bottom:0">
-                        <label for="batch_width">Width</label>
-                        <input type="number" name="width" id="batch_width" min="1" max="10000" placeholder="px">
-                    </div>
-                    <div class="dim-sep">×</div>
-                    <div class="form-group" style="margin-bottom:0">
-                        <label for="batch_height">Height</label>
-                        <input type="number" name="height" id="batch_height" min="1" max="10000" placeholder="px">
-                    </div>
-                </div>
-                {{ pixel_check_pills('batch_') }}
-            </div>
+        {{ stage(2, 'Actions', 'applied in this order, to every image') }}
+        {{ group_size(0, 0, 10000, 'batch_') }}
+        {{ group_frame('batch_', false) }}
+        {{ group_repair('batch_') }}
+        {{ group_tone('batch_') }}
+        {{ group_look('batch_') }}
+        {{ group_watermark('batch_') }}
 
-            <div class="section-block">
-                <div class="section-title">By percentage</div>
-                <div class="form-group">
-                    <label for="batch_percentage">Scale (%)</label>
-                    <input type="number" name="percentage" id="batch_percentage" min="1" max="1000" step="0.1" placeholder="e.g. 50">
-                </div>
-                <small>Applies to each image individually</small>
-            </div>
+        {{ stage(3, 'Output') }}
+        {{ group_output(formats, defaults.quality if defaults else '100',
+                        'Convert all to format', 'Keep original formats', 'batch_') }}
 
-            <div class="section-block col-full">
-                <div class="section-title">Additional options</div>
+        {% set ns = namespace(has_raw=false) %}
+        {% for f in files %}
+            {% set ext = f.lower().split('.')[-1] %}
+            {% if ext in ['arw', 'dng', 'cr2', 'cr3', 'nef', 'raf', 'rw2'] %}
+                {% set ns.has_raw = true %}
+            {% endif %}
+        {% endfor %}
+        {% if ns.has_raw %}
+        <div class="format-note accent">
+            <svg class="icon"><use href="#icon-info"></use></svg>
+            <span>
+                <strong>RAW files detected in batch.</strong>
+                ImageMagick cannot produce proper compressed DNG output.
+                <strong>TIFF 16-bit</strong> is recommended to preserve full quality,
+                or <strong>JPEG / WEBP</strong> for smaller delivery files.
+            </span>
+        </div>
+        {% endif %}
 
-                {{ quality_field(defaults.quality if defaults else '100') }}
-
-                {{ framing_fields('batch_') }}
-
-                {{ transform_fields('batch_') }}
-
-                {{ upscale_field() }}
-
-                {{ density_field('batch_') }}
-
-                {{ auto_level_gamma_pills() }}
-
-                {{ denoise_block() }}
-
-                {{ effect_fields() }}
-
-                {{ sharpen_block('batch_use_sharpen') }}
-
-                {{ watermark_fields('batch_') }}
-
-                {% set ns = namespace(has_raw=false) %}
-                {% for f in files %}
-                    {% set ext = f.lower().split('.')[-1] %}
-                    {% if ext in ['arw', 'dng', 'cr2', 'cr3', 'nef', 'raf', 'rw2'] %}
-                        {% set ns.has_raw = true %}
-                    {% endif %}
-                {% endfor %}
-                {% if ns.has_raw %}
-                <div class="format-note accent" style="margin-bottom: var(--sp-md);">
-                    <svg class="icon"><use href="#icon-info"></use></svg>
-                    <span>
-                        <strong>RAW files detected in batch.</strong>
-                        ImageMagick cannot produce proper compressed DNG output.
-                        <strong>TIFF 16-bit</strong> is recommended to preserve full quality,
-                        or <strong>JPEG / WEBP</strong> for smaller delivery files.
-                    </span>
-                </div>
-                {% endif %}
-                {% if batch_info or image_types %}
+        {% if batch_info or image_types %}
+        <details class="opt-group">
+            <summary>
+                <span class="og-title">Batch contents</span>
+                <span class="og-sum">{{ files | length }} files</span>
+                <svg class="icon og-chev"><use href="#icon-chevron-down"></use></svg>
+            </summary>
+            <div class="og-body">
                 <div class="batch-info-panel">
                     {% if batch_info %}
-                    <div class="section-title">Batch contents</div>
                     <ul>
                         {% if batch_info.has_transparency %}<li>Images with transparency</li>{% endif %}
                         {% if batch_info.has_photos %}<li>Photographic images</li>{% endif %}
@@ -102,7 +74,6 @@
                     </ul>
                     {% endif %}
                     {% if image_types %}
-                    <div class="section-title" style="margin-top: var(--sp-md);">Per-image details</div>
                     <ul>
                         {% for img in image_types %}
                         <li>
@@ -115,29 +86,18 @@
                     </ul>
                     {% endif %}
                 </div>
-                {% endif %}
-
-                {{ format_field(formats, 'Convert all to format', 'Keep original formats') }}
             </div>
+        </details>
+        {% endif %}
 
-        </div>
-
-        <div class="submit-area">
-            <button type="submit" class="btn btn-primary btn-full">Resize batch</button>
+        <div class="run-bar">
+            <span class="run-sum" data-run-summary></span>
+            <button type="submit" class="btn btn-primary">Resize batch</button>
         </div>
     </form>
 
 </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const keepRatio  = document.getElementById('batch_keep_ratio');
-    const widthInput = document.getElementById('batch_width');
-    const heiInput   = document.getElementById('batch_height');
-    keepRatio.addEventListener('change', () => {
-        if (!keepRatio.checked) { widthInput.value = ''; heiInput.value = ''; }
-    });
-});
-</script>
+{{ options_script() }}
 {% endblock %}

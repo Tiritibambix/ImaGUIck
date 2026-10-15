@@ -109,6 +109,18 @@ ALLOWED_DENSITIES = {'72', '150', '300', '600'}
 # Aspect ratios offered for centred cropping, as (width, height) multipliers.
 ALLOWED_CROP_RATIOS = {'1:1': (1, 1), '4:3': (4, 3), '3:2': (3, 2), '16:9': (16, 9)}
 
+# The resize modes are mutually exclusive branches in build_imagemagick_command(),
+# so the form sends which one is active and extract_processing_params() lets only
+# that mode's fields through. Offering them as independent controls is what used
+# to let a typed percentage be dropped when a preset was also ticked.
+ALLOWED_SIZE_MODES = {'keep', 'pixels', 'percent', 'fit', 'enlarge'}
+ALLOWED_FIT_PRESETS = {'1080', '1920'}
+
+# Cropping has the same shape of problem: a ratio and an explicit region are
+# exclusive in the builder, which silently preferred the region. The form now
+# says which one is meant.
+ALLOWED_CROP_MODES = {'none', 'ratio', 'region'}
+
 # Right angles only. A free angle would need a -background fill for the corners
 # it exposes, which is a different feature; these three are lossless reframings.
 ALLOWED_ROTATIONS = {'90', '180', '270'}
@@ -842,12 +854,50 @@ def modulate_component(form, field):
         return 100
 
 
+def resolve_size_mode(form):
+    """Which resize mode the form asked for, as (mode, fit_preset).
+
+    Exactly one mode may be active, because the builder treats them as
+    exclusive branches. The form now says which one; when the field is absent
+    the mode is inferred from whichever fields carry a value, in the builder's
+    own precedence order, so a page left open across a deploy still resizes
+    instead of silently doing nothing.
+    """
+    raw = form.get('size_mode', '').strip().lower()
+    if raw:
+        mode = canonical_value(raw, ALLOWED_SIZE_MODES, 'keep')
+        preset = canonical_value(form.get('fit_preset', '').strip(), ALLOWED_FIT_PRESETS)
+        return mode, preset
+
+    if form.get('upscale'):
+        return 'enlarge', ''
+    if form.get('use_1080p'):
+        return 'fit', '1080'
+    if form.get('use_1920p'):
+        return 'fit', '1920'
+    if form.get('percentage'):
+        return 'percent', ''
+    if form.get('width') or form.get('height'):
+        return 'pixels', ''
+    return 'keep', ''
+
+
 def extract_processing_params(form):
     """Extract all image processing parameters from a form."""
     output_format = canonical_value(form.get('format', '').upper().strip(), ALLOWED_OUTPUT_FORMATS)
 
-    raw_sharpen = form.get('sharpen_level', 'standard').strip().lower()
-    sharpen_level = raw_sharpen if raw_sharpen in ALLOWED_SHARPEN_LEVELS else 'standard'
+    # Sharpening is one control now: the level is the switch, so there is no
+    # "enabled but no level" state left for the server to resolve. A form that
+    # still sends the old use_sharpen checkbox keeps deciding, so a page left
+    # open across a deploy behaves as its author intended.
+    raw_sharpen = form.get('sharpen_level', '').strip().lower()
+    sharpen_level = raw_sharpen if raw_sharpen in ALLOWED_SHARPEN_LEVELS else ''
+    if 'use_sharpen' in form:
+        use_sharpen = form.get('use_sharpen') == 'on'
+    else:
+        use_sharpen = bool(sharpen_level)
+
+    size_mode, fit_preset = resolve_size_mode(form)
 
     raw_background = form.get('background_color', 'white').strip().lower()
     background_color = (canonical_value(raw_background, ALLOWED_BACKGROUND_COLORS)
@@ -857,6 +907,19 @@ def extract_processing_params(form):
 
     raw_ratio = form.get('crop_ratio', '').strip()
     crop_ratio = raw_ratio if raw_ratio in ALLOWED_CROP_RATIOS else ''
+
+    # Same treatment as the size modes: only the chosen crop's fields survive.
+    # With no crop_mode field (an older page) the mode is inferred, keeping the
+    # builder's own precedence of region over ratio.
+    raw_crop_mode = form.get('crop_mode', '').strip().lower()
+    if raw_crop_mode:
+        crop_mode = canonical_value(raw_crop_mode, ALLOWED_CROP_MODES, 'none')
+    elif form.get('crop_w') or form.get('crop_h'):
+        crop_mode = 'region'
+    elif crop_ratio:
+        crop_mode = 'ratio'
+    else:
+        crop_mode = 'none'
 
     raw_clahe = form.get('clahe_level', 'standard').strip().lower()
     clahe_level = raw_clahe if raw_clahe in ALLOWED_CLAHE_LEVELS else 'standard'
@@ -880,22 +943,29 @@ def extract_processing_params(form):
         form.get('watermark_font', '').strip(), WATERMARK_FONTS, 'DejaVu-Sans')
 
     return {
-        'width': form.get('width', DEFAULTS['width']),
-        'height': form.get('height', DEFAULTS['height']),
-        'percentage': form.get('percentage', DEFAULTS['percentage']),
+        # Only the active mode's fields are let through. The builder's branches
+        # are exclusive, and this is the one place form input enters, so this
+        # is where the exclusivity is enforced rather than hoped for.
+        'size_mode': size_mode,
+        'width': form.get('width', DEFAULTS['width']) if size_mode == 'pixels' else '',
+        'height': form.get('height', DEFAULTS['height']) if size_mode == 'pixels' else '',
+        'percentage': form.get('percentage', DEFAULTS['percentage']) if size_mode == 'percent' else '',
         'quality': form.get('quality', DEFAULTS['quality']),
-        'keep_ratio': 'keep_ratio' in form,
+        'keep_ratio': ('keep_ratio' in form) and size_mode == 'pixels',
         'output_format': output_format,
         'auto_level': form.get('auto_level') == 'on',
         'auto_gamma': form.get('auto_gamma') == 'on',
-        'use_1080p': form.get('use_1080p') == 'on',
-        'use_1920p': form.get('use_1920p') == 'on',
-        'use_sharpen': form.get('use_sharpen') == 'on',
-        'sharpen_level': sharpen_level,
+        'use_1080p': size_mode == 'fit' and fit_preset == '1080',
+        'use_1920p': size_mode == 'fit' and fit_preset == '1920',
+        'use_sharpen': use_sharpen,
+        # The builder still takes a level; an empty one means 'not asked for',
+        # and use_sharpen above is what gates it.
+        'sharpen_level': sharpen_level or 'standard',
         'strip_metadata': form.get('strip_metadata') == 'on',
         'background_color': background_color,
         'density': density,
-        'crop_ratio': crop_ratio,
+        'crop_mode': crop_mode,
+        'crop_ratio': crop_ratio if crop_mode == 'ratio' else '',
         'use_clahe': form.get('use_clahe') == 'on',
         'clahe_level': clahe_level,
         'denoise_mode': denoise_mode,
@@ -908,13 +978,13 @@ def extract_processing_params(form):
         'flip_v': form.get('flip_v') == 'on',
         'effect': effect,
         'blur_level': blur_level,
-        'upscale': upscale,
+        'upscale': upscale if size_mode == 'enlarge' else '',
         # Raw on purpose: the crop box is parsed and bounds-checked against the
         # source inside explicit_crop_box(), which needs the file to do it.
-        'crop_w': form.get('crop_w', ''),
-        'crop_h': form.get('crop_h', ''),
-        'crop_x': form.get('crop_x', ''),
-        'crop_y': form.get('crop_y', ''),
+        'crop_w': form.get('crop_w', '') if crop_mode == 'region' else '',
+        'crop_h': form.get('crop_h', '') if crop_mode == 'region' else '',
+        'crop_x': form.get('crop_x', '') if crop_mode == 'region' else '',
+        'crop_y': form.get('crop_y', '') if crop_mode == 'region' else '',
         'watermark_text': safe_watermark_text(form.get('watermark_text', '')),
         'watermark_position': watermark_position,
         'watermark_size': form.get('watermark_size', '24'),
@@ -1216,50 +1286,51 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         # of the -unsharp above, which precedes it on purpose.
         command.extend(['-unsharp', UPSCALE_UNSHARP])
 
-    if use_1920p and not upscale_value:
-        command.extend(['-resize', '1920x1920>'])
-
-    if use_1080p and not upscale_value:
+    # 1080p before 1920p: with the shrink-only `>` the smaller box is what
+    # applies anyway, and the chain makes that explicit instead of emitting two
+    # -resize flags and letting ImageMagick resolve it.
+    elif use_1080p:
         command.extend(['-resize', '1080x1080>'])
-    elif not upscale_value:
-        if percentage:
-            try:
-                pct = float(percentage)
-                src_width, src_height = get_image_dimensions(filepath)
-                if src_width and src_height:
-                    if src_width * pct / 100 > MAX_DIMENSION or src_height * pct / 100 > MAX_DIMENSION:
-                        return refuse(f"A {pct}% resize would take this image past the {MAX_DIMENSION}px limit")
-                resize_value = f"{pct}%"
-                command.extend(['-resize', resize_value])
-            except ValueError:
-                return refuse('The scale percentage is not a number')
-        elif width or height:
-            # Parsed into names of their own rather than over the parameters:
-            # the guards below mean an unconverted value could never actually
-            # reach the geometry string, but nothing in the code says so, which
-            # is both why it is reported as a tainted command argument and why
-            # jpeg_decode_hint() parses into its own names too.
-            target_width = resize_dimension(width)
-            target_height = resize_dimension(height)
-            if target_width is None or target_height is None:
-                return refuse('Width and height must be whole numbers')
-            if target_width > MAX_DIMENSION:
-                return refuse(f"Requested width {target_width}px is over the {MAX_DIMENSION}px limit")
-            if target_height > MAX_DIMENSION:
-                return refuse(f"Requested height {target_height}px is over the {MAX_DIMENSION}px limit")
+    elif use_1920p:
+        command.extend(['-resize', '1920x1920>'])
+    elif percentage:
+        try:
+            pct = float(percentage)
+            src_width, src_height = get_image_dimensions(filepath)
+            if src_width and src_height:
+                if src_width * pct / 100 > MAX_DIMENSION or src_height * pct / 100 > MAX_DIMENSION:
+                    return refuse(f"A {pct}% resize would take this image past the {MAX_DIMENSION}px limit")
+            resize_value = f"{pct}%"
+            command.extend(['-resize', resize_value])
+        except ValueError:
+            return refuse('The scale percentage is not a number')
+    elif width or height:
+        # Parsed into names of their own rather than over the parameters:
+        # the guards below mean an unconverted value could never actually
+        # reach the geometry string, but nothing in the code says so, which
+        # is both why it is reported as a tainted command argument and why
+        # jpeg_decode_hint() parses into its own names too.
+        target_width = resize_dimension(width)
+        target_height = resize_dimension(height)
+        if target_width is None or target_height is None:
+            return refuse('Width and height must be whole numbers')
+        if target_width > MAX_DIMENSION:
+            return refuse(f"Requested width {target_width}px is over the {MAX_DIMENSION}px limit")
+        if target_height > MAX_DIMENSION:
+            return refuse(f"Requested height {target_height}px is over the {MAX_DIMENSION}px limit")
 
-            resize_value = ''
-            if target_width and target_height:
-                resize_value = f"{target_width}x{target_height}"
-                if keep_ratio:
-                    resize_value += '>'
-            elif target_width:
-                resize_value = f"{target_width}"
-            elif target_height:
-                resize_value = f"x{target_height}"
+        resize_value = ''
+        if target_width and target_height:
+            resize_value = f"{target_width}x{target_height}"
+            if keep_ratio:
+                resize_value += '>'
+        elif target_width:
+            resize_value = f"{target_width}"
+        elif target_height:
+            resize_value = f"x{target_height}"
 
-            if resize_value:
-                command.extend(['-resize', resize_value])
+        if resize_value:
+            command.extend(['-resize', resize_value])
 
     if ext in OPAQUE_OUTPUT_FORMATS:
         # These formats carry no alpha channel, so transparency has to be

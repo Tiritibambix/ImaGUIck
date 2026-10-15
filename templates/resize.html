@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_resize_form_fields.html" import pixel_check_pills, quality_field, format_field, auto_level_gamma_pills, sharpen_block, framing_fields, density_field, denoise_block, transform_fields, effect_fields, upscale_field, crop_box_fields, watermark_fields %}
+{% from "_resize_form_fields.html" import stage, group_import, group_size, group_frame, group_repair, group_tone, group_look, group_watermark, group_output, options_script %}
 
 {% block title %}Resize — {{ filename }}{% endblock %}
 
@@ -20,134 +20,67 @@
         <span class="page-header-meta">{{ width }}&times;{{ height }}px</span>
     </div>
 
-    <form action="/resize/{{ filename }}" method="post">
-        <div class="form-grid">
+    {% set is_vector = filename.lower().split('.')[-1] in ['svg', 'pdf', 'eps', 'ai'] %}
+    {% set is_raw = filename.lower().split('.')[-1] in ['arw', 'dng', 'cr2', 'cr3', 'nef', 'raf', 'rw2'] %}
+    {% set max_dim = max_dimension if max_dimension else 10000 %}
 
-            <div class="section-block">
-                <div class="section-title">By pixels</div>
-                <div class="dim-row">
-                    <div class="form-group" style="margin-bottom:0">
-                        <label for="width">Width</label>
-                        <input type="number" name="width" id="width" min="1" max="10000"
-                               placeholder="{{ width }}"
-                               data-original-width="{{ width }}"
-                               data-original-height="{{ height }}">
-                    </div>
-                    <div class="dim-sep">×</div>
-                    <div class="form-group" style="margin-bottom:0">
-                        <label for="height">Height</label>
-                        <input type="number" name="height" id="height" min="1" max="10000"
-                               placeholder="{{ height }}"
-                               data-original-width="{{ width }}"
-                               data-original-height="{{ height }}">
-                    </div>
-                </div>
-                {{ pixel_check_pills() }}
-            </div>
+    <form action="/resize/{{ filename }}" method="post" class="options-form">
 
-            <div class="section-block">
-                <div class="section-title">By percentage</div>
-                <div class="form-group">
-                    <label for="percentage">Scale (%)</label>
-                    <input type="number" name="percentage" id="percentage" min="1" max="1000" step="0.1" placeholder="e.g. 50">
-                </div>
-                <small>Original: {{ width }} &times; {{ height }} pixels</small>
-            </div>
+        {% if is_vector %}
+        {{ stage(1, 'Source', 'read before anything else') }}
+        {{ group_import() }}
+        {% endif %}
 
-            <div class="section-block col-full">
-                <div class="section-title">Additional options</div>
+        {{ stage(2 if is_vector else 1, 'Actions', 'applied in this order') }}
+        {{ group_size(width, height, max_dim) }}
+        {{ group_frame() }}
+        {{ group_repair() }}
+        {{ group_tone() }}
+        {{ group_look() }}
+        {{ group_watermark() }}
 
-                {{ quality_field(defaults.quality if defaults else '100') }}
+        {{ stage(3 if is_vector else 2, 'Output') }}
+        {{ group_output(formats, defaults.quality if defaults else '100') }}
 
-                {{ framing_fields() }}
-
-                {{ crop_box_fields() }}
-
-                {{ transform_fields() }}
-
-                {{ upscale_field(width, height, max_dimension if max_dimension else 10000) }}
-
-                {% set is_vector = filename.lower().split('.')[-1] in ['svg', 'pdf', 'eps', 'ai'] %}
-                {% if is_vector %}
-                {{ density_field() }}
-                {% endif %}
-
-                {{ auto_level_gamma_pills() }}
-
-                {{ denoise_block() }}
-
-                {{ effect_fields() }}
-
-                {{ sharpen_block('use_sharpen') }}
-
-                {{ watermark_fields() }}
-
-                {% set is_raw = filename.lower().split('.')[-1] in ['arw', 'dng', 'cr2', 'cr3', 'nef', 'raf', 'rw2'] %}
-                {% if is_raw %}
-                <div class="format-note accent">
-                    <svg class="icon"><use href="#icon-info"></use></svg>
-                    <span>
-                        <strong>RAW file detected.</strong>
-                        ImageMagick cannot produce a proper compressed DNG output.
-                        <strong>TIFF 16-bit</strong> is recommended to preserve full quality,
-                        or <strong>JPEG / WEBP</strong> for a smaller delivery file.
-                    </span>
-                </div>
-                {% elif image_type %}
-                <div class="format-note">
-                    <svg class="icon"><use href="#icon-info"></use></svg>
-                    <span>
-                        {% if image_type.has_transparency %}Contains transparency. &nbsp;{% endif %}
-                        {% if image_type.is_photo %}Photographic image detected.{% else %}Graphic image detected.{% endif %}
-                    </span>
-                </div>
-                {% endif %}
-
-                {% if image_type and image_type.is_animated %}
-                <div class="format-note accent">
-                    <svg class="icon"><use href="#icon-images"></use></svg>
-                    <span>
-                        <strong>Animated file detected</strong> ({{ image_type.n_frames }} frames).
-                        Resizing here processes each frame independently without animation-specific optimization.
-                        <a href="{{ url_for('gif_edit_options', filename=filename) }}">Edit as animation instead &rarr;</a>
-                    </span>
-                </div>
-                {% endif %}
-
-                {{ format_field(formats, 'Output format', 'Keep original format') }}
-            </div>
-
+        {% if is_raw %}
+        <div class="format-note accent">
+            <svg class="icon"><use href="#icon-info"></use></svg>
+            <span>
+                <strong>RAW file detected.</strong>
+                ImageMagick cannot produce a proper compressed DNG output.
+                <strong>TIFF 16-bit</strong> is recommended to preserve full quality,
+                or <strong>JPEG / WEBP</strong> for a smaller delivery file.
+            </span>
         </div>
+        {% elif image_type %}
+        <div class="format-note">
+            <svg class="icon"><use href="#icon-info"></use></svg>
+            <span>
+                {% if image_type.has_transparency %}Contains transparency. &nbsp;{% endif %}
+                {% if image_type.is_photo %}Photographic image detected.{% else %}Graphic image detected.{% endif %}
+            </span>
+        </div>
+        {% endif %}
 
-        <div class="submit-area">
-            <button type="submit" class="btn btn-primary btn-full">Resize</button>
+        {% if image_type and image_type.is_animated %}
+        <div class="format-note accent">
+            <svg class="icon"><use href="#icon-images"></use></svg>
+            <span>
+                <strong>Animated file detected</strong> ({{ image_type.n_frames }} frames).
+                Resizing here processes each frame independently without animation-specific optimization.
+                <a href="{{ url_for('gif_edit_options', filename=filename) }}">Edit as animation instead &rarr;</a>
+            </span>
+        </div>
+        {% endif %}
+
+        <div class="run-bar">
+            <span class="run-sum" data-run-summary></span>
+            <button type="submit" class="btn btn-primary">Resize</button>
         </div>
     </form>
 
 </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const widthInput  = document.getElementById('width');
-    const heightInput = document.getElementById('height');
-    const keepRatio   = document.getElementById('keep_ratio');
-
-    function syncDimensions(changed, other) {
-        if (!keepRatio.checked) return;
-        const val = parseInt(changed.value, 10);
-        if (isNaN(val)) return;
-        const ow = parseInt(widthInput.dataset.originalWidth, 10);
-        const oh = parseInt(heightInput.dataset.originalHeight, 10);
-        const ratio = (changed.id === 'width') ? oh / ow : ow / oh;
-        other.value = Math.round(val * ratio);
-    }
-
-    widthInput.addEventListener('input',  () => syncDimensions(widthInput, heightInput));
-    heightInput.addEventListener('input', () => syncDimensions(heightInput, widthInput));
-    keepRatio.addEventListener('change', () => {
-        if (!keepRatio.checked) { widthInput.value = ''; heightInput.value = ''; }
-    });
-});
-</script>
+{{ options_script() }}
 {% endblock %}

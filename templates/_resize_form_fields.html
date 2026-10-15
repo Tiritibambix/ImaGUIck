@@ -1,316 +1,368 @@
+{#
+  Shared form vocabulary for the options pages.
+
+  Four primitives cover every decision, so a control's shape tells you what
+  kind of answer it wants:
+
+    segmented(...)  one of 2-5, exclusive
+    switch(...)     an independent on/off
+    number(...)     a magnitude, with its unit attached
+    <select>        one of many (used directly where there are too many)
+
+  Groups are <details>, in the order build_imagemagick_command() runs them.
+  Each group reports its own state in its summary line when shut, which is what
+  makes collapsing safe in a form with a single submit button.
+#}
+
 {% macro info_tip(text) %}<button type="button" class="tip" data-tip="{{ text }}" aria-label="More info"><svg class="icon"><use href="#icon-info"></use></svg></button>{% endmacro %}
 
-{% macro pixel_check_pills(id_prefix='') %}
-<div class="check-pills">
-    <label class="check-pill">
-        <input type="checkbox" name="keep_ratio" id="{{ id_prefix }}keep_ratio"> Keep ratio
-    </label>
-    <label class="check-pill">
-        <input type="checkbox" name="use_1080p" id="{{ id_prefix }}use_1080p"> 1080p
-        {{ info_tip("Resize to max 1080px on longest edge. Good for social media.") }}
-    </label>
-    <label class="check-pill">
-        <input type="checkbox" name="use_1920p" id="{{ id_prefix }}use_1920p"> 1920p
-        {{ info_tip("Resize to max 1920px on longest edge. Good for web.") }}
-    </label>
-</div>
-{% endmacro %}
+{# ---------- primitives ---------- #}
 
-{% macro quality_field(quality_value) %}
-<div class="form-group">
-    <label for="quality">Quality (1&ndash;100)</label>
-    <input type="number" name="quality" id="quality" min="1" max="100" value="{{ quality_value }}">
-</div>
-{% endmacro %}
-
-{% macro format_field(formats, format_label, format_placeholder) %}
-<div class="form-group">
-    <label for="format">{{ format_label }}</label>
-    <select name="format" id="format">
-        <option value="">{{ format_placeholder }}</option>
-        {% for category, info in formats.items() %}
-            {% if info.formats %}
-            <optgroup label="{{ info.name }}">
-                {% for format in info.formats %}
-                <option value="{{ format }}">{{ format }}</option>
-                {% endfor %}
-            </optgroup>
-            {% endif %}
+{% macro segmented(name, options, current='', label='', tip='', id_prefix='') %}
+{#  options: list of (value, text) or (value, text, disabled, title) #}
+<div class="field">
+    {% if label %}<span class="field-label">{{ label }}{% if tip %}{{ info_tip(tip) }}{% endif %}</span>{% endif %}
+    <div class="seg" role="radiogroup"{% if label %} aria-label="{{ label }}"{% endif %}>
+        {% for opt in options %}
+        {% set value = opt[0] %}
+        {% set text = opt[1] %}
+        {% set off = opt[2] if opt | length > 2 else false %}
+        {% set hint = opt[3] if opt | length > 3 else '' %}
+        <label class="seg-opt{% if off %} is-off{% endif %}"{% if hint %} title="{{ hint }}"{% endif %}>
+            <input type="radio" name="{{ name }}" value="{{ value }}"
+                   id="{{ id_prefix }}{{ name }}_{{ loop.index0 }}"
+                   {% if value == current %}checked{% endif %}{% if off %} disabled{% endif %}>
+            <span>{{ text }}</span>
+        </label>
         {% endfor %}
-    </select>
-</div>
-{% endmacro %}
-
-{% macro auto_level_gamma_pills() %}
-<div class="check-pills">
-    <label class="check-pill">
-        <input type="checkbox" name="auto_level" id="auto_level"> Auto-Level
-        {{ info_tip("Optimizes image levels for better dynamic range and contrast.") }}
-    </label>
-    <label class="check-pill">
-        <input type="checkbox" name="auto_gamma" id="auto_gamma"> Auto-Gamma
-        {{ info_tip("Intelligent gamma correction for balanced exposure.") }}
-    </label>
-    <label class="check-pill">
-        <input type="checkbox" name="strip_metadata" id="strip_metadata"> Remove metadata
-        {{ info_tip("Strips EXIF, GPS coordinates and colour profiles from the output. Orientation is applied before stripping, so the image stays the right way up.") }}
-    </label>
-</div>
-{% endmacro %}
-
-{% macro framing_fields(id_prefix='') %}
-<div class="options-row">
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}crop_ratio">Crop to ratio</label>
-        <select name="crop_ratio" id="{{ id_prefix }}crop_ratio">
-            <option value="">No crop</option>
-            <option value="1:1">1:1 &middot; square</option>
-            <option value="4:3">4:3</option>
-            <option value="3:2">3:2</option>
-            <option value="16:9">16:9 &middot; widescreen</option>
-        </select>
-        <small>Centred crop, applied before resizing.</small>
-    </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}background_color">Background when flattening</label>
-        <select name="background_color" id="{{ id_prefix }}background_color">
-            <option value="white">White</option>
-            <option value="black">Black</option>
-            <option value="gray">Gray</option>
-        </select>
-        <small>Used only when the output format has no transparency (JPEG, BMP&hellip;).</small>
     </div>
 </div>
 {% endmacro %}
 
-{% macro density_field(id_prefix='') %}
-<div class="form-group" style="margin-bottom:0">
-    <label for="{{ id_prefix }}density">Vector import density</label>
-    <select name="density" id="{{ id_prefix }}density">
-        <option value="">Default (72 dpi)</option>
-        <option value="150">150 dpi</option>
-        <option value="300">300 dpi</option>
-        <option value="600">600 dpi</option>
-    </select>
-    <small>Only affects SVG, PDF, EPS and AI sources, which rasterize soft at the default density.</small>
+{% macro switch(name, label, tip='', checked=false, id_prefix='') %}
+<label class="sw">
+    <input type="checkbox" name="{{ name }}" id="{{ id_prefix }}{{ name }}" {% if checked %}checked{% endif %}>
+    <span class="sw-track"></span>
+    <span class="sw-text">{{ label }}</span>
+    {%- if tip %}{{ info_tip(tip) }}{% endif %}
+</label>
+{% endmacro %}
+
+{% macro number(name, label, value='', min='', max='', unit='', placeholder='', tip='', id_prefix='') %}
+<div class="field">
+    <label class="field-label" for="{{ id_prefix }}{{ name }}">{{ label }}{% if tip %}{{ info_tip(tip) }}{% endif %}</label>
+    <span class="num">
+        <input type="number" name="{{ name }}" id="{{ id_prefix }}{{ name }}"
+               {% if min != '' %}min="{{ min }}"{% endif %}{% if max != '' %} max="{{ max }}"{% endif %}
+               {% if value != '' %} value="{{ value }}"{% endif %}
+               {% if placeholder %} placeholder="{{ placeholder }}"{% endif %}>
+        {% if unit %}<span class="num-unit">{{ unit }}</span>{% endif %}
+    </span>
 </div>
 {% endmacro %}
 
-{% macro clahe_block(checkbox_id) %}
-<div class="sharpen-block">
-    <label class="check-pill" style="margin:0; flex-shrink:0">
-        <input type="checkbox" name="use_clahe" id="{{ checkbox_id }}"> Local contrast
-        {{ info_tip("Adaptive contrast, tile by tile. Unlike Auto-Level, which stretches the whole image at once, this lifts a dark corner without blowing out an already-bright sky. Higher strength means more contrast and more visible noise.") }}
-    </label>
-    <div class="sharpen-intensity">
-        <span>Strength:</span>
-        <div class="intensity-options">
-            <label class="intensity-radio"><input type="radio" name="clahe_level" value="low"> Low</label>
-            <label class="intensity-radio"><input type="radio" name="clahe_level" value="standard" checked> Standard</label>
-            <label class="intensity-radio"><input type="radio" name="clahe_level" value="high"> High</label>
+{% macro text_field(name, label, value='', maxlength='', placeholder='', tip='', id_prefix='') %}
+<div class="field">
+    <label class="field-label" for="{{ id_prefix }}{{ name }}">{{ label }}{% if tip %}{{ info_tip(tip) }}{% endif %}</label>
+    <input type="text" class="txt" name="{{ name }}" id="{{ id_prefix }}{{ name }}"
+           {% if value %}value="{{ value }}"{% endif %}
+           {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+           {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}>
+</div>
+{% endmacro %}
+
+{# ---------- structure ---------- #}
+
+{% macro stage(index, title, hint='') %}
+<div class="stage">
+    <span class="stage-n">{{ index }}</span>
+    <span class="stage-t">{{ title }}</span>
+    {% if hint %}<span class="stage-h">{{ hint }}</span>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro option_group(title, open=false, id='') %}
+<details class="opt-group"{% if open %} open{% endif %}{% if id %} id="{{ id }}"{% endif %}>
+    <summary>
+        <span class="og-title">{{ title }}</span>
+        <span class="og-sum" data-group-summary></span>
+        <svg class="icon og-chev"><use href="#icon-chevron-down"></use></svg>
+    </summary>
+    <div class="og-body">{{ caller() }}</div>
+</details>
+{% endmacro %}
+
+{# ---------- the groups, in pipeline order ---------- #}
+
+{% macro group_import(id_prefix='') %}
+{% call option_group('Import') %}
+    {{ segmented('density', [('', 'Default'), ('150', '150 dpi'), ('300', '300 dpi'), ('600', '600 dpi')],
+                 '', 'Vector density',
+                 'Only affects SVG, PDF, EPS and AI sources, which rasterize soft at the default 72 dpi. A read-time setting, so it runs before anything else.',
+                 id_prefix) }}
+{% endcall %}
+{% endmacro %}
+
+{% macro group_size(src_width=0, src_height=0, max_dimension=10000, id_prefix='') %}
+{% call option_group('Size', true) %}
+    {{ segmented('size_mode',
+                 [('keep', 'Keep'), ('pixels', 'Pixels'), ('percent', 'Percent'),
+                  ('fit', 'Fit'), ('enlarge', 'Enlarge')],
+                 'keep', 'Mode',
+                 'One mode applies at a time. Picking one clears the others, so a value you typed can never be silently dropped.',
+                 id_prefix) }}
+
+    <div class="reveal" data-when="size_mode=pixels" hidden>
+        <div class="row">
+            {{ number('width', 'Width', '', 1, max_dimension, 'px', src_width or 'px', '', id_prefix) }}
+            <span class="row-x">&times;</span>
+            {{ number('height', 'Height', '', 1, max_dimension, 'px', src_height or 'px', '', id_prefix) }}
         </div>
+        {{ switch('keep_ratio', 'Lock aspect ratio', 'Fills in the other side from the source proportions.', true, id_prefix) }}
     </div>
-</div>
+
+    <div class="reveal" data-when="size_mode=percent" hidden>
+        {{ number('percentage', 'Scale', '', 1, 1000, '%', 'e.g. 50', '', id_prefix) }}
+        {% if src_width and src_height %}<p class="hint">Source is {{ src_width }} &times; {{ src_height }} px.</p>{% endif %}
+    </div>
+
+    <div class="reveal" data-when="size_mode=fit" hidden>
+        {{ segmented('fit_preset', [('1080', '1080 px'), ('1920', '1920 px')], '1080', 'Longest edge',
+                     'Shrink-only: an image already smaller than the box is left alone.', id_prefix) }}
+    </div>
+
+    <div class="reveal" data-when="size_mode=enlarge" hidden>
+        {% set known = src_width and src_height %}
+        {{ segmented('upscale',
+                     [('2x', '2&times;', known and (src_width * 2 > max_dimension or src_height * 2 > max_dimension),
+                       '%s x %s px' % (src_width * 2, src_height * 2) if known else ''),
+                      ('3x', '3&times;', known and (src_width * 3 > max_dimension or src_height * 3 > max_dimension),
+                       '%s x %s px' % (src_width * 3, src_height * 3) if known else ''),
+                      ('4x', '4&times;', known and (src_width * 4 > max_dimension or src_height * 4 > max_dimension),
+                       '%s x %s px' % (src_width * 4, src_height * 4) if known else '')],
+                     '', 'Factor',
+                     'A Lanczos resample followed by a light sharpen. Meant for small images.', id_prefix) }}
+        {% if known %}
+        <p class="hint">Source is {{ src_width }} &times; {{ src_height }} px. Factors that would pass {{ max_dimension }} px per side are struck through.</p>
+        {% else %}
+        <p class="hint">Applied per image. Any image too large for the factor is reported individually, with its size.</p>
+        {% endif %}
+    </div>
+{% endcall %}
 {% endmacro %}
 
-{% macro denoise_block() %}
-<div class="sharpen-block">
-    <div class="sharpen-intensity">
-        <span>Noise reduction:</span>
-        <div class="intensity-options">
-            <label class="intensity-radio"><input type="radio" name="denoise_mode" value="" checked> None</label>
-            <label class="intensity-radio"><input type="radio" name="denoise_mode" value="despeckle"> Despeckle</label>
-            <label class="intensity-radio"><input type="radio" name="denoise_mode" value="enhance"> Smooth</label>
-            <label class="intensity-radio"><input type="radio" name="denoise_mode" value="kuwahara"> Edge-preserving</label>
+{% macro group_frame(id_prefix='', allow_region=true) %}
+{% call option_group('Frame') %}
+    {{ segmented('rotation', [('', 'None'), ('90', '90&deg;'), ('180', '180&deg;'), ('270', '270&deg;')],
+                 '', 'Rotate', 'Right angles only. Runs before the crop, so the crop box frames the rotated image.', id_prefix) }}
+    <div class="row">
+        {{ switch('flip_h', 'Mirror horizontally', '', false, id_prefix) }}
+        {{ switch('flip_v', 'Mirror vertically', '', false, id_prefix) }}
+    </div>
+    {% set crop_options = [('none', 'None'), ('ratio', 'Ratio')] %}
+    {% if allow_region %}{% set crop_options = crop_options + [('region', 'Region')] %}{% endif %}
+    {{ segmented('crop_mode', crop_options, 'none', 'Crop',
+                 'A ratio crops centred; a region takes explicit offsets. One or the other, never both.'
+                 if allow_region else
+                 'Centred on each image. An explicit region needs one known size, so it is offered on single images only.',
+                 id_prefix) }}
+    <div class="reveal" data-when="crop_mode=ratio" hidden>
+        {{ segmented('crop_ratio', [('1:1', '1:1'), ('4:3', '4:3'), ('3:2', '3:2'), ('16:9', '16:9')],
+                     '1:1', 'Aspect', '', id_prefix) }}
+    </div>
+    {% if allow_region %}
+    <div class="reveal" data-when="crop_mode=region" hidden>
+        <div class="row">
+            {{ number('crop_w', 'Width', '', 1, 10000, 'px', 'px', '', id_prefix) }}
+            {{ number('crop_h', 'Height', '', 1, 10000, 'px', 'px', '', id_prefix) }}
+            {{ number('crop_x', 'Offset X', 0, 0, 10000, 'px', '', '', id_prefix) }}
+            {{ number('crop_y', 'Offset Y', 0, 0, 10000, 'px', '', '', id_prefix) }}
         </div>
-        {{ info_tip("Despeckle removes isolated speckles, Smooth averages out fine grain, Edge-preserving keeps outlines crisp but is slow and is refused on images above 16 megapixels.") }}
+        <p class="hint">The region must fit inside the image, or the file is refused with its size.</p>
     </div>
-    <div class="sharpen-intensity">
-        <span>Strength:</span>
-        <div class="intensity-options">
-            <label class="intensity-radio"><input type="radio" name="kuwahara_level" value="low"> Low</label>
-            <label class="intensity-radio"><input type="radio" name="kuwahara_level" value="standard" checked> Standard</label>
-            <label class="intensity-radio"><input type="radio" name="kuwahara_level" value="high"> High</label>
-        </div>
-    </div>
-</div>
-{% endmacro %}
-
-{% macro modulate_fields(id_prefix='') %}
-{# Three across: the shared .options-row grid is two columns, which would drop hue onto its own line. #}
-<div class="options-row" style="grid-template-columns: repeat(3, 1fr)">
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}modulate_brightness">Brightness</label>
-        <input type="number" name="modulate_brightness" id="{{ id_prefix }}modulate_brightness"
-               min="50" max="150" step="1" value="100">
-    </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}modulate_saturation">Saturation</label>
-        <input type="number" name="modulate_saturation" id="{{ id_prefix }}modulate_saturation"
-               min="0" max="200" step="1" value="100">
-    </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}modulate_hue">Hue</label>
-        <input type="number" name="modulate_hue" id="{{ id_prefix }}modulate_hue"
-               min="80" max="120" step="1" value="100">
-    </div>
-</div>
-<small>100 = unchanged. Leave all three at 100 and nothing is applied.</small>
-{% endmacro %}
-
-{% macro transform_fields(id_prefix='') %}
-<div class="sharpen-block">
-    <div class="sharpen-intensity">
-        <span>Rotate:</span>
-        <div class="intensity-options">
-            <label class="intensity-radio"><input type="radio" name="rotation" value="" checked> None</label>
-            <label class="intensity-radio"><input type="radio" name="rotation" value="90"> 90&deg;</label>
-            <label class="intensity-radio"><input type="radio" name="rotation" value="180"> 180&deg;</label>
-            <label class="intensity-radio"><input type="radio" name="rotation" value="270"> 270&deg;</label>
-        </div>
-        {{ info_tip("Right angles only. Applied before any crop, so the crop box frames the rotated image.") }}
-    </div>
-    <div class="check-pills" style="margin-top: var(--sp-sm)">
-        <label class="check-pill">
-            <input type="checkbox" name="flip_h" id="{{ id_prefix }}flip_h"> Mirror horizontally
-        </label>
-        <label class="check-pill">
-            <input type="checkbox" name="flip_v" id="{{ id_prefix }}flip_v"> Mirror vertically
-        </label>
-    </div>
-</div>
-{% endmacro %}
-
-{% macro effect_fields() %}
-<div class="sharpen-block">
-    <div class="sharpen-intensity">
-        <span>Effect:</span>
-        <div class="intensity-options">
-            <label class="intensity-radio"><input type="radio" name="effect" value="" checked> None</label>
-            <label class="intensity-radio"><input type="radio" name="effect" value="grayscale"> Grayscale</label>
-            <label class="intensity-radio"><input type="radio" name="effect" value="sepia"> Sepia</label>
-            <label class="intensity-radio"><input type="radio" name="effect" value="negate"> Negative</label>
-        </div>
-    </div>
-    <div class="sharpen-intensity">
-        <span>Blur:</span>
-        <div class="intensity-options">
-            <label class="intensity-radio"><input type="radio" name="blur_level" value="" checked> None</label>
-            <label class="intensity-radio"><input type="radio" name="blur_level" value="low"> Low</label>
-            <label class="intensity-radio"><input type="radio" name="blur_level" value="standard"> Standard</label>
-            <label class="intensity-radio"><input type="radio" name="blur_level" value="high"> High</label>
-        </div>
-        {{ info_tip("Applied after tonal corrections and before sharpening, so a deliberate blur is not undone.") }}
-    </div>
-</div>
-{% endmacro %}
-
-{% macro upscale_field(src_width=0, src_height=0, max_dimension=10000) %}
-{# When the source size is known (single image), each factor shows the size it
-   would produce and the impossible ones are disabled, so the refusal happens
-   here instead of as a per-file error after submitting. #}
-<div class="sharpen-block">
-    <div class="sharpen-intensity">
-        <span>Enlarge:</span>
-        <div class="intensity-options">
-            <label class="intensity-radio"><input type="radio" name="upscale" value="" checked> None</label>
-            {% for key, factor in [('2x', 2), ('3x', 3), ('4x', 4)] %}
-                {% set known = src_width and src_height %}
-                {% set fits = (not known) or (src_width * factor <= max_dimension and src_height * factor <= max_dimension) %}
-                <label class="intensity-radio{% if not fits %} is-disabled{% endif %}"
-                       {% if known %}title="{{ src_width * factor }} &times; {{ src_height * factor }} px{% if not fits %} (over the {{ max_dimension }} px limit){% endif %}"{% endif %}>
-                    <input type="radio" name="upscale" value="{{ key }}"{% if not fits %} disabled{% endif %}> {{ factor }}&times;
-                </label>
-            {% endfor %}
-        </div>
-        {{ info_tip("A Lanczos resample followed by a light sharpen. Takes precedence over the resize options above. Enlarging is meant for small images: a factor that would push either side past the limit is refused.") }}
-    </div>
-    {% if src_width and src_height %}
-    <small>Source is {{ src_width }} &times; {{ src_height }} px. Factors that would exceed {{ max_dimension }} px per side are greyed out.</small>
-    {% else %}
-    <small>Applied per image. Any image too large for the chosen factor is reported individually, with its size.</small>
     {% endif %}
-</div>
+{% endcall %}
 {% endmacro %}
 
-{% macro crop_box_fields(id_prefix='') %}
-<div class="section-title" style="margin-top: var(--sp-md)">Crop to a region</div>
-<div class="options-row" style="grid-template-columns: repeat(4, 1fr)">
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}crop_w">Width</label>
-        <input type="number" name="crop_w" id="{{ id_prefix }}crop_w" min="1" max="10000" placeholder="px">
+{% macro group_repair(id_prefix='') %}
+{% call option_group('Repair') %}
+    {{ segmented('denoise_mode',
+                 [('', 'None'), ('despeckle', 'Despeckle'), ('enhance', 'Smooth'), ('kuwahara', 'Edge-preserving')],
+                 '', 'Noise reduction',
+                 'Runs before the tonal corrections, which amplify whatever noise they are handed. Edge-preserving is slow and refused above 16 megapixels.',
+                 id_prefix) }}
+    <div class="reveal" data-when="denoise_mode=kuwahara" hidden>
+        {{ segmented('kuwahara_level', [('low', 'Low'), ('standard', 'Standard'), ('high', 'High')],
+                     'standard', 'Strength', '', id_prefix) }}
     </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}crop_h">Height</label>
-        <input type="number" name="crop_h" id="{{ id_prefix }}crop_h" min="1" max="10000" placeholder="px">
-    </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}crop_x">Offset X</label>
-        <input type="number" name="crop_x" id="{{ id_prefix }}crop_x" min="0" max="10000" value="0">
-    </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}crop_y">Offset Y</label>
-        <input type="number" name="crop_y" id="{{ id_prefix }}crop_y" min="0" max="10000" value="0">
-    </div>
-</div>
-<small>Leave width and height empty to use the aspect-ratio crop above instead. The region must fit inside the image.</small>
+{% endcall %}
 {% endmacro %}
 
-{% macro watermark_fields(id_prefix='') %}
-<div class="section-title" style="margin-top: var(--sp-md)">Text watermark</div>
-<div class="form-group">
-    <label for="{{ id_prefix }}watermark_text">Caption</label>
-    <input type="text" name="watermark_text" id="{{ id_prefix }}watermark_text"
-           maxlength="200" placeholder="Leave empty for no watermark">
-</div>
-<div class="options-row" style="grid-template-columns: auto 1fr 1fr 1fr">
-    <div class="form-group" style="margin-bottom:0">
-        <label>Position</label>
-        <div class="wm-grid">
-            {% for pos in ['northwest', 'north', 'northeast', 'west', 'center', 'east', 'southwest', 'south', 'southeast'] %}
-            <label class="wm-cell" title="{{ pos }}">
-                <input type="radio" name="watermark_position" value="{{ pos }}"
-                       {% if pos == 'southeast' %}checked{% endif %}>
-                <span></span>
-            </label>
-            {% endfor %}
+{% macro group_tone(id_prefix='') %}
+{% call option_group('Tone') %}
+    <div class="row">
+        {{ switch('auto_level', 'Auto-Level', 'Stretches the levels to the full range.', false, id_prefix) }}
+        {{ switch('auto_gamma', 'Auto-Gamma', 'Corrects exposure globally.', false, id_prefix) }}
+    </div>
+{% endcall %}
+{% endmacro %}
+
+{% macro group_look(id_prefix='') %}
+{% call option_group('Look') %}
+    {{ segmented('effect', [('', 'None'), ('grayscale', 'Mono'), ('sepia', 'Sepia'), ('negate', 'Negative')],
+                 '', 'Effect', '', id_prefix) }}
+    {{ segmented('blur_level', [('', 'None'), ('low', 'Low'), ('standard', 'Standard'), ('high', 'High')],
+                 '', 'Blur', 'Applied before sharpening, so a deliberate blur is not undone.', id_prefix) }}
+    {{ segmented('sharpen_level', [('', 'None'), ('low', 'Low'), ('standard', 'Standard'), ('high', 'High')],
+                 '', 'Sharpen', 'Unsharp mask, applied before the resize.', id_prefix) }}
+{% endcall %}
+{% endmacro %}
+
+{% macro group_watermark(id_prefix='') %}
+{% call option_group('Watermark') %}
+    {{ text_field('watermark_text', 'Caption', '', 200, 'Leave empty for none',
+                  'Drawn twice for a drop shadow, so it stays readable over light and dark areas. Applied after the resize, so the size is relative to the final image.',
+                  id_prefix) }}
+    <div class="reveal-text" data-when-filled="watermark_text" hidden>
+        <div class="row row-top">
+            <div class="field">
+                <span class="field-label">Position</span>
+                <div class="wm-grid">
+                    {% for pos in ['northwest', 'north', 'northeast', 'west', 'center', 'east', 'southwest', 'south', 'southeast'] %}
+                    <label class="wm-cell" title="{{ pos }}">
+                        <input type="radio" name="watermark_position" value="{{ pos }}" {% if pos == 'southeast' %}checked{% endif %}>
+                        <span></span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {{ number('watermark_size', 'Size', 24, 8, 200, 'pt', '', '', id_prefix) }}
+            {{ number('watermark_opacity', 'Opacity', 60, 10, 100, '%', '', '', id_prefix) }}
+            <div class="field">
+                <label class="field-label" for="{{ id_prefix }}watermark_font">Font</label>
+                <select name="watermark_font" id="{{ id_prefix }}watermark_font">
+                    <option value="DejaVu-Sans">Sans</option>
+                    <option value="DejaVu-Sans-Bold">Sans Bold</option>
+                    <option value="DejaVu-Serif">Serif</option>
+                </select>
+            </div>
         </div>
     </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}watermark_size">Size (8&ndash;200)</label>
-        <input type="number" name="watermark_size" id="{{ id_prefix }}watermark_size"
-               min="8" max="200" value="24">
-    </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}watermark_opacity">Opacity (10&ndash;100)</label>
-        <input type="number" name="watermark_opacity" id="{{ id_prefix }}watermark_opacity"
-               min="10" max="100" value="60">
-    </div>
-    <div class="form-group" style="margin-bottom:0">
-        <label for="{{ id_prefix }}watermark_font">Font</label>
-        <select name="watermark_font" id="{{ id_prefix }}watermark_font">
-            <option value="DejaVu-Sans">Sans</option>
-            <option value="DejaVu-Sans-Bold">Sans Bold</option>
-            <option value="DejaVu-Serif">Serif</option>
+{% endcall %}
+{% endmacro %}
+
+{% macro group_output(formats, quality_value='100', format_label='Output format', format_placeholder='Keep original format', id_prefix='') %}
+{% call option_group('Encoding', true) %}
+    <div class="field">
+        <label class="field-label" for="{{ id_prefix }}format">{{ format_label }}</label>
+        <select name="format" id="{{ id_prefix }}format">
+            <option value="">{{ format_placeholder }}</option>
+            {% for category, info in formats.items() %}
+                {% if info.formats %}
+                <optgroup label="{{ info.name }}">
+                    {% for format in info.formats %}
+                    <option value="{{ format }}">{{ format }}</option>
+                    {% endfor %}
+                </optgroup>
+                {% endif %}
+            {% endfor %}
         </select>
     </div>
-</div>
-<small>Drawn twice for a drop shadow, so it stays readable over light and dark areas. Applied after resizing, so the size is relative to the final image.</small>
+    <div class="row">
+        {{ number('quality', 'Quality', quality_value, 1, 100, 'q', '', '', id_prefix) }}
+        {{ switch('strip_metadata', 'Strip metadata', 'Removes EXIF, GPS coordinates and colour profiles. Orientation is applied first, so the image stays the right way up.', false, id_prefix) }}
+    </div>
+    {{ segmented('background_color', [('white', 'White'), ('black', 'Black'), ('gray', 'Gray')],
+                 'white', 'Flatten onto',
+                 'Used only when the output format has no transparency, such as JPEG or BMP.', id_prefix) }}
+{% endcall %}
 {% endmacro %}
 
-{% macro sharpen_block(checkbox_id) %}
-<div class="sharpen-block">
-    <label class="check-pill" style="margin:0; flex-shrink:0">
-        <input type="checkbox" name="use_sharpen" id="{{ checkbox_id }}"> Sharpen
-        {{ info_tip("Apply screen-optimized sharpening after resize.") }}
-    </label>
-    <div class="sharpen-intensity">
-        <span>Intensity:</span>
-        <div class="intensity-options">
-            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="low"> Low</label>
-            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="standard" checked> Standard</label>
-            <label class="intensity-radio"><input type="radio" name="sharpen_level" value="high"> High</label>
-        </div>
-    </div>
-</div>
+{# ---------- behaviour ---------- #}
+
+{% macro options_script() %}
+<script>
+(() => {
+    const form = document.querySelector('form.options-form');
+    if (!form) return;
+
+    // A block tagged data-when="field=value" is shown only while that field
+    // holds that value; data-when-filled="field" while the field is non-empty.
+    const reveals = [...form.querySelectorAll('[data-when], [data-when-filled]')];
+
+    function applyReveals() {
+        for (const el of reveals) {
+            const cond = el.dataset.when;
+            if (cond) {
+                const i = cond.indexOf('=');
+                const picked = form.querySelector(`[name="${cond.slice(0, i)}"]:checked`);
+                el.hidden = !picked || picked.value !== cond.slice(i + 1);
+            } else {
+                const src = form.querySelector(`[name="${el.dataset.whenFilled}"]`);
+                el.hidden = !src || !src.value.trim();
+            }
+        }
+    }
+
+    // Each group states what it is set to, so a shut group never hides an
+    // active setting. Only values the user actually changed are listed: the
+    // browser already remembers every control's default (defaultChecked,
+    // defaultValue, defaultSelected), so "Keep", "None" and a quality of 100
+    // stay silent instead of filling every summary with noise.
+    function summarise(group) {
+        const parts = [];
+        for (const el of group.querySelectorAll('input, select')) {
+            if (el.closest('[hidden]')) continue;
+            if (el.type === 'radio') {
+                if (el.checked && !el.defaultChecked && el.value) parts.push(label(el));
+            } else if (el.type === 'checkbox') {
+                if (el.checked !== el.defaultChecked) {
+                    parts.push(el.checked ? label(el) : 'no ' + label(el).toLowerCase());
+                }
+            } else if (el.tagName === 'SELECT') {
+                const def = [...el.options].find(o => o.defaultSelected) || el.options[0];
+                if (el.value && (!def || el.value !== def.value)) {
+                    parts.push(el.options[el.selectedIndex].text);
+                }
+            } else if (el.value.trim() && el.value.trim() !== el.defaultValue.trim()) {
+                // Scoped to this input's own .num wrapper. Searching the parent
+                // instead picks up a sibling field's unit, which appended "pt"
+                // to the watermark caption.
+                const wrap = el.closest('.num');
+                const unit = wrap && wrap.querySelector('.num-unit');
+                parts.push(el.value.trim() + (unit ? unit.textContent : ''));
+            }
+        }
+        return parts.join(' · ');
+    }
+
+    function label(el) {
+        const own = el.closest('label');
+        if (!own) return el.value;
+        const text = own.querySelector('.sw-text') || own.querySelector('span');
+        return (text ? text.textContent : own.textContent).trim();
+    }
+
+    function applySummaries() {
+        for (const group of form.querySelectorAll('.opt-group')) {
+            const slot = group.querySelector('[data-group-summary]');
+            if (!slot) continue;
+            const text = summarise(group);
+            slot.textContent = text;
+            group.classList.toggle('is-set', Boolean(text));
+        }
+        const bar = form.querySelector('[data-run-summary]');
+        if (bar) {
+            const all = [...form.querySelectorAll('.opt-group')]
+                .map(g => summarise(g)).filter(Boolean).join(' · ');
+            bar.textContent = all || 'No changes: the file is converted as-is';
+        }
+    }
+
+    function refresh() { applyReveals(); applySummaries(); }
+    form.addEventListener('input', refresh);
+    form.addEventListener('change', refresh);
+    refresh();
+})();
+</script>
 {% endmacro %}
