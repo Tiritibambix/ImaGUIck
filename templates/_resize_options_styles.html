@@ -194,6 +194,14 @@
 
     .intensity-radio input[type="radio"] { display: none; }
 
+    /* A choice the server would refuse anyway: shown, but not selectable, so
+       the constraint is visible rather than discovered after submitting. */
+    .intensity-radio.is-disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        text-decoration: line-through;
+    }
+
     /* 3x3 watermark placement picker: nine radios laid out as the image itself,
        so the control has the same shape as the thing it sets. */
     .wm-grid {

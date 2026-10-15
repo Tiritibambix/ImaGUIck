@@ -205,18 +205,31 @@
 </div>
 {% endmacro %}
 
-{% macro upscale_field() %}
+{% macro upscale_field(src_width=0, src_height=0, max_dimension=10000) %}
+{# When the source size is known (single image), each factor shows the size it
+   would produce and the impossible ones are disabled, so the refusal happens
+   here instead of as a per-file error after submitting. #}
 <div class="sharpen-block">
     <div class="sharpen-intensity">
         <span>Enlarge:</span>
         <div class="intensity-options">
             <label class="intensity-radio"><input type="radio" name="upscale" value="" checked> None</label>
-            <label class="intensity-radio"><input type="radio" name="upscale" value="2x"> 2&times;</label>
-            <label class="intensity-radio"><input type="radio" name="upscale" value="3x"> 3&times;</label>
-            <label class="intensity-radio"><input type="radio" name="upscale" value="4x"> 4&times;</label>
+            {% for key, factor in [('2x', 2), ('3x', 3), ('4x', 4)] %}
+                {% set known = src_width and src_height %}
+                {% set fits = (not known) or (src_width * factor <= max_dimension and src_height * factor <= max_dimension) %}
+                <label class="intensity-radio{% if not fits %} is-disabled{% endif %}"
+                       {% if known %}title="{{ src_width * factor }} &times; {{ src_height * factor }} px{% if not fits %} (over the {{ max_dimension }} px limit){% endif %}"{% endif %}>
+                    <input type="radio" name="upscale" value="{{ key }}"{% if not fits %} disabled{% endif %}> {{ factor }}&times;
+                </label>
+            {% endfor %}
         </div>
-        {{ info_tip("A Lanczos resample followed by a light sharpen. Takes precedence over the resize options above, and is refused if the result would exceed 10000px.") }}
+        {{ info_tip("A Lanczos resample followed by a light sharpen. Takes precedence over the resize options above. Enlarging is meant for small images: a factor that would push either side past the limit is refused.") }}
     </div>
+    {% if src_width and src_height %}
+    <small>Source is {{ src_width }} &times; {{ src_height }} px. Factors that would exceed {{ max_dimension }} px per side are greyed out.</small>
+    {% else %}
+    <small>Applied per image. Any image too large for the chosen factor is reported individually, with its size.</small>
+    {% endif %}
 </div>
 {% endmacro %}
 

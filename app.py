@@ -305,6 +305,43 @@ def safe_display_filename(filename, fallback='file'):
     return name or fallback
 
 
+class CommandRefused(RuntimeError):
+    """A command could not be built, carrying the reason.
+
+    Its message is authored by refuse() below, never taken from a tool's
+    output, which is why classify_processing_error() is allowed to show it
+    verbatim: none of these strings holds a path or an internal detail.
+    """
+
+
+_refusal = threading.local()
+
+
+def refuse(message):
+    """Log why a command cannot be built, remember it, and return None.
+
+    build_imagemagick_command() has fourteen refusal paths and its callers only
+    ever see `None`, so the reason used to reach the log and stop there: the
+    user got "Could not build ImageMagick command" whatever had happened. The
+    reason is kept on a thread-local because batch processing runs sixteen
+    workers against these builders at once, and each has to read back its own
+    refusal rather than the last one a sibling recorded.
+    """
+    _refusal.reason = message
+    app.logger.error(message)
+    return None
+
+
+def last_refusal_reason(default='Could not build the processing command'):
+    """The reason this thread last refused to build a command."""
+    return getattr(_refusal, 'reason', None) or default
+
+
+def clear_refusal_reason():
+    """Drop a stale reason, so a later failure cannot inherit an older one."""
+    _refusal.reason = None
+
+
 def safe_watermark_text(value):
     """The watermark caption, *contained* rather than escaped.
 
@@ -781,6 +818,10 @@ def classify_processing_error(exc, stderr=''):
     """Map a processing exception to a safe, specific user-facing message.
     The raw exception/stderr is always logged separately — this only controls
     what the end user sees, so it must never leak paths or internal details."""
+    if isinstance(exc, CommandRefused):
+        # Authored by refuse(), never taken from a tool's output, so it is safe
+        # to show verbatim — and it is the only specific thing we can say here.
+        return str(exc)
     if isinstance(exc, subprocess.TimeoutExpired):
         return 'Processing timed out. Try a smaller image, fewer frames, or lower quality.'
     text = (stderr or str(exc) or '').lower()
@@ -954,16 +995,13 @@ def explicit_crop_box(crop_w, crop_h, crop_x, crop_y, filepath):
     off_x = resize_dimension(crop_x)
     off_y = resize_dimension(crop_y)
     if box_w is None or box_h is None or off_x is None or off_y is None:
-        app.logger.error("Crop box is not made of integers")
-        return None
+        return refuse('The crop region must be given as whole numbers')
     if box_w < 1 or box_h < 1 or off_x < 0 or off_y < 0:
-        app.logger.error(f"Crop box {box_w}x{box_h}+{off_x}+{off_y} is not a positive region")
-        return None
+        return refuse(f"Crop box {box_w}x{box_h}+{off_x}+{off_y} is not a positive region")
     src_width, src_height = get_image_dimensions(filepath)
     if src_width and src_height and (off_x + box_w > src_width or off_y + box_h > src_height):
-        app.logger.error(
+        return refuse(
             f"Crop box {box_w}x{box_h}+{off_x}+{off_y} falls outside {src_width}x{src_height}")
-        return None
     return f'{box_w}x{box_h}+{off_x}+{off_y}'
 
 
@@ -983,8 +1021,7 @@ def build_watermark_args(text, position, size, opacity, font):
         points = max(size_low, min(size_high, int(size)))
         alpha_pct = max(op_low, min(op_high, int(opacity)))
     except (TypeError, ValueError):
-        app.logger.error("Watermark size/opacity are not integers")
-        return None
+        return refuse('Watermark size and opacity must be whole numbers')
     alpha = f'{alpha_pct / 100:.2f}'
     shadow = max(2, round(points * 0.05))
     margin = max(10, round(points * 0.4))
@@ -1028,19 +1065,16 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     the resize, so its point size is relative to the delivered image rather
     than to the original."""
     if not (secure_path(filepath) or is_valid_tmp_path(filepath)):
-        app.logger.error("Insecure input file path detected")
-        return None
+        return refuse("Insecure input file path detected")
     if not secure_path(output_path):
-        app.logger.error("Insecure output path detected")
-        return None
+        return refuse("Insecure output path detected")
 
     # Check potrace availability for vector output formats
     ext = os.path.splitext(output_path)[1].lstrip('.').upper()
     if ext in POTRACE_FORMATS:
         potrace_check = subprocess.run(['which', 'potrace'], capture_output=True, timeout=SUBPROCESS_TIMEOUT_SHORT)
         if potrace_check.returncode != 0:
-            app.logger.error(f"Output format {ext} requires potrace which is not installed")
-            return None
+            return refuse(f"Output format {ext} needs potrace, which is not installed on this server")
 
     source_ext = os.path.splitext(filepath)[1].lower()
     command = ['magick']
@@ -1053,8 +1087,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         if probe_width and probe_height:
             scale = int(density) / 72
             if probe_width * scale > MAX_DIMENSION or probe_height * scale > MAX_DIMENSION:
-                app.logger.error(f"Rasterizing at {density} dpi would exceed MAX_DIMENSION ({MAX_DIMENSION}px)")
-                return None
+                return refuse(f"Rasterizing at {density} dpi would take this page past the {MAX_DIMENSION}px limit")
         command.extend(['-density', density])
 
     # Any crop at all, by ratio or by explicit box. Deliberately truthiness on
@@ -1120,8 +1153,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         # timeout, so refuse up front instead of failing as a timeout later.
         src_width, src_height = get_image_dimensions(filepath)
         if src_width and src_height and src_width * src_height > KUWAHARA_MAX_PIXELS:
-            app.logger.error(f"Kuwahara refused: {src_width}x{src_height} exceeds KUWAHARA_MAX_PIXELS")
-            return None
+            return refuse(f"Edge-preserving noise reduction is refused above {KUWAHARA_MAX_PIXELS // 1000000} megapixels; this image is {src_width}x{src_height}")
         command.extend(['-kuwahara', KUWAHARA_RADII.get(kuwahara_level, '2')])
 
     if auto_gamma:
@@ -1144,7 +1176,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         try:
             modulate.append(str(max(low, min(high, int(value)))))
         except (TypeError, ValueError):
-            return None
+            return refuse('Brightness, saturation and hue must be whole numbers')
     if modulate != ['100', '100', '100']:
         command.extend(['-modulate', ','.join(modulate)])
 
@@ -1176,9 +1208,9 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         src_width, src_height = get_image_dimensions(filepath)
         if src_width and src_height and (src_width * ratio > MAX_DIMENSION
                                          or src_height * ratio > MAX_DIMENSION):
-            app.logger.error(
-                f"Upscaling to {factor} would exceed MAX_DIMENSION ({MAX_DIMENSION}px)")
-            return None
+            return refuse(
+                f"Enlarging {factor} would take this {src_width}x{src_height} image "
+                f"past the {MAX_DIMENSION}px limit. Enlarging is meant for small images")
         command.extend(['-resize', factor])
         # Enlarging softens, so this sharpen follows the resize — the opposite
         # of the -unsharp above, which precedes it on purpose.
@@ -1196,12 +1228,11 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
                 src_width, src_height = get_image_dimensions(filepath)
                 if src_width and src_height:
                     if src_width * pct / 100 > MAX_DIMENSION or src_height * pct / 100 > MAX_DIMENSION:
-                        app.logger.error(f"Percentage resize ({pct}%) would exceed MAX_DIMENSION ({MAX_DIMENSION}px)")
-                        return None
+                        return refuse(f"A {pct}% resize would take this image past the {MAX_DIMENSION}px limit")
                 resize_value = f"{pct}%"
                 command.extend(['-resize', resize_value])
             except ValueError:
-                return None
+                return refuse('The scale percentage is not a number')
         elif width or height:
             # Parsed into names of their own rather than over the parameters:
             # the guards below mean an unconverted value could never actually
@@ -1211,13 +1242,11 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             target_width = resize_dimension(width)
             target_height = resize_dimension(height)
             if target_width is None or target_height is None:
-                return None
+                return refuse('Width and height must be whole numbers')
             if target_width > MAX_DIMENSION:
-                app.logger.error(f"Requested width {target_width} exceeds MAX_DIMENSION ({MAX_DIMENSION}px)")
-                return None
+                return refuse(f"Requested width {target_width}px is over the {MAX_DIMENSION}px limit")
             if target_height > MAX_DIMENSION:
-                app.logger.error(f"Requested height {target_height} exceeds MAX_DIMENSION ({MAX_DIMENSION}px)")
-                return None
+                return refuse(f"Requested height {target_height}px is over the {MAX_DIMENSION}px limit")
 
             resize_value = ''
             if target_width and target_height:
@@ -1254,7 +1283,7 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             if 1 <= quality_value <= 100:
                 command.extend(['-quality', str(quality_value)])
         except ValueError:
-            return None
+            return refuse('Quality must be a whole number between 1 and 100')
 
     command.append(output_path)
     return command
@@ -1271,14 +1300,11 @@ def build_gif_frame_command(input_path, output_path, width, height):
     """Normalise one source image into a frame ready for assembly: orientation
     applied, and scaled onto the shared canvas when one was requested."""
     if not (secure_path(input_path) or is_valid_tmp_path(input_path)):
-        app.logger.error("Insecure GIF frame path detected")
-        return None
+        return refuse("Insecure GIF frame path detected")
     if not secure_path(output_path):
-        app.logger.error("Insecure GIF frame output path detected")
-        return None
+        return refuse("Insecure GIF frame output path detected")
     if width and height and (width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION):
-        app.logger.error(f"Requested GIF canvas {width}x{height} exceeds GIF_MAX_OUTPUT_DIMENSION ({GIF_MAX_OUTPUT_DIMENSION}px)")
-        return None
+        return refuse(f"Canvas {width}x{height} is over the {GIF_MAX_OUTPUT_DIMENSION}px per-side limit for animations")
 
     command = ['magick', input_path, '-auto-orient']
     if width and height:
@@ -1296,14 +1322,11 @@ def build_gif_assemble_command(frame_paths, output_path, fps, loop, quality, out
     history to flatten."""
     for p in frame_paths:
         if not secure_path(p):
-            app.logger.error("Insecure GIF assembly frame path detected")
-            return None
+            return refuse("Insecure GIF assembly frame path detected")
     if not secure_path(output_path):
-        app.logger.error("Insecure GIF output path detected")
-        return None
+        return refuse("Insecure GIF output path detected")
     if output_format not in GIF_CREATE_OUTPUT_FORMATS:
-        app.logger.error(f"Unsupported GIF creation output format: {output_format}")
-        return None
+        return refuse(f"Unsupported GIF creation output format: {output_format}")
 
     delay_ticks = max(1, round(100 / fps))  # -delay is in 1/100s ticks
     command = ['magick', '-delay', str(delay_ticks), '-loop', str(loop)]
@@ -1345,11 +1368,9 @@ def build_gif_edit_command(filepath, output_path, mode, params):
     by the caller (route). Frame extraction has its own command builder
     (build_gif_extract_command) since its output shape differs (1 file vs N)."""
     if not (secure_path(filepath) or is_valid_tmp_path(filepath)):
-        app.logger.error("Insecure GIF edit input path detected")
-        return None
+        return refuse("Insecure GIF edit input path detected")
     if not secure_path(output_path):
-        app.logger.error("Insecure GIF edit output path detected")
-        return None
+        return refuse("Insecure GIF edit output path detected")
     if mode not in GIF_EDIT_MODES or mode == 'extract':
         return None
 
@@ -1366,8 +1387,7 @@ def build_gif_edit_command(filepath, output_path, mode, params):
             command.extend(['-resize', f"{percentage}%"])
         elif width and height:
             if width > GIF_MAX_OUTPUT_DIMENSION or height > GIF_MAX_OUTPUT_DIMENSION:
-                app.logger.error(f"Requested GIF resize {width}x{height} exceeds GIF_MAX_OUTPUT_DIMENSION ({GIF_MAX_OUTPUT_DIMENSION}px)")
-                return None
+                return refuse(f"Resize to {width}x{height} is over the {GIF_MAX_OUTPUT_DIMENSION}px per-side limit for animations")
             command.extend(['-resize', f'{width}x{height}'])
         else:
             return None
@@ -1402,11 +1422,9 @@ def build_gif_extract_command(filepath, output_pattern, extract_mode, frame_numb
     every frame from an animated GIF/WEBP. frame_number/frame_start/frame_end
     must already be validated as in-range integers by the caller."""
     if not (secure_path(filepath) or is_valid_tmp_path(filepath)):
-        app.logger.error("Insecure GIF extract input path detected")
-        return None
+        return refuse("Insecure GIF extract input path detected")
     if not secure_path(output_pattern):
-        app.logger.error("Insecure GIF extract output path detected")
-        return None
+        return refuse("Insecure GIF extract output path detected")
     if extract_format not in GIF_EXTRACT_FORMATS:
         return None
 
@@ -1629,7 +1647,7 @@ def prepare_gif_frame(job_id, file_info, params, frame_path):
             height=params['height'],
         )
         if not command:
-            raise RuntimeError(f"Could not build frame command for {file_info['original']}")
+            raise CommandRefused(last_refusal_reason())
         subprocess.run(command, check=True, capture_output=True, text=True,
                        timeout=SUBPROCESS_TIMEOUT_LONG)
 
@@ -1686,7 +1704,7 @@ def process_gif_create_job(job_id):
             output_format=params['output_format'],
         )
         if not command:
-            raise RuntimeError("Could not build GIF assembly command")
+            raise CommandRefused(last_refusal_reason())
         assemble_timeout = gif_assembly_timeout(frame_paths)
         app.logger.info(f"[Job {job_id}] Assembling (timeout {assemble_timeout}s): {' '.join(command)}")
         with _processing_semaphore:
@@ -1857,7 +1875,7 @@ def process_single_file(job_id, file_info, params, batch_folder):
                     watermark_font=params['watermark_font'],
                 )
                 if not command:
-                    raise RuntimeError(f"Could not build ImageMagick command for {fname}")
+                    raise CommandRefused(last_refusal_reason())
 
                 app.logger.info(f"[Job {job_id}] Executing: {' '.join(command)}")
                 subprocess.run(command, check=True, capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT_LONG)
@@ -2077,6 +2095,7 @@ def resize_options(filename):
                            height=dimensions[1],
                            formats=formats,
                            image_type=image_type,
+                           max_dimension=MAX_DIMENSION,
                            defaults=DEFAULTS)
 
 
@@ -2174,7 +2193,7 @@ def resize_image(filename):
             )
 
             if not command:
-                flash('Error preparing resize command')
+                flash(last_refusal_reason())
                 return render_template('result.html',
                                        success=False,
                                        title='Error',
@@ -2652,7 +2671,7 @@ def gif_edit(filename):
                                                      frame_number, frame_start, frame_end, extract_format)
 
             if not command:
-                flash('Error preparing extraction command')
+                flash(last_refusal_reason())
                 return render_template('result.html', success=False, title='Error',
                                        return_url=url_for('gif_edit_options', filename=filename))
 
@@ -2733,7 +2752,7 @@ def gif_edit(filename):
 
         command = build_gif_edit_command(filepath, output_path, mode, params)
         if not command:
-            flash('Error preparing edit command')
+            flash(last_refusal_reason())
             return render_template('result.html', success=False, title='Error',
                                    return_url=url_for('gif_edit_options', filename=filename))
 

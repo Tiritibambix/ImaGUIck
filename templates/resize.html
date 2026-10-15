@@ -65,7 +65,7 @@
 
                 {{ transform_fields() }}
 
-                {{ upscale_field() }}
+                {{ upscale_field(width, height, max_dimension if max_dimension else 10000) }}
 
                 {% set is_vector = filename.lower().split('.')[-1] in ['svg', 'pdf', 'eps', 'ai'] %}
                 {% if is_vector %}
