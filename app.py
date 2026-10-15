@@ -109,6 +109,44 @@ ALLOWED_DENSITIES = {'72', '150', '300', '600'}
 # Aspect ratios offered for centred cropping, as (width, height) multipliers.
 ALLOWED_CROP_RATIOS = {'1:1': (1, 1), '4:3': (4, 3), '3:2': (3, 2), '16:9': (16, 9)}
 
+# Right angles only. A free angle would need a -background fill for the corners
+# it exposes, which is a different feature; these three are lossless reframings.
+ALLOWED_ROTATIONS = {'90', '180', '270'}
+
+# Effects follow the enumeration -> frozen argv pattern ALLOWED_SHARPEN_LEVELS
+# established: no number from the form ever reaches the command line.
+EFFECT_ARGS = {
+    'grayscale': ('-colorspace', 'Gray'),
+    'sepia': ('-sepia-tone', '80%'),
+    'negate': ('-negate',),
+}
+ALLOWED_EFFECTS = set(EFFECT_ARGS)
+BLUR_SIGMAS = {'low': '0x1', 'standard': '0x2.5', 'high': '0x5'}
+ALLOWED_BLUR_LEVELS = set(BLUR_SIGMAS)
+
+# Enlarging: a Lanczos resample followed by a light unsharp. This is exactly
+# what tools advertising "AI upscaling" on a CPU usually do; naming it plainly
+# costs nothing and promises nothing it cannot deliver.
+UPSCALE_FACTORS = {'2x': '200%', '3x': '300%', '4x': '400%'}
+ALLOWED_UPSCALE_FACTORS = set(UPSCALE_FACTORS)
+UPSCALE_UNSHARP = '0x0.5+0.5+0.008'
+
+# Text watermark. The 9-position grid maps to ImageMagick gravities; the form
+# only ever sends a key, and what reaches the command is our own literal.
+WATERMARK_GRAVITIES = {
+    'northwest': 'NorthWest', 'north': 'North', 'northeast': 'NorthEast',
+    'west': 'West', 'center': 'Center', 'east': 'East',
+    'southwest': 'SouthWest', 'south': 'South', 'southeast': 'SouthEast',
+}
+ALLOWED_WATERMARK_POSITIONS = set(WATERMARK_GRAVITIES)
+# Families installed by fonts-dejavu-core in the Dockerfile. Emitting -font
+# explicitly matters: relying on ImageMagick's compiled-in default fails with
+# "unable to read font" on an image that ships no font packages.
+WATERMARK_FONTS = {'DejaVu-Sans', 'DejaVu-Sans-Bold', 'DejaVu-Serif'}
+WATERMARK_MAX_CHARS = 200
+WATERMARK_SIZE_RANGE = (8, 200)
+WATERMARK_OPACITY_RANGE = (10, 100)
+
 # Formats that require potrace (raster-to-vector delegate)
 POTRACE_FORMATS = {'SVG', 'EPS', 'AI', 'PDF', 'WMF', 'EMF'}
 
@@ -265,6 +303,39 @@ def safe_display_filename(filename, fallback='file'):
         base, ext = os.path.splitext(name)
         name = base[:200 - len(ext)] + ext
     return name or fallback
+
+
+def safe_watermark_text(value):
+    """The watermark caption, *contained* rather than escaped.
+
+    Free-form text cannot be allowlisted, so it is kept safe structurally: it
+    travels as exactly one argv element, verbatim, and no shell is involved.
+    Spaces, quotes, semicolons, ampersands and accents are therefore harmless
+    and must survive — escaping them is what breaks the moment the transport
+    changes.
+
+    Two things are still removed, because they are not shell problems but
+    ImageMagick ones:
+
+    - A leading '@'. ImageMagick reads an annotation beginning with '@' as a
+      *filename* to take the text from, so a caption of '@/etc/passwd' would
+      render the contents of that file into the image. This is the same class
+      of defect as the leading '-' safe_display_filename() strips, and it gets
+      the same treatment.
+    - Unprintable characters, which cannot be seen in the output anyway and
+      only serve to confuse logs and line-based parsing.
+    """
+    if not value:
+        return ''
+    text = ''.join(ch for ch in str(value)[:WATERMARK_MAX_CHARS] if ch.isprintable())
+    # Surrounding space comes off first: otherwise "  @file" survives the '@'
+    # strip below (its leading characters are spaces) and the later .strip()
+    # puts the '@' back in front, defeating the guard entirely.
+    text = text.strip()
+    stripped = text.lstrip('@').strip()
+    if stripped != text:
+        app.logger.warning("Watermark text had a leading '@' removed (file-read syntax)")
+    return stripped
 
 
 def canonical_value(value, allowed, default=''):
@@ -755,6 +826,18 @@ def extract_processing_params(form):
     raw_kuwahara = form.get('kuwahara_level', 'standard').strip().lower()
     kuwahara_level = raw_kuwahara if raw_kuwahara in ALLOWED_KUWAHARA_LEVELS else 'standard'
 
+    # Each of these goes on to form a command argument, so what continues is
+    # the allowlist's own literal rather than the form's copy.
+    rotation = canonical_value(form.get('rotation', '').strip(), ALLOWED_ROTATIONS)
+    effect = canonical_value(form.get('effect', '').strip().lower(), ALLOWED_EFFECTS)
+    blur_level = canonical_value(form.get('blur_level', '').strip().lower(), ALLOWED_BLUR_LEVELS)
+    upscale = canonical_value(form.get('upscale', '').strip().lower(), ALLOWED_UPSCALE_FACTORS)
+    watermark_position = canonical_value(
+        form.get('watermark_position', '').strip().lower(),
+        ALLOWED_WATERMARK_POSITIONS, 'southeast')
+    watermark_font = canonical_value(
+        form.get('watermark_font', '').strip(), WATERMARK_FONTS, 'DejaVu-Sans')
+
     return {
         'width': form.get('width', DEFAULTS['width']),
         'height': form.get('height', DEFAULTS['height']),
@@ -779,6 +862,23 @@ def extract_processing_params(form):
         'modulate_brightness': modulate_component(form, 'brightness'),
         'modulate_saturation': modulate_component(form, 'saturation'),
         'modulate_hue': modulate_component(form, 'hue'),
+        'rotation': rotation,
+        'flip_h': form.get('flip_h') == 'on',
+        'flip_v': form.get('flip_v') == 'on',
+        'effect': effect,
+        'blur_level': blur_level,
+        'upscale': upscale,
+        # Raw on purpose: the crop box is parsed and bounds-checked against the
+        # source inside explicit_crop_box(), which needs the file to do it.
+        'crop_w': form.get('crop_w', ''),
+        'crop_h': form.get('crop_h', ''),
+        'crop_x': form.get('crop_x', ''),
+        'crop_y': form.get('crop_y', ''),
+        'watermark_text': safe_watermark_text(form.get('watermark_text', '')),
+        'watermark_position': watermark_position,
+        'watermark_size': form.get('watermark_size', '24'),
+        'watermark_opacity': form.get('watermark_opacity', '60'),
+        'watermark_font': watermark_font,
     }
 
 
@@ -841,13 +941,75 @@ def centered_crop_box(src_width, src_height, crop_ratio):
     return f'{max(1, box_w)}x{max(1, box_h)}+0+0'
 
 
+def explicit_crop_box(crop_w, crop_h, crop_x, crop_y, filepath):
+    """A WxH+X+Y crop geometry from four request values, or None to refuse.
+
+    Each value is parsed into a name of its own rather than converted in place,
+    for the reason resize_dimension() documents. The box must then fit inside
+    the source: without that check a crop could name a region outside the
+    image, which ImageMagick answers with an empty result rather than an error.
+    """
+    box_w = resize_dimension(crop_w)
+    box_h = resize_dimension(crop_h)
+    off_x = resize_dimension(crop_x)
+    off_y = resize_dimension(crop_y)
+    if box_w is None or box_h is None or off_x is None or off_y is None:
+        app.logger.error("Crop box is not made of integers")
+        return None
+    if box_w < 1 or box_h < 1 or off_x < 0 or off_y < 0:
+        app.logger.error(f"Crop box {box_w}x{box_h}+{off_x}+{off_y} is not a positive region")
+        return None
+    src_width, src_height = get_image_dimensions(filepath)
+    if src_width and src_height and (off_x + box_w > src_width or off_y + box_h > src_height):
+        app.logger.error(
+            f"Crop box {box_w}x{box_h}+{off_x}+{off_y} falls outside {src_width}x{src_height}")
+        return None
+    return f'{box_w}x{box_h}+{off_x}+{off_y}'
+
+
+def build_watermark_args(text, position, size, opacity, font):
+    """The argv for a text watermark, or None to refuse.
+
+    The caption is drawn twice — black at an offset, then white on top — which
+    is a cheap drop shadow that keeps the text legible over both light and dark
+    areas. Both layers carry the same alpha so the shadow fades with the text.
+    """
+    gravity = WATERMARK_GRAVITIES[
+        canonical_value(position, ALLOWED_WATERMARK_POSITIONS, 'southeast')]
+    family = canonical_value(font, WATERMARK_FONTS, 'DejaVu-Sans')
+    size_low, size_high = WATERMARK_SIZE_RANGE
+    op_low, op_high = WATERMARK_OPACITY_RANGE
+    try:
+        points = max(size_low, min(size_high, int(size)))
+        alpha_pct = max(op_low, min(op_high, int(opacity)))
+    except (TypeError, ValueError):
+        app.logger.error("Watermark size/opacity are not integers")
+        return None
+    alpha = f'{alpha_pct / 100:.2f}'
+    shadow = max(2, round(points * 0.05))
+    margin = max(10, round(points * 0.4))
+    return [
+        '-font', family, '-gravity', gravity, '-pointsize', str(points),
+        '-fill', f'rgba(0,0,0,{alpha})',
+        '-annotate', f'+{margin + shadow}+{margin + shadow}', text,
+        '-fill', f'rgba(255,255,255,{alpha})',
+        '-annotate', f'+{margin}+{margin}', text,
+    ]
+
+
 def build_imagemagick_command(filepath, output_path, width, height, percentage, quality, keep_ratio,
                               auto_level=False, auto_gamma=False, use_1080p=False, use_1920p=False,
                               use_sharpen=False, sharpen_level='standard', strip_metadata=False,
                               background_color='white', density='', crop_ratio='',
                               use_clahe=False, clahe_level='standard', denoise_mode='',
                               kuwahara_level='standard', modulate_brightness=100,
-                              modulate_saturation=100, modulate_hue=100):
+                              modulate_saturation=100, modulate_hue=100,
+                              rotation='', flip_h=False, flip_v=False,
+                              effect='', blur_level='', upscale='',
+                              crop_w='', crop_h='', crop_x='', crop_y='',
+                              watermark_text='', watermark_position='southeast',
+                              watermark_size=24, watermark_opacity=60,
+                              watermark_font='DejaVu-Sans'):
     """Build ImageMagick command for resizing and formatting.
     filepath must already be decoded (JXL → PNG via prepare_input_file before calling this).
 
@@ -857,7 +1019,14 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     so the resize geometry applies to the final framing. Denoising runs before
     the tonal operations because both CLAHE and -unsharp amplify whatever noise
     they are handed, and -modulate runs last of them so the one manual setting
-    is not re-equalised by an automatic one."""
+    is not re-equalised by an automatic one.
+
+    The later additions keep that logic: rotation and mirroring precede the
+    crop, so a crop box is expressed against the image as it will be framed;
+    effects and blur sit after the tonal block but before -unsharp, since
+    sharpening a deliberate blur undoes it; and the watermark is applied after
+    the resize, so its point size is relative to the delivered image rather
+    than to the original."""
     if not (secure_path(filepath) or is_valid_tmp_path(filepath)):
         app.logger.error("Insecure input file path detected")
         return None
@@ -888,9 +1057,21 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
                 return None
         command.extend(['-density', density])
 
+    # Any crop at all, by ratio or by explicit box. Deliberately truthiness on
+    # crop_ratio rather than membership, so a value we will go on to ignore
+    # still suppresses the decode hint instead of silently re-enabling it.
+    cropping = bool(crop_ratio) or bool(crop_w or crop_h or crop_x or crop_y)
+
+    # Resolved here rather than at the resize block below, because the decode
+    # hint has to know about it: enlarging is a percentage resize, and the hint
+    # is only sound for an absolute bounding box.
+    upscale_value = canonical_value(upscale, ALLOWED_UPSCALE_FACTORS)
+
     # Skipped when cropping: the crop box is computed from the original
     # dimensions, so it must not run against a differently-scaled decode.
-    if source_ext in {'.jpg', '.jpeg'} and not crop_ratio:
+    # Skipped when enlarging too: decoding at a reduced scale and then scaling
+    # up would throw away exactly the pixels the enlargement needs.
+    if source_ext in {'.jpg', '.jpeg'} and not cropping and not upscale_value:
         hint = jpeg_decode_hint(width, height, use_1080p, use_1920p)
         if hint:
             # Lets libjpeg decode straight to a reduced scale rather than
@@ -908,7 +1089,23 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     if strip_metadata:
         command.append('-strip')
 
-    if crop_ratio in ALLOWED_CROP_RATIOS:
+    # Before the crop, so the box is expressed against the final framing.
+    rotation_value = canonical_value(rotation, ALLOWED_ROTATIONS)
+    if rotation_value:
+        command.extend(['-rotate', rotation_value])
+    if flip_h:
+        command.append('-flop')
+    if flip_v:
+        command.append('-flip')
+
+    if crop_w or crop_h or crop_x or crop_y:
+        # An explicit box carries its own offsets, so gravity stays at the
+        # default: -gravity center would measure those offsets from the middle.
+        crop_box = explicit_crop_box(crop_w, crop_h, crop_x, crop_y, filepath)
+        if crop_box is None:
+            return None
+        command.extend(['-crop', crop_box, '+repage'])
+    elif crop_ratio in ALLOWED_CROP_RATIOS:
         src_width, src_height = get_image_dimensions(filepath)
         crop_box = centered_crop_box(src_width, src_height, crop_ratio)
         if crop_box:
@@ -951,6 +1148,16 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
     if modulate != ['100', '100', '100']:
         command.extend(['-modulate', ','.join(modulate)])
 
+    # After the tonal block so an effect is applied to a corrected image, and
+    # before -unsharp because sharpening a deliberate blur would undo it.
+    effect_value = canonical_value(effect, ALLOWED_EFFECTS)
+    if effect_value:
+        command.extend(EFFECT_ARGS[effect_value])
+
+    blur_value = canonical_value(blur_level, ALLOWED_BLUR_LEVELS)
+    if blur_value:
+        command.extend(['-blur', BLUR_SIGMAS[blur_value]])
+
     if use_sharpen:
         sharpen_params = {
             'low': '0x0.5+0.5+0.005',
@@ -961,12 +1168,28 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         app.logger.info(f"Applying sharpening with level {sharpen_level}: -unsharp {sharpen_value}")
         command.extend(['-unsharp', sharpen_value])
 
-    if use_1920p:
+    # Enlarging is its own resize mode and wins over the others rather than
+    # compounding with them, so the requested factor is the one that applies.
+    if upscale_value:
+        factor = UPSCALE_FACTORS[upscale_value]
+        ratio = int(factor.rstrip('%')) / 100
+        src_width, src_height = get_image_dimensions(filepath)
+        if src_width and src_height and (src_width * ratio > MAX_DIMENSION
+                                         or src_height * ratio > MAX_DIMENSION):
+            app.logger.error(
+                f"Upscaling to {factor} would exceed MAX_DIMENSION ({MAX_DIMENSION}px)")
+            return None
+        command.extend(['-resize', factor])
+        # Enlarging softens, so this sharpen follows the resize — the opposite
+        # of the -unsharp above, which precedes it on purpose.
+        command.extend(['-unsharp', UPSCALE_UNSHARP])
+
+    if use_1920p and not upscale_value:
         command.extend(['-resize', '1920x1920>'])
 
-    if use_1080p:
+    if use_1080p and not upscale_value:
         command.extend(['-resize', '1080x1080>'])
-    else:
+    elif not upscale_value:
         if percentage:
             try:
                 pct = float(percentage)
@@ -1013,6 +1236,17 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
         # These formats carry no alpha channel, so transparency has to be
         # composited onto a colour first — otherwise it is written as black.
         command.extend(['-background', background_color, '-alpha', 'remove', '-alpha', 'off'])
+
+    # Last of the image operations: applied after the resize so the point size
+    # is relative to the delivered image, and after flattening so it is never
+    # composited onto an alpha channel that is about to be removed.
+    if watermark_text:
+        watermark_args = build_watermark_args(
+            watermark_text, watermark_position, watermark_size,
+            watermark_opacity, watermark_font)
+        if watermark_args is None:
+            return None
+        command.extend(watermark_args)
 
     if quality and quality != "100":
         try:
@@ -1606,6 +1840,21 @@ def process_single_file(job_id, file_info, params, batch_folder):
                     modulate_brightness=params['modulate_brightness'],
                     modulate_saturation=params['modulate_saturation'],
                     modulate_hue=params['modulate_hue'],
+                    rotation=params['rotation'],
+                    flip_h=params['flip_h'],
+                    flip_v=params['flip_v'],
+                    effect=params['effect'],
+                    blur_level=params['blur_level'],
+                    upscale=params['upscale'],
+                    crop_w=params['crop_w'],
+                    crop_h=params['crop_h'],
+                    crop_x=params['crop_x'],
+                    crop_y=params['crop_y'],
+                    watermark_text=params['watermark_text'],
+                    watermark_position=params['watermark_position'],
+                    watermark_size=params['watermark_size'],
+                    watermark_opacity=params['watermark_opacity'],
+                    watermark_font=params['watermark_font'],
                 )
                 if not command:
                     raise RuntimeError(f"Could not build ImageMagick command for {fname}")
@@ -1907,6 +2156,21 @@ def resize_image(filename):
                 modulate_brightness=options['modulate_brightness'],
                 modulate_saturation=options['modulate_saturation'],
                 modulate_hue=options['modulate_hue'],
+                rotation=options['rotation'],
+                flip_h=options['flip_h'],
+                flip_v=options['flip_v'],
+                effect=options['effect'],
+                blur_level=options['blur_level'],
+                upscale=options['upscale'],
+                crop_w=options['crop_w'],
+                crop_h=options['crop_h'],
+                crop_x=options['crop_x'],
+                crop_y=options['crop_y'],
+                watermark_text=options['watermark_text'],
+                watermark_position=options['watermark_position'],
+                watermark_size=options['watermark_size'],
+                watermark_opacity=options['watermark_opacity'],
+                watermark_font=options['watermark_font'],
             )
 
             if not command:

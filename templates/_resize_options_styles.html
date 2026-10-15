@@ -194,6 +194,34 @@
 
     .intensity-radio input[type="radio"] { display: none; }
 
+    /* 3x3 watermark placement picker: nine radios laid out as the image itself,
+       so the control has the same shape as the thing it sets. */
+    .wm-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 3px;
+        width: 72px;
+    }
+
+    .wm-cell { cursor: pointer; }
+    .wm-cell input[type="radio"] { display: none; }
+
+    .wm-cell span {
+        display: block;
+        aspect-ratio: 1;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--surface-border);
+        background: var(--surface-hover);
+        transition: all var(--ease);
+    }
+
+    .wm-cell:hover span { border-color: var(--accent-dim); }
+
+    .wm-cell input:checked + span {
+        background: var(--accent);
+        border-color: var(--accent-bright);
+    }
+
     .format-note {
         margin-top: var(--sp-sm);
         padding: var(--sp-sm) var(--sp-md);

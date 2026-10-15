@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     dcraw \
     potrace \
     ghostscript \
+    fonts-dejavu-core \
     zip \
     unzip \
     cron \

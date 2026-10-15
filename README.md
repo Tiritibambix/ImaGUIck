@@ -35,6 +35,11 @@ This application has been coded with the help of AI and is designed for **local 
   - Animation: GIF, WEBP, APNG
   - Vector / document: SVG, PDF, EPS in (rasterized by Ghostscript, first page only) and out (requires `potrace`)
 - **Image enhancement**: auto-level, auto-gamma, noise reduction (despeckle, smooth, or edge-preserving), and three-level unsharp masking (low / standard / high)
+- **Transform**: rotate 90 / 180 / 270 degrees, mirror horizontally or vertically
+- **Cropping**: by aspect ratio (1:1, 4:3, 3:2, 16:9, centred) or by an explicit region with pixel offsets
+- **Effects**: grayscale, sepia, negative, and three-level blur
+- **Enlarge**: 2x, 3x or 4x Lanczos resample with a light sharpen (plain ImageMagick, no model and no GPU)
+- **Text watermark**: caption with a drop shadow, a nine-position placement grid, adjustable size, opacity and font
 - **Smart format recommendations**: context-aware suggestions based on image type and transparency
 - **URL import**: fetch and process an image directly from a URL
 - **Real-time progress**: per-file status streamed via Server-Sent Events (SSE) during batch jobs

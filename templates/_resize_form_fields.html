@@ -158,6 +158,133 @@
 <small>100 = unchanged. Leave all three at 100 and nothing is applied.</small>
 {% endmacro %}
 
+{% macro transform_fields(id_prefix='') %}
+<div class="sharpen-block">
+    <div class="sharpen-intensity">
+        <span>Rotate:</span>
+        <div class="intensity-options">
+            <label class="intensity-radio"><input type="radio" name="rotation" value="" checked> None</label>
+            <label class="intensity-radio"><input type="radio" name="rotation" value="90"> 90&deg;</label>
+            <label class="intensity-radio"><input type="radio" name="rotation" value="180"> 180&deg;</label>
+            <label class="intensity-radio"><input type="radio" name="rotation" value="270"> 270&deg;</label>
+        </div>
+        {{ info_tip("Right angles only. Applied before any crop, so the crop box frames the rotated image.") }}
+    </div>
+    <div class="check-pills" style="margin-top: var(--sp-sm)">
+        <label class="check-pill">
+            <input type="checkbox" name="flip_h" id="{{ id_prefix }}flip_h"> Mirror horizontally
+        </label>
+        <label class="check-pill">
+            <input type="checkbox" name="flip_v" id="{{ id_prefix }}flip_v"> Mirror vertically
+        </label>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro effect_fields() %}
+<div class="sharpen-block">
+    <div class="sharpen-intensity">
+        <span>Effect:</span>
+        <div class="intensity-options">
+            <label class="intensity-radio"><input type="radio" name="effect" value="" checked> None</label>
+            <label class="intensity-radio"><input type="radio" name="effect" value="grayscale"> Grayscale</label>
+            <label class="intensity-radio"><input type="radio" name="effect" value="sepia"> Sepia</label>
+            <label class="intensity-radio"><input type="radio" name="effect" value="negate"> Negative</label>
+        </div>
+    </div>
+    <div class="sharpen-intensity">
+        <span>Blur:</span>
+        <div class="intensity-options">
+            <label class="intensity-radio"><input type="radio" name="blur_level" value="" checked> None</label>
+            <label class="intensity-radio"><input type="radio" name="blur_level" value="low"> Low</label>
+            <label class="intensity-radio"><input type="radio" name="blur_level" value="standard"> Standard</label>
+            <label class="intensity-radio"><input type="radio" name="blur_level" value="high"> High</label>
+        </div>
+        {{ info_tip("Applied after tonal corrections and before sharpening, so a deliberate blur is not undone.") }}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro upscale_field() %}
+<div class="sharpen-block">
+    <div class="sharpen-intensity">
+        <span>Enlarge:</span>
+        <div class="intensity-options">
+            <label class="intensity-radio"><input type="radio" name="upscale" value="" checked> None</label>
+            <label class="intensity-radio"><input type="radio" name="upscale" value="2x"> 2&times;</label>
+            <label class="intensity-radio"><input type="radio" name="upscale" value="3x"> 3&times;</label>
+            <label class="intensity-radio"><input type="radio" name="upscale" value="4x"> 4&times;</label>
+        </div>
+        {{ info_tip("A Lanczos resample followed by a light sharpen. Takes precedence over the resize options above, and is refused if the result would exceed 10000px.") }}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro crop_box_fields(id_prefix='') %}
+<div class="section-title" style="margin-top: var(--sp-md)">Crop to a region</div>
+<div class="options-row" style="grid-template-columns: repeat(4, 1fr)">
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}crop_w">Width</label>
+        <input type="number" name="crop_w" id="{{ id_prefix }}crop_w" min="1" max="10000" placeholder="px">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}crop_h">Height</label>
+        <input type="number" name="crop_h" id="{{ id_prefix }}crop_h" min="1" max="10000" placeholder="px">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}crop_x">Offset X</label>
+        <input type="number" name="crop_x" id="{{ id_prefix }}crop_x" min="0" max="10000" value="0">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}crop_y">Offset Y</label>
+        <input type="number" name="crop_y" id="{{ id_prefix }}crop_y" min="0" max="10000" value="0">
+    </div>
+</div>
+<small>Leave width and height empty to use the aspect-ratio crop above instead. The region must fit inside the image.</small>
+{% endmacro %}
+
+{% macro watermark_fields(id_prefix='') %}
+<div class="section-title" style="margin-top: var(--sp-md)">Text watermark</div>
+<div class="form-group">
+    <label for="{{ id_prefix }}watermark_text">Caption</label>
+    <input type="text" name="watermark_text" id="{{ id_prefix }}watermark_text"
+           maxlength="200" placeholder="Leave empty for no watermark">
+</div>
+<div class="options-row" style="grid-template-columns: auto 1fr 1fr 1fr">
+    <div class="form-group" style="margin-bottom:0">
+        <label>Position</label>
+        <div class="wm-grid">
+            {% for pos in ['northwest', 'north', 'northeast', 'west', 'center', 'east', 'southwest', 'south', 'southeast'] %}
+            <label class="wm-cell" title="{{ pos }}">
+                <input type="radio" name="watermark_position" value="{{ pos }}"
+                       {% if pos == 'southeast' %}checked{% endif %}>
+                <span></span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}watermark_size">Size (8&ndash;200)</label>
+        <input type="number" name="watermark_size" id="{{ id_prefix }}watermark_size"
+               min="8" max="200" value="24">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}watermark_opacity">Opacity (10&ndash;100)</label>
+        <input type="number" name="watermark_opacity" id="{{ id_prefix }}watermark_opacity"
+               min="10" max="100" value="60">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label for="{{ id_prefix }}watermark_font">Font</label>
+        <select name="watermark_font" id="{{ id_prefix }}watermark_font">
+            <option value="DejaVu-Sans">Sans</option>
+            <option value="DejaVu-Sans-Bold">Sans Bold</option>
+            <option value="DejaVu-Serif">Serif</option>
+        </select>
+    </div>
+</div>
+<small>Drawn twice for a drop shadow, so it stays readable over light and dark areas. Applied after resizing, so the size is relative to the final image.</small>
+{% endmacro %}
+
 {% macro sharpen_block(checkbox_id) %}
 <div class="sharpen-block">
     <label class="check-pill" style="margin:0; flex-shrink:0">
