@@ -18,11 +18,14 @@
 
 {# ---------- primitives ---------- #}
 
-{% macro segmented(name, options, current='', label='', tip='', id_prefix='') %}
-{#  options: list of (value, text) or (value, text, disabled, title) #}
+{% macro segmented(name, options, current='', label='', tip='', id_prefix='', aria_label='') %}
+{#  options: list of (value, text) or (value, text, disabled, title)
+    Pass aria_label instead of label where the group heading or the option
+    texts already say what the choice is, so the name is announced without
+    being repeated on screen. #}
 <div class="field">
     {% if label %}<span class="field-label">{{ label }}{% if tip %}{{ info_tip(tip) }}{% endif %}</span>{% endif %}
-    <div class="seg" role="radiogroup"{% if label %} aria-label="{{ label }}"{% endif %}>
+    <div class="seg" role="radiogroup" aria-label="{{ label or aria_label or name }}">
         {% for opt in options %}
         {% set value = opt[0] %}
         {% set text = opt[1] %}
@@ -48,9 +51,9 @@
 </label>
 {% endmacro %}
 
-{% macro number(name, label, value='', min='', max='', unit='', placeholder='', tip='', id_prefix='') %}
+{% macro number(name, label, value='', min='', max='', unit='', placeholder='', tip='', id_prefix='', label_hidden=false) %}
 <div class="field">
-    <label class="field-label" for="{{ id_prefix }}{{ name }}">{{ label }}{% if tip %}{{ info_tip(tip) }}{% endif %}</label>
+    <label class="field-label{% if label_hidden %} vh{% endif %}" for="{{ id_prefix }}{{ name }}">{{ label }}{% if tip and not label_hidden %}{{ info_tip(tip) }}{% endif %}</label>
     <span class="num">
         <input type="number" name="{{ name }}" id="{{ id_prefix }}{{ name }}"
                {% if min != '' %}min="{{ min }}"{% endif %}{% if max != '' %} max="{{ max }}"{% endif %}
@@ -94,23 +97,52 @@
 
 {# ---------- the groups, in pipeline order ---------- #}
 
-{% macro group_import(id_prefix='') %}
+{% macro group_import(src_width=0, src_height=0, max_dimension=10000, id_prefix='') %}
+{% set known = src_width and src_height %}
 {% call option_group('Import') %}
-    {{ segmented('density', [('', 'Default'), ('150', '150 dpi'), ('300', '300 dpi'), ('600', '600 dpi')],
-                 '', 'Vector density',
-                 'Only affects SVG, PDF, EPS and AI sources, which rasterize soft at the default 72 dpi. A read-time setting, so it runs before anything else.',
-                 id_prefix) }}
+    {# A PDF or SVG has no pixels of its own: it is drawn at whatever
+       resolution we ask for. The dimensions above were probed at 72 dpi, so
+       each option can state the raster it would actually produce, which is a
+       far better explanation than any wording. #}
+    {{ segmented('density',
+                 [('', '72 dpi', false, '%s × %s px' % (src_width, src_height) if known else ''),
+                  ('150', '150 dpi', known and (src_width * 150 / 72 > max_dimension or src_height * 150 / 72 > max_dimension),
+                   '%s × %s px' % ((src_width * 150 / 72) | round | int, (src_height * 150 / 72) | round | int) if known else ''),
+                  ('300', '300 dpi', known and (src_width * 300 / 72 > max_dimension or src_height * 300 / 72 > max_dimension),
+                   '%s × %s px' % ((src_width * 300 / 72) | round | int, (src_height * 300 / 72) | round | int) if known else ''),
+                  ('600', '600 dpi', known and (src_width * 600 / 72 > max_dimension or src_height * 600 / 72 > max_dimension),
+                   '%s × %s px' % ((src_width * 600 / 72) | round | int, (src_height * 600 / 72) | round | int) if known else '')],
+                 '', 'Rasterize at', '', id_prefix) }}
+    <p class="hint">
+        {% if known %}
+        This page is drawn at {{ src_width }} &times; {{ src_height }} px at 72 dpi
+        ({{ (src_width * 300 / 72) | round | int }} &times; {{ (src_height * 300 / 72) | round | int }} px at 300 dpi).
+        Higher is sharper and heavier; densities that would pass {{ max_dimension }} px per side are struck through.
+        {% else %}
+        Vector and PDF sources have no pixels of their own. 72 dpi is small and soft,
+        300 dpi is print-sharp. Only SVG, PDF, EPS and AI sources are affected.
+        {% endif %}
+    </p>
 {% endcall %}
 {% endmacro %}
 
 {% macro group_size(src_width=0, src_height=0, max_dimension=10000, id_prefix='') %}
+{% set known = src_width and src_height %}
 {% call option_group('Size', true) %}
+    {# No visible "Mode" label: the group is called Size and the five options
+       say what they do. One applies at a time, which the hint states plainly
+       rather than hiding in a tooltip. #}
     {{ segmented('size_mode',
                  [('keep', 'Keep'), ('pixels', 'Pixels'), ('percent', 'Percent'),
                   ('fit', 'Fit'), ('enlarge', 'Enlarge')],
-                 'keep', 'Mode',
-                 'One mode applies at a time. Picking one clears the others, so a value you typed can never be silently dropped.',
-                 id_prefix) }}
+                 'keep', '', '', id_prefix, 'Resize mode') }}
+
+    <div class="reveal" data-when="size_mode=keep" hidden>
+        <p class="hint">
+            {% if known %}Kept at {{ src_width }} &times; {{ src_height }} px.{% else %}Each image keeps its own size.{% endif %}
+            Only the Output settings below apply.
+        </p>
+    </div>
 
     <div class="reveal" data-when="size_mode=pixels" hidden>
         <div class="row">
@@ -122,50 +154,50 @@
     </div>
 
     <div class="reveal" data-when="size_mode=percent" hidden>
-        {{ number('percentage', 'Scale', '', 1, 1000, '%', 'e.g. 50', '', id_prefix) }}
-        {% if src_width and src_height %}<p class="hint">Source is {{ src_width }} &times; {{ src_height }} px.</p>{% endif %}
+        {{ number('percentage', 'Scale', '', 1, 1000, '%', 'e.g. 50', '', id_prefix, true) }}
+        <p class="hint">
+            {% if known %}Source is {{ src_width }} &times; {{ src_height }} px, so 50 gives {{ (src_width / 2) | round | int }} &times; {{ (src_height / 2) | round | int }} px.{% else %}Applied to each image individually.{% endif %}
+        </p>
     </div>
 
     <div class="reveal" data-when="size_mode=fit" hidden>
         {{ segmented('fit_preset', [('1080', '1080 px'), ('1920', '1920 px')], '1080', 'Longest edge',
-                     'Shrink-only: an image already smaller than the box is left alone.', id_prefix) }}
+                     '', id_prefix) }}
+        <p class="hint">Shrink-only: an image already smaller than the box is left alone.</p>
     </div>
 
     <div class="reveal" data-when="size_mode=enlarge" hidden>
-        {% set known = src_width and src_height %}
         {{ segmented('upscale',
-                     [('2x', '2&times;', known and (src_width * 2 > max_dimension or src_height * 2 > max_dimension),
-                       '%s x %s px' % (src_width * 2, src_height * 2) if known else ''),
-                      ('3x', '3&times;', known and (src_width * 3 > max_dimension or src_height * 3 > max_dimension),
-                       '%s x %s px' % (src_width * 3, src_height * 3) if known else ''),
-                      ('4x', '4&times;', known and (src_width * 4 > max_dimension or src_height * 4 > max_dimension),
-                       '%s x %s px' % (src_width * 4, src_height * 4) if known else '')],
-                     '', 'Factor',
-                     'A Lanczos resample followed by a light sharpen. Meant for small images.', id_prefix) }}
-        {% if known %}
-        <p class="hint">Source is {{ src_width }} &times; {{ src_height }} px. Factors that would pass {{ max_dimension }} px per side are struck through.</p>
-        {% else %}
-        <p class="hint">Applied per image. Any image too large for the factor is reported individually, with its size.</p>
-        {% endif %}
+                     [('2x', '2×', known and (src_width * 2 > max_dimension or src_height * 2 > max_dimension),
+                       '%s × %s px' % (src_width * 2, src_height * 2) if known else ''),
+                      ('3x', '3×', known and (src_width * 3 > max_dimension or src_height * 3 > max_dimension),
+                       '%s × %s px' % (src_width * 3, src_height * 3) if known else ''),
+                      ('4x', '4×', known and (src_width * 4 > max_dimension or src_height * 4 > max_dimension),
+                       '%s × %s px' % (src_width * 4, src_height * 4) if known else '')],
+                     '', '', '', id_prefix, 'Enlargement factor') }}
+        <p class="hint">
+            A Lanczos resample plus a light sharpen, meant for small images.
+            {% if known %}Source is {{ src_width }} &times; {{ src_height }} px; factors that would pass {{ max_dimension }} px per side are struck through.{% else %}Any image too large for the factor is reported individually, with its size.{% endif %}
+        </p>
     </div>
 {% endcall %}
 {% endmacro %}
 
 {% macro group_frame(id_prefix='', allow_region=true) %}
 {% call option_group('Frame') %}
-    {{ segmented('rotation', [('', 'None'), ('90', '90&deg;'), ('180', '180&deg;'), ('270', '270&deg;')],
-                 '', 'Rotate', 'Right angles only. Runs before the crop, so the crop box frames the rotated image.', id_prefix) }}
+    {{ segmented('rotation', [('', 'None'), ('90', '90°'), ('180', '180°'), ('270', '270°')],
+                 '', 'Rotate', 'Runs before the crop, so the crop box frames the rotated image.', id_prefix) }}
     <div class="row">
         {{ switch('flip_h', 'Mirror horizontally', '', false, id_prefix) }}
         {{ switch('flip_v', 'Mirror vertically', '', false, id_prefix) }}
     </div>
     {% set crop_options = [('none', 'None'), ('ratio', 'Ratio')] %}
     {% if allow_region %}{% set crop_options = crop_options + [('region', 'Region')] %}{% endif %}
-    {{ segmented('crop_mode', crop_options, 'none', 'Crop',
-                 'A ratio crops centred; a region takes explicit offsets. One or the other, never both.'
-                 if allow_region else
-                 'Centred on each image. An explicit region needs one known size, so it is offered on single images only.',
-                 id_prefix) }}
+    {{ segmented('crop_mode', crop_options, 'none', 'Crop', '', id_prefix) }}
+    <p class="hint">
+        {% if allow_region %}A ratio crops centred; a region takes explicit offsets. One or the other, never both.
+        {% else %}Centred on each image. An explicit region needs one known size, so it is offered on single images only.{% endif %}
+    </p>
     <div class="reveal" data-when="crop_mode=ratio" hidden>
         {{ segmented('crop_ratio', [('1:1', '1:1'), ('4:3', '4:3'), ('3:2', '3:2'), ('16:9', '16:9')],
                      '1:1', 'Aspect', '', id_prefix) }}
@@ -188,9 +220,9 @@
 {% call option_group('Repair') %}
     {{ segmented('denoise_mode',
                  [('', 'None'), ('despeckle', 'Despeckle'), ('enhance', 'Smooth'), ('kuwahara', 'Edge-preserving')],
-                 '', 'Noise reduction',
-                 'Runs before the tonal corrections, which amplify whatever noise they are handed. Edge-preserving is slow and refused above 16 megapixels.',
-                 id_prefix) }}
+                 '', 'Noise reduction', '', id_prefix) }}
+    <p class="hint">Runs before the tonal corrections, which amplify whatever noise they are handed.
+    Edge-preserving is slow and refused above 16 megapixels.</p>
     <div class="reveal" data-when="denoise_mode=kuwahara" hidden>
         {{ segmented('kuwahara_level', [('low', 'Low'), ('standard', 'Standard'), ('high', 'High')],
                      'standard', 'Strength', '', id_prefix) }}
@@ -220,9 +252,9 @@
 
 {% macro group_watermark(id_prefix='') %}
 {% call option_group('Watermark') %}
-    {{ text_field('watermark_text', 'Caption', '', 200, 'Leave empty for none',
-                  'Drawn twice for a drop shadow, so it stays readable over light and dark areas. Applied after the resize, so the size is relative to the final image.',
-                  id_prefix) }}
+    {{ text_field('watermark_text', 'Caption', '', 200, 'Leave empty for none', '', id_prefix) }}
+    <p class="hint">Drawn twice for a drop shadow, so it stays readable over light and dark areas.
+    Applied after the resize, so the size is relative to the delivered image.</p>
     <div class="reveal-text" data-when-filled="watermark_text" hidden>
         <div class="row row-top">
             <div class="field">
@@ -270,11 +302,13 @@
     </div>
     <div class="row">
         {{ number('quality', 'Quality', quality_value, 1, 100, 'q', '', '', id_prefix) }}
-        {{ switch('strip_metadata', 'Strip metadata', 'Removes EXIF, GPS coordinates and colour profiles. Orientation is applied first, so the image stays the right way up.', false, id_prefix) }}
+        {{ switch('strip_metadata', 'Strip metadata', '', false, id_prefix) }}
     </div>
+    <p class="hint">Stripping removes EXIF, GPS coordinates and colour profiles.
+    Orientation is applied first, so the image stays the right way up.</p>
     {{ segmented('background_color', [('white', 'White'), ('black', 'Black'), ('gray', 'Gray')],
-                 'white', 'Flatten onto',
-                 'Used only when the output format has no transparency, such as JPEG or BMP.', id_prefix) }}
+                 'white', 'Flatten onto', '', id_prefix) }}
+    <p class="hint">Used only when the chosen format has no transparency, such as JPEG or BMP.</p>
 {% endcall %}
 {% endmacro %}
 

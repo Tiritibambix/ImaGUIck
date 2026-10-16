@@ -144,7 +144,11 @@
         border-radius: var(--radius-md);
         background: var(--surface-card);
         margin-bottom: var(--sp-sm);
-        overflow: hidden;
+        /* Deliberately NOT overflow:hidden. A tooltip is absolutely positioned
+           against its own button and sits above it, so clipping the group cuts
+           every tooltip in the first row in half. The summary carries its own
+           radius instead, which is what overflow was there for. */
+        overflow: visible;
     }
 
     .opt-group > summary {
@@ -155,7 +159,11 @@
         cursor: pointer;
         list-style: none;
         background: var(--surface-raised);
+        border-radius: calc(var(--radius-md) - 1px);
         transition: background var(--ease);
+    }
+    .opt-group[open] > summary {
+        border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
     }
     .opt-group > summary::-webkit-details-marker { display: none; }
     .opt-group > summary:hover { background: var(--surface-hover); }
@@ -228,6 +236,27 @@
         display: flex;
         flex-direction: column;
         gap: var(--sp-md);
+    }
+
+    /* This rule is load-bearing. Nothing in the project defines [hidden], and
+       the browser's own `[hidden] { display: none }` comes from the UA
+       stylesheet, which any author class selector beats. Without it the
+       `display: flex` above wins and every mode's fields show at once, which
+       is exactly what made the Size group unreadable. */
+    .reveal[hidden], .reveal-text[hidden] { display: none; }
+
+    /* Visually hidden but still announced: used where the mode already names
+       what the number is, so the label would only repeat it on screen. */
+    .vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
     }
 
     /* ---------- one of a few: segmented ---------- */
@@ -483,6 +512,15 @@
     }
 
     .run-bar .btn { flex-shrink: 0; }
+
+    /* The shared tooltip is a fixed 200px in base.html, which overflows a phone
+       once it is centred on an icon near either edge. Clamp it to the viewport
+       and let it wrap instead. */
+    .og-body .tip::after,
+    .opt-group .tip::after {
+        width: min(220px, calc(100vw - 2.5rem));
+        max-width: 220px;
+    }
 
     @media (max-width: 480px) {
         .resize-card { padding: var(--sp-lg) var(--sp-md); }

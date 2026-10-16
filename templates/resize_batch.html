@@ -24,7 +24,7 @@
         <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
 
         {{ stage(1, 'Source', 'read before anything else') }}
-        {{ group_import('batch_') }}
+        {{ group_import(0, 0, 10000, 'batch_') }}
 
         {{ stage(2, 'Actions', 'applied in this order, to every image') }}
         {{ group_size(0, 0, 10000, 'batch_') }}

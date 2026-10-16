@@ -28,7 +28,7 @@
 
         {% if is_vector %}
         {{ stage(1, 'Source', 'read before anything else') }}
-        {{ group_import() }}
+        {{ group_import(width, height, max_dim) }}
         {% endif %}
 
         {{ stage(2 if is_vector else 1, 'Actions', 'applied in this order') }}
