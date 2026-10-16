@@ -866,7 +866,11 @@ def resolve_size_mode(form):
     raw = form.get('size_mode', '').strip().lower()
     if raw:
         mode = canonical_value(raw, ALLOWED_SIZE_MODES, 'keep')
-        preset = canonical_value(form.get('fit_preset', '').strip(), ALLOWED_FIT_PRESETS)
+        # Falls back to the smaller box rather than to nothing: without a
+        # default, a fit_preset that failed to post would leave "Fit" selected
+        # and silently resize nothing at all.
+        preset = canonical_value(form.get('fit_preset', '').strip(),
+                                 ALLOWED_FIT_PRESETS, '1080')
         return mode, preset
 
     if form.get('upscale'):

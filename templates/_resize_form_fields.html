@@ -18,12 +18,15 @@
 
 {# ---------- primitives ---------- #}
 
-{% macro segmented(name, options, current='', label='', tip='', id_prefix='', aria_label='') %}
+{% macro segmented(name, options, current='', label='', tip='', id_prefix='', aria_label='', always=false) %}
 {#  options: list of (value, text) or (value, text, disabled, title)
     Pass aria_label instead of label where the group heading or the option
     texts already say what the choice is, so the name is announced without
-    being repeated on screen. #}
-<div class="field">
+    being repeated on screen.
+    Pass always=true where the control only exists because of a non-default
+    choice upstream: its own default is then part of what the user picked, and
+    the summary has to report it instead of treating it as "unchanged". #}
+<div class="field"{% if always %} data-summary-always{% endif %}>
     {% if label %}<span class="field-label">{{ label }}{% if tip %}{{ info_tip(tip) }}{% endif %}</span>{% endif %}
     <div class="seg" role="radiogroup" aria-label="{{ label or aria_label or name }}">
         {% for opt in options %}
@@ -105,14 +108,14 @@
        each option can state the raster it would actually produce, which is a
        far better explanation than any wording. #}
     {{ segmented('density',
-                 [('', '72 dpi', false, '%s × %s px' % (src_width, src_height) if known else ''),
+                 [('72', '72 dpi', false, '%s × %s px' % (src_width, src_height) if known else ''),
                   ('150', '150 dpi', known and (src_width * 150 / 72 > max_dimension or src_height * 150 / 72 > max_dimension),
                    '%s × %s px' % ((src_width * 150 / 72) | round | int, (src_height * 150 / 72) | round | int) if known else ''),
                   ('300', '300 dpi', known and (src_width * 300 / 72 > max_dimension or src_height * 300 / 72 > max_dimension),
                    '%s × %s px' % ((src_width * 300 / 72) | round | int, (src_height * 300 / 72) | round | int) if known else ''),
                   ('600', '600 dpi', known and (src_width * 600 / 72 > max_dimension or src_height * 600 / 72 > max_dimension),
                    '%s × %s px' % ((src_width * 600 / 72) | round | int, (src_height * 600 / 72) | round | int) if known else '')],
-                 '', 'Rasterize at', '', id_prefix) }}
+                 '72', 'Rasterize at', '', id_prefix) }}
     <p class="hint">
         {% if known %}
         This page is drawn at {{ src_width }} &times; {{ src_height }} px at 72 dpi
@@ -162,7 +165,7 @@
 
     <div class="reveal" data-when="size_mode=fit" hidden>
         {{ segmented('fit_preset', [('1080', '1080 px'), ('1920', '1920 px')], '1080', 'Longest edge',
-                     '', id_prefix) }}
+                     '', id_prefix, '', true) }}
         <p class="hint">Shrink-only: an image already smaller than the box is left alone.</p>
     </div>
 
@@ -200,7 +203,7 @@
     </p>
     <div class="reveal" data-when="crop_mode=ratio" hidden>
         {{ segmented('crop_ratio', [('1:1', '1:1'), ('4:3', '4:3'), ('3:2', '3:2'), ('16:9', '16:9')],
-                     '1:1', 'Aspect', '', id_prefix) }}
+                     '1:1', 'Aspect', '', id_prefix, '', true) }}
     </div>
     {% if allow_region %}
     <div class="reveal" data-when="crop_mode=region" hidden>
@@ -225,7 +228,7 @@
     Edge-preserving is slow and refused above 16 megapixels.</p>
     <div class="reveal" data-when="denoise_mode=kuwahara" hidden>
         {{ segmented('kuwahara_level', [('low', 'Low'), ('standard', 'Standard'), ('high', 'High')],
-                     'standard', 'Strength', '', id_prefix) }}
+                     'standard', 'Strength', '', id_prefix, '', true) }}
     </div>
 {% endcall %}
 {% endmacro %}
@@ -347,8 +350,11 @@
         const parts = [];
         for (const el of group.querySelectorAll('input, select')) {
             if (el.closest('[hidden]')) continue;
+            const always = el.closest('[data-summary-always]');
             if (el.type === 'radio') {
-                if (el.checked && !el.defaultChecked && el.value) parts.push(label(el));
+                if (el.checked && el.value && (always || !el.defaultChecked)) {
+                    parts.push(label(el));
+                }
             } else if (el.type === 'checkbox') {
                 if (el.checked !== el.defaultChecked) {
                     parts.push(el.checked ? label(el) : 'no ' + label(el).toLowerCase());
