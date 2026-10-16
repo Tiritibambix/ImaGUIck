@@ -15,6 +15,10 @@
             --surface-hover:   #27272f;
             --surface-border:  #2e2e38;
             --surface-line:    #232330;
+            /* Darker than the page: a matte painted just inside every card's
+               edge, which is what reads as the thin black frame around a
+               card's contents. */
+            --surface-matte:   #0a0a0c;
 
             /* Text */
             --text-primary:    #f0f0f5;
@@ -185,7 +189,11 @@
             background: var(--surface-card);
             border: 1px solid var(--surface-border);
             border-radius: var(--radius-xl);
-            box-shadow: var(--shadow-card);
+            /* The second shadow is the matte: no blur, 16px spread, so it
+               paints a band of --surface-matte just inside the border and
+               under the content. Every card keeps the same inner frame. */
+            box-shadow: var(--shadow-card),
+                        inset 0 0 0 16px var(--surface-matte);
             width: 100%;
         }
 
