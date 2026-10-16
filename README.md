@@ -24,43 +24,57 @@ This application has been coded with the help of AI and is designed for **local 
 
 ## Features
 
+### Upload
+
+- **Drag-and-drop**: single file, multi-select, or whole folders
+- **URL import**: fetch an image directly from a URL (with SSRF protection)
+- **Tab switcher**: Resize and Create GIF/WEBP live on the same page
+
 ### Resize & convert
 
-- **Single and batch processing**: handle one image or hundreds at once
-- **Flexible resizing**: by exact dimensions, percentage, or one-click presets (1080p / 1920p) with optional aspect-ratio lock
+- **Single and batch processing**: one image or hundreds, each tracked individually
+- **Flexible resizing**: exact dimensions (with optional aspect-ratio lock), percentage, one-click presets (1080p / 1920p), or 2x / 3x / 4x Lanczos enlarge with a light sharpen
 - **Wide format support**
   - Common: JPG, PNG, GIF, BMP, TIFF, WEBP
-  - RAW: ARW, CR2, CR3, NEF, RAF, RW2, DNG
-  - Modern: JXL
+  - RAW: ARW, CR2, CR3, NEF, RAF, RW2, DNG (via ExifTool + dcraw)
+  - Modern: JXL (via libjxl)
   - Animation: GIF, WEBP, APNG
   - Vector / document: SVG, PDF, EPS in (rasterized by Ghostscript, first page only) and out (requires `potrace`)
-- **Image enhancement**: auto-level, auto-gamma, noise reduction (despeckle, smooth, or edge-preserving), and three-level unsharp masking (low / standard / high)
+- **DPI control for vector/PDF sources**: rasterize at 72, 150, 300 or 600 dpi, with the resulting pixel size shown before you choose
+- **Cropping**: centred aspect ratio (1:1, 4:3, 3:2, 16:9) or explicit pixel region with offsets
 - **Transform**: rotate 90 / 180 / 270 degrees, mirror horizontally or vertically
-- **Cropping**: by aspect ratio (1:1, 4:3, 3:2, 16:9, centred) or by an explicit region with pixel offsets
-- **Effects**: grayscale, sepia, negative, and three-level blur
-- **Enlarge**: 2x, 3x or 4x Lanczos resample with a light sharpen (plain ImageMagick, no model and no GPU)
-- **Text watermark**: caption with a drop shadow, a nine-position placement grid, adjustable size, opacity and font
-- **Smart format recommendations**: context-aware suggestions based on image type and transparency
-- **URL import**: fetch and process an image directly from a URL
-- **Real-time progress**: per-file status streamed via Server-Sent Events (SSE) during batch jobs
+- **Repair**: noise reduction — despeckle, smooth, or edge-preserving (Kuwahara) with three intensity levels
+- **Tone**: auto-level (stretches levels to full range) and auto-gamma (corrects exposure globally)
+- **Look**: effects (grayscale, sepia, negative), three-level blur, and three-level unsharp masking
+- **Text watermark**: caption with a drop shadow, a nine-position placement grid, adjustable size, opacity, and font choice (Sans, Sans Bold, Serif)
+- **Output control**: format conversion across the full format list, quality slider (1–100), metadata stripping, and background-colour picker (white / black / gray / hex) for flattening transparent images into opaque formats
+- **Smart format recommendations**: context-aware suggestions based on whether the image is photographic or graphic, and whether it has transparency
+- **Real-time progress**: per-file status streamed via Server-Sent Events (SSE) during batch jobs, with individual error reporting per file
 - **Automatic ZIP export**: processed batch files packaged and ready to download
 
 ### Animated GIF / WEBP
 
-- **Create** an animation from a sequence of images: drag to reorder frames, set FPS, loop count, and an optional shared canvas size, output as GIF or WEBP
-- **Edit** an existing animated GIF/WEBP:
+- **Create** an animation from a sequence of images:
+  - Drag to reorder frames
+  - Live animation preview (canvas-based playback at real frame rate) before processing
+  - Set FPS (1–30), loop count (0 = forever), and an optional shared canvas size
+  - Palette size (2–256 colours for GIF) or quality (for WEBP)
+  - Output as GIF or WEBP
+- **Edit** an existing animated GIF or WEBP:
   - Resize (by dimensions or percentage)
-  - Optimize (palette size, Floyd-Steinberg dithering)
-  - Change playback speed
+  - Optimize (palette size, Floyd-Steinberg dithering toggle)
+  - Change playback speed (0.1x to 10x)
   - Reverse
   - Rotate / flip
   - Change loop count
-  - Extract a single frame, a frame range, or every frame (as PNG or WEBP, zipped when extracting more than one)
-- Animated WEBP output is automatically offered or hidden depending on whether the server's ImageMagick build actually supports WEBP muxing, with no dead options in the UI
+  - Extract a single frame, a frame range, or every frame (as PNG or WEBP, zipped when more than one)
+- Reachable from the GIF tab (upload one animated file) or from the resize options page of an animated file via the "Edit as animation" link
+- Animated WEBP output is automatically offered or hidden depending on whether the server's ImageMagick build supports WEBP muxing — no dead options in the UI
 
 ### Housekeeping
 
 - **Automatic cleanup**: uploaded and output files purged after 48 hours; completed batch/GIF jobs purged from memory after 2 hours
+- **Health check**: `/health` endpoint for Docker healthchecks and monitoring
 
 ## Screenshots
 
