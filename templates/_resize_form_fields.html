@@ -393,6 +393,33 @@
         }
     }
 
+    // A tooltip is centred on its own button, which puts it off the edge for
+    // any control near the left or right of a narrow viewport. Measure it when
+    // it is about to show and offset it back on screen; --tip-nudge defaults
+    // to 0, so without this the tooltip is simply centred as before.
+    function nudgeTip(btn) {
+        btn.style.removeProperty('--tip-nudge');
+        const width = parseFloat(getComputedStyle(btn, '::after').width);
+        if (!width) return;
+        const box = btn.getBoundingClientRect();
+        const centre = box.left + box.width / 2;
+        const margin = 8;
+        let nudge = 0;
+        if (centre - width / 2 < margin) {
+            nudge = margin - (centre - width / 2);
+        } else if (centre + width / 2 > window.innerWidth - margin) {
+            nudge = (window.innerWidth - margin) - (centre + width / 2);
+        }
+        if (nudge) btn.style.setProperty('--tip-nudge', nudge.toFixed(1) + 'px');
+    }
+
+    for (const event of ['pointerover', 'focusin']) {
+        form.addEventListener(event, (e) => {
+            const btn = e.target.closest && e.target.closest('.tip');
+            if (btn) nudgeTip(btn);
+        });
+    }
+
     function refresh() { applyReveals(); applySummaries(); }
     form.addEventListener('input', refresh);
     form.addEventListener('change', refresh);

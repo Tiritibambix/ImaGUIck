@@ -7,15 +7,21 @@
     .resize-card {
         max-width: 760px;
         margin: 0 auto;
-        --control-h: 30px;
+        /* base.html's .card sets no padding, and the old layout got its
+           breathing room from .section-block's own padding. Removing those
+           sections left the groups flush against the card border, so the
+           cushion lives here now. */
+        padding: var(--sp-xl);
+        --control-h: 34px;
+        --group-gap: 12px;
     }
 
     .page-header {
         display: flex;
         align-items: center;
         gap: var(--sp-md);
-        padding-bottom: var(--sp-md);
-        margin-bottom: var(--sp-lg);
+        padding-bottom: var(--sp-lg);
+        margin-bottom: var(--sp-xl);
         border-bottom: 1px solid var(--surface-border);
     }
 
@@ -116,7 +122,7 @@
         display: flex;
         align-items: baseline;
         gap: var(--sp-sm);
-        margin: var(--sp-xl) 0 var(--sp-sm);
+        margin: var(--sp-xl) 0 var(--sp-md);
     }
     .stage:first-of-type { margin-top: 0; }
 
@@ -143,7 +149,7 @@
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-md);
         background: var(--surface-card);
-        margin-bottom: var(--sp-sm);
+        margin-bottom: var(--group-gap);
         /* Deliberately NOT overflow:hidden. A tooltip is absolutely positioned
            against its own button and sits above it, so clipping the group cuts
            every tooltip in the first row in half. The summary carries its own
@@ -154,8 +160,8 @@
     .opt-group > summary {
         display: flex;
         align-items: center;
-        gap: var(--sp-sm);
-        padding: 9px var(--sp-md);
+        gap: var(--sp-md);
+        padding: var(--sp-md) var(--sp-lg);
         cursor: pointer;
         list-style: none;
         background: var(--surface-raised);
@@ -199,16 +205,16 @@
     .opt-group[open] > summary .og-sum { opacity: 0; }
 
     .og-body {
-        padding: var(--sp-md);
+        padding: var(--sp-lg);
         display: flex;
         flex-direction: column;
-        gap: var(--sp-md);
+        gap: var(--sp-lg);
         border-top: 1px solid var(--surface-border);
     }
 
     /* ---------- field scaffolding ---------- */
 
-    .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .field { display: flex; flex-direction: column; gap: var(--sp-sm); min-width: 0; }
 
     .field-label {
         display: flex;
@@ -443,8 +449,8 @@
     .format-note {
         display: flex;
         gap: var(--sp-sm);
-        padding: var(--sp-sm) var(--sp-md);
-        margin-top: var(--sp-md);
+        padding: var(--sp-md) var(--sp-lg);
+        margin-top: var(--sp-lg);
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-md);
         background: var(--surface-card);
@@ -493,8 +499,8 @@
         align-items: center;
         justify-content: space-between;
         gap: var(--sp-md);
-        margin-top: var(--sp-lg);
-        padding: var(--sp-sm) var(--sp-md);
+        margin-top: var(--sp-xl);
+        padding: var(--sp-md) var(--sp-lg);
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-md);
         background: var(--surface-raised);
@@ -513,18 +519,22 @@
 
     .run-bar .btn { flex-shrink: 0; }
 
-    /* The shared tooltip is a fixed 200px in base.html, which overflows a phone
-       once it is centred on an icon near either edge. Clamp it to the viewport
-       and let it wrap instead. */
+    /* The shared tooltip is a fixed 200px in base.html, centred on its button.
+       Centring is what pushes it off screen for any control near an edge, and
+       no width alone fixes that, so the transform carries a nudge the script
+       sets after measuring. Default 0, i.e. centred, when no script runs. */
     .og-body .tip::after,
     .opt-group .tip::after {
         width: min(220px, calc(100vw - 2.5rem));
         max-width: 220px;
+        transform: translateX(calc(-50% + var(--tip-nudge, 0px)));
     }
 
     @media (max-width: 480px) {
         .resize-card { padding: var(--sp-lg) var(--sp-md); }
-        .row { gap: var(--sp-sm); }
+        .og-body { padding: var(--sp-md); gap: var(--sp-md); }
+        .opt-group > summary { padding: var(--sp-sm) var(--sp-md); }
+        .row { gap: var(--sp-md); }
         .num input { width: 64px; }
         .run-bar { flex-direction: column; align-items: stretch; }
         .run-bar .btn { width: 100%; }
