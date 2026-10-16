@@ -148,7 +148,11 @@
     .opt-group {
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-md);
-        background: var(--surface-card);
+        /* One step above the card, which is itself one step above the page.
+           That ladder is what draws the dark frame around each block: the old
+           .section-block sat on --surface-raised for the same reason, and
+           matching the card's own colour here is what flattened the page. */
+        background: var(--surface-raised);
         margin-bottom: var(--group-gap);
         /* Deliberately NOT overflow:hidden. A tooltip is absolutely positioned
            against its own button and sits above it, so clipping the group cuts
@@ -164,7 +168,7 @@
         padding: var(--sp-md) var(--sp-lg);
         cursor: pointer;
         list-style: none;
-        background: var(--surface-raised);
+        background: var(--surface-hover);
         border-radius: calc(var(--radius-md) - 1px);
         transition: background var(--ease);
     }
@@ -172,7 +176,7 @@
         border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
     }
     .opt-group > summary::-webkit-details-marker { display: none; }
-    .opt-group > summary:hover { background: var(--surface-hover); }
+    .opt-group > summary:hover { background: var(--surface-border); }
     .opt-group > summary:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: -2px;
@@ -272,7 +276,7 @@
         flex-wrap: wrap;
         gap: 2px;
         padding: 2px;
-        background: var(--surface-raised);
+        background: var(--surface-hover);
         border: 1px solid var(--surface-border);
         border-radius: 20px;
         width: fit-content;
@@ -362,7 +366,7 @@
         height: var(--control-h);
         box-sizing: border-box;
         padding: 0 8px;
-        background: var(--surface-raised);
+        background: var(--surface-hover);
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-sm) 0 0 var(--radius-sm);
         color: var(--text-primary);
@@ -372,7 +376,7 @@
     .num input:focus {
         outline: none;
         border-color: var(--accent);
-        background: var(--surface-hover);
+        background: var(--surface-border);
     }
 
     .num-unit {
@@ -396,19 +400,19 @@
         height: var(--control-h);
         box-sizing: border-box;
         padding: 0 10px;
-        background: var(--surface-raised);
+        background: var(--surface-hover);
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-sm);
         color: var(--text-primary);
         font-size: 0.82rem;
     }
-    .txt:focus { outline: none; border-color: var(--accent); background: var(--surface-hover); }
+    .txt:focus { outline: none; border-color: var(--accent); background: var(--surface-border); }
 
     .og-body select {
         height: var(--control-h);
         box-sizing: border-box;
         padding: 0 8px;
-        background: var(--surface-raised);
+        background: var(--surface-hover);
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-sm);
         color: var(--text-primary);
@@ -434,7 +438,7 @@
         aspect-ratio: 1;
         border-radius: var(--radius-sm);
         border: 1px solid var(--surface-border);
-        background: var(--surface-raised);
+        background: var(--surface-hover);
         transition: all var(--ease);
     }
     .wm-cell:hover span { border-color: var(--accent-dim); }
@@ -503,7 +507,7 @@
         padding: var(--sp-md) var(--sp-lg);
         border: 1px solid var(--surface-border);
         border-radius: var(--radius-md);
-        background: var(--surface-raised);
+        background: var(--surface-hover);
     }
 
     .run-sum {
