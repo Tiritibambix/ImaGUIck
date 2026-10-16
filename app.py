@@ -2171,6 +2171,7 @@ def resize_options(filename):
                            formats=formats,
                            image_type=image_type,
                            max_dimension=MAX_DIMENSION,
+                           opaque_formats=sorted(OPAQUE_OUTPUT_FORMATS),
                            defaults=DEFAULTS)
 
 
@@ -2369,6 +2370,7 @@ def resize_batch_options(filenames=None):
                            formats=formats,
                            batch_info=batch_info,
                            image_types=image_types,
+                           opaque_formats=sorted(OPAQUE_OUTPUT_FORMATS),
                            defaults=DEFAULTS)
 
 

@@ -40,7 +40,9 @@
         {{ group_watermark() }}
 
         {{ stage(3 if is_vector else 2, 'Output') }}
-        {{ group_output(formats, defaults.quality if defaults else '100') }}
+        {{ group_output(formats, defaults.quality if defaults else '100',
+                        'Output format', 'Keep original format', '',
+                        opaque_formats if opaque_formats else []) }}
 
         {% if is_raw %}
         <div class="format-note accent">

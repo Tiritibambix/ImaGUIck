@@ -286,7 +286,7 @@
 {% endcall %}
 {% endmacro %}
 
-{% macro group_output(formats, quality_value='100', format_label='Output format', format_placeholder='Keep original format', id_prefix='') %}
+{% macro group_output(formats, quality_value='100', format_label='Output format', format_placeholder='Keep original format', id_prefix='', opaque_formats=[]) %}
 {% call option_group('Encoding', true) %}
     <div class="field">
         <label class="field-label" for="{{ id_prefix }}format">{{ format_label }}</label>
@@ -309,9 +309,16 @@
     </div>
     <p class="hint">Stripping removes EXIF, GPS coordinates and colour profiles.
     Orientation is applied first, so the image stays the right way up.</p>
-    {{ segmented('background_color', [('white', 'White'), ('black', 'Black'), ('gray', 'Gray')],
-                 'white', 'Flatten onto', '', id_prefix) }}
-    <p class="hint">Used only when the chosen format has no transparency, such as JPEG or BMP.</p>
+    {# Only shown when it can do anything. The empty entry keeps it visible for
+       "keep original format", where the output format is the source's and the
+       page cannot know whether that one carries alpha. It is therefore hidden
+       exactly when an alpha-capable format was explicitly chosen. #}
+    <div class="reveal" data-when-in="format={{ ([''] + opaque_formats) | join(',') }}" hidden>
+        {{ segmented('background_color', [('white', 'White'), ('black', 'Black'), ('gray', 'Gray')],
+                     'white', 'Flatten onto', '', id_prefix) }}
+        <p class="hint">Transparent areas are composited onto this colour, because the
+        chosen format cannot store transparency.</p>
+    </div>
 {% endcall %}
 {% endmacro %}
 
@@ -324,16 +331,31 @@
     if (!form) return;
 
     // A block tagged data-when="field=value" is shown only while that field
-    // holds that value; data-when-filled="field" while the field is non-empty.
-    const reveals = [...form.querySelectorAll('[data-when], [data-when-filled]')];
+    // holds that value; data-when-in="field=a,b,c" while it holds any of them
+    // (an empty entry matches an empty value, which is how "keep original"
+    // counts); data-when-filled="field" while the field is non-empty.
+    const reveals = [...form.querySelectorAll(
+        '[data-when], [data-when-in], [data-when-filled]')];
+
+    function valueOf(name) {
+        const picked = form.querySelector(`[name="${name}"]:checked`);
+        if (picked) return picked.value;
+        const field = form.querySelector(`[name="${name}"]`);
+        return field ? field.value : null;
+    }
 
     function applyReveals() {
         for (const el of reveals) {
-            const cond = el.dataset.when;
-            if (cond) {
+            if (el.dataset.when) {
+                const cond = el.dataset.when;
                 const i = cond.indexOf('=');
-                const picked = form.querySelector(`[name="${cond.slice(0, i)}"]:checked`);
-                el.hidden = !picked || picked.value !== cond.slice(i + 1);
+                el.hidden = valueOf(cond.slice(0, i)) !== cond.slice(i + 1);
+            } else if (el.dataset.whenIn) {
+                const cond = el.dataset.whenIn;
+                const i = cond.indexOf('=');
+                const current = valueOf(cond.slice(0, i));
+                el.hidden = current === null
+                    || !cond.slice(i + 1).split(',').includes(current);
             } else {
                 const src = form.querySelector(`[name="${el.dataset.whenFilled}"]`);
                 el.hidden = !src || !src.value.trim();

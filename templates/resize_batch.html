@@ -23,10 +23,16 @@
     <form action="/resize_batch" method="post" class="options-form">
         <input type="hidden" name="filenames" value="{{ ','.join(files) }}">
 
+        {% set vs = namespace(any=false) %}
+        {% for f in files %}
+            {% if f.lower().split('.')[-1] in ['svg', 'pdf', 'eps', 'ai'] %}{% set vs.any = true %}{% endif %}
+        {% endfor %}
+        {% if vs.any %}
         {{ stage(1, 'Source', 'read before anything else') }}
         {{ group_import(0, 0, 10000, 'batch_') }}
+        {% endif %}
 
-        {{ stage(2, 'Actions', 'applied in this order, to every image') }}
+        {{ stage(2 if vs.any else 1, 'Actions', 'applied in this order, to every image') }}
         {{ group_size(0, 0, 10000, 'batch_') }}
         {{ group_frame('batch_', false) }}
         {{ group_repair('batch_') }}
@@ -34,9 +40,10 @@
         {{ group_look('batch_') }}
         {{ group_watermark('batch_') }}
 
-        {{ stage(3, 'Output') }}
+        {{ stage(3 if vs.any else 2, 'Output') }}
         {{ group_output(formats, defaults.quality if defaults else '100',
-                        'Convert all to format', 'Keep original formats', 'batch_') }}
+                        'Convert all to format', 'Keep original formats', 'batch_',
+                        opaque_formats if opaque_formats else []) }}
 
         {% set ns = namespace(has_raw=false) %}
         {% for f in files %}
