@@ -13,7 +13,11 @@
            cushion lives here now. */
         padding: var(--sp-xl);
         --control-h: 34px;
-        --group-gap: 12px;
+        /* The card's own background showing between the groups IS the dark
+           frame. The old .form-grid separated its blocks by --sp-lg, and
+           halving that to 12px is what made the frame read as a hairline
+           instead of a frame. Match the old spacing. */
+        --group-gap: var(--sp-lg);
     }
 
     .page-header {
@@ -168,7 +172,7 @@
         padding: var(--sp-md) var(--sp-lg);
         cursor: pointer;
         list-style: none;
-        background: var(--surface-hover);
+        background: var(--surface-raised);
         border-radius: calc(var(--radius-md) - 1px);
         transition: background var(--ease);
     }
@@ -176,7 +180,7 @@
         border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
     }
     .opt-group > summary::-webkit-details-marker { display: none; }
-    .opt-group > summary:hover { background: var(--surface-border); }
+    .opt-group > summary:hover { background: var(--surface-hover); }
     .opt-group > summary:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: -2px;
