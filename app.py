@@ -177,9 +177,13 @@ IMAGE_EXTENSIONS = {
 # a malformed pixel buffer (see the Ghostscript note in CLAUDE.md).
 DOCUMENT_INPUT_EXTENSIONS = {'.pdf', '.eps'}
 
-# Extensions accepted for URL import (is_safe_url) — a superset of IMAGE_EXTENSIONS
-# that also allows SVG, which is not offered for direct upload.
-URL_IMPORT_EXTENSIONS = IMAGE_EXTENSIONS | DOCUMENT_INPUT_EXTENSIONS | {'.svg'}
+# SVG is XML-interpreted like PDF/EPS but is not multi-page, so it does not
+# need the [0] suffix that DOCUMENT_INPUT_EXTENSIONS triggers.  It goes into
+# UPLOAD_EXTENSIONS directly alongside the document formats.
+SVG_EXTENSIONS = {'.svg'}
+
+# Extensions accepted for URL import (is_safe_url).
+URL_IMPORT_EXTENSIONS = IMAGE_EXTENSIONS | DOCUMENT_INPUT_EXTENSIONS | SVG_EXTENSIONS
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -188,7 +192,7 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
-app.config['UPLOAD_EXTENSIONS'] = sorted(IMAGE_EXTENSIONS | DOCUMENT_INPUT_EXTENSIONS)
+app.config['UPLOAD_EXTENSIONS'] = sorted(IMAGE_EXTENSIONS | DOCUMENT_INPUT_EXTENSIONS | SVG_EXTENSIONS)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-insecure-key-change-in-prod')
 app.logger.setLevel(logging.INFO)
 
