@@ -848,14 +848,23 @@ def classify_processing_error(exc, stderr=''):
     return 'Processing error'
 
 
+def clamped_int(raw, low, high, default):
+    """Parse a form value to an int clamped to [low, high], falling back to
+    default on anything unparseable.  Breaks the taint chain from request data
+    to command arguments, which is why quality / watermark size / opacity go
+    through it in extract_processing_params() rather than being forwarded as
+    raw strings and converted deeper in the call chain."""
+    try:
+        return max(low, min(high, int(raw)))
+    except (TypeError, ValueError):
+        return default
+
+
 def modulate_component(form, field):
     """One -modulate component, clamped to its allowed range. Anything
     unparseable falls back to 100, which is the neutral value for all three."""
     low, high = MODULATE_RANGES[field]
-    try:
-        return max(low, min(high, int(form.get(f'modulate_{field}', 100))))
-    except (TypeError, ValueError):
-        return 100
+    return clamped_int(form.get(f'modulate_{field}', 100), low, high, 100)
 
 
 def resolve_size_mode(form):
@@ -958,7 +967,7 @@ def extract_processing_params(form):
         'width': form.get('width', DEFAULTS['width']) if size_mode == 'pixels' else '',
         'height': form.get('height', DEFAULTS['height']) if size_mode == 'pixels' else '',
         'percentage': form.get('percentage', DEFAULTS['percentage']) if size_mode == 'percent' else '',
-        'quality': form.get('quality', DEFAULTS['quality']),
+        'quality': clamped_int(form.get('quality', DEFAULTS['quality']), 1, 100, 100),
         'keep_ratio': ('keep_ratio' in form) and size_mode == 'pixels',
         'output_format': output_format,
         'auto_level': form.get('auto_level') == 'on',
@@ -995,8 +1004,10 @@ def extract_processing_params(form):
         'crop_y': form.get('crop_y', '') if crop_mode == 'region' else '',
         'watermark_text': safe_watermark_text(form.get('watermark_text', '')),
         'watermark_position': watermark_position,
-        'watermark_size': form.get('watermark_size', '24'),
-        'watermark_opacity': form.get('watermark_opacity', '60'),
+        'watermark_size': clamped_int(form.get('watermark_size', '24'),
+                                      WATERMARK_SIZE_RANGE[0], WATERMARK_SIZE_RANGE[1], 24),
+        'watermark_opacity': clamped_int(form.get('watermark_opacity', '60'),
+                                         WATERMARK_OPACITY_RANGE[0], WATERMARK_OPACITY_RANGE[1], 60),
         'watermark_font': watermark_font,
     }
 
@@ -1356,13 +1367,8 @@ def build_imagemagick_command(filepath, output_path, width, height, percentage, 
             return None
         command.extend(watermark_args)
 
-    if quality and quality != "100":
-        try:
-            quality_value = int(quality)
-            if 1 <= quality_value <= 100:
-                command.extend(['-quality', str(quality_value)])
-        except ValueError:
-            return refuse('Quality must be a whole number between 1 and 100')
+    if quality and quality != 100:
+        command.extend(['-quality', str(int(quality))])
 
     command.append(output_path)
     return command
