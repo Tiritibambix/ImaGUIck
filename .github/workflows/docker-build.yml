@@ -110,11 +110,9 @@ jobs:
       - name: Check dependencies with pip-audit
         run: |
           docker run --rm -v $(pwd):/app -w /app python:3.10-slim sh -c " \
-          python -m venv venv && \
-          . venv/bin/activate && \
           pip install --upgrade pip setuptools && \
           pip install pip-audit && \
-          pip-audit"
+          pip-audit -r /app/requirements.txt"
 
   build-and-push:
     runs-on: ubuntu-24.04
