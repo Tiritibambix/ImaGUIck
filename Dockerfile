@@ -1,7 +1,12 @@
 # Base image. Do NOT pin this to $BUILDPLATFORM: buildx then bakes the builder's
 # architecture into every target image, so the arm64 manifest entry would ship
 # amd64 binaries.
-FROM python:3.9-slim
+#
+# The minor version is a security floor, not a preference: Pillow >= 13 needs
+# Python >= 3.11, and every Pillow below 13 carries the unpatched decoder CVEs
+# that requirements.txt pins away from. Dropping this back to 3.9/3.10 makes
+# pip silently resolve a vulnerable Pillow instead of failing.
+FROM python:3.13-slim
 
 ARG IMAGEMAGICK_VERSION=7.1.2-31
 

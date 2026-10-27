@@ -107,9 +107,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The container must track the Dockerfile's base image: pip resolves a
+      # requirement to the newest version that supports the running Python, so
+      # auditing on a different minor audits dependency versions the image will
+      # never install.
       - name: Check dependencies with pip-audit
         run: |
-          docker run --rm -v $(pwd):/app -w /app python:3.10-slim sh -c " \
+          docker run --rm -v $(pwd):/app -w /app python:3.13-slim sh -c " \
           pip install --upgrade pip setuptools && \
           pip install pip-audit && \
           pip-audit -r /app/requirements.txt"

@@ -171,7 +171,7 @@ Workflows live in `.github/workflows/`. Key conventions:
 
 ## Development notes
 
-- Python 3.9+ required (f-strings, `subprocess` keyword args)
+- Python 3.11+ required. The floor is set by `Pillow>=13.0.0` in `requirements.txt`, not by any language feature the app uses: every Pillow below 13 carries unpatched decoder CVEs, and Pillow 13 requires Python >= 3.11. The Dockerfile's base image and the `audit` job's container must move together — pip resolves a requirement to the newest version supporting the running Python, so a mismatched audit checks versions the image never installs
 - No test suite currently exists
 - Commit messages in English
 - Commit titles follow conventional commits format: `type(scope): description`

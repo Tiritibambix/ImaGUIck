@@ -1,3 +1,8 @@
 requests
-Pillow
+# Every Pillow below 13.0.0 carries a large batch of unpatched decoder CVEs.
+# The app feeds user-uploaded files straight to PIL (is_animated_file,
+# analyze_image_type, build_preview_thumbnail), so these are reachable, not
+# theoretical. The floor also forces the Dockerfile's Python to stay >= 3.11,
+# which is what Pillow 13 requires.
+Pillow>=13.0.0
 Flask

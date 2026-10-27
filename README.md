@@ -117,7 +117,7 @@ Batch uploads and GIF/WEBP creation are both processed **asynchronously**: the b
 
 | Dependency | Version | Notes |
 |---|---|---|
-| Python | 3.9+ | |
+| Python | 3.11+ | Pillow 13, which carries the current decoder security fixes, requires it |
 | [ImageMagick](https://github.com/ImageMagick/ImageMagick/releases/tag/7.1.2-31) | 7.1.2-31+ | ImageMagick 7 only: the app calls `magick`, which ImageMagick 6 does not provide |
 | ExifTool | any | Required for RAW metadata |
 | potrace | any | Required for vector output (SVG, EPS, PDF) |
@@ -257,7 +257,7 @@ You can also get there from the resize options page of an animated file, via the
 
 | Layer | Technology |
 |---|---|
-| Backend | Flask (Python 3.9+), Gunicorn (gthread, 1 worker × 16 threads: job/session state is in-process memory, so it must stay a single process) |
+| Backend | Flask (Python 3.11+), Gunicorn (gthread, 1 worker × 16 threads: job/session state is in-process memory, so it must stay a single process) |
 | Image processing | ImageMagick 7.1.2-31, ExifTool, Pillow, potrace |
 | Async pipeline | `ThreadPoolExecutor` + `BoundedSemaphore(4)`: no external queue required |
 | Progress streaming | Server-Sent Events (SSE) via `/job/<id>/status` |
