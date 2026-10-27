@@ -39,7 +39,8 @@ This application has been coded with the help of AI and is designed for **local 
   - RAW: ARW, CR2, CR3, NEF, RAF, RW2, DNG (via ExifTool + dcraw)
   - Modern: JXL (via libjxl)
   - Animation: GIF, WEBP, APNG
-  - Vector / document: SVG, PDF, EPS in (rasterized by Ghostscript, first page only) and out (requires `potrace`)
+  - Vector / document in: SVG (rasterized by librsvg), PDF and EPS (rasterized by Ghostscript, first page only)
+  - Vector out: SVG, EPS, PDF, AI (requires `potrace`)
 - **DPI control for vector/PDF sources**: rasterize at 72, 150, 300 or 600 dpi, with the resulting pixel size shown before you choose
 - **Cropping**: centred aspect ratio (1:1, 4:3, 3:2, 16:9) or explicit pixel region with offsets
 - **Transform**: rotate 90 / 180 / 270 degrees, mirror horizontally or vertically
@@ -122,6 +123,7 @@ Batch uploads and GIF/WEBP creation are both processed **asynchronously**: the b
 | ExifTool | any | Required for RAW metadata |
 | potrace | any | Required for vector output (SVG, EPS, PDF) |
 | libwebp (+ pkg-config) | any | Required for animated WEBP creation/editing; single-frame WEBP works without it |
+| librsvg | any | Required for SVG **input**. Without it ImageMagick uses its own minimal renderer, which ignores gradients, filters, clip paths, CSS and text |
 | Docker | any | Recommended deployment method |
 
 ### Docker (recommended)

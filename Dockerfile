@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y \
     libjxl-tools \
     libjxl-dev \
     libwebp-dev \
+    librsvg2-dev \
     exiftool \
     dcraw \
     potrace \
@@ -50,7 +51,7 @@ RUN apt-get update && apt-get install -y \
 RUN wget "https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${IMAGEMAGICK_VERSION}.tar.gz" -O /tmp/imagemagick.tar.gz && \
     tar -xzf /tmp/imagemagick.tar.gz -C /tmp && \
     cd "/tmp/ImageMagick-${IMAGEMAGICK_VERSION}" && \
-    ./configure --prefix=/usr/local --disable-shared --without-x --with-jxl && \
+    ./configure --prefix=/usr/local --disable-shared --without-x --with-jxl --with-rsvg && \
     make -j$(nproc) && \
     make install && \
     rm -rf /tmp/*
@@ -69,6 +70,14 @@ ENV MAGICK_THREAD_LIMIT=4 \
 
 # Fail the build on a wrong or missing tarball rather than shipping it
 RUN magick -version | grep -q "ImageMagick ${IMAGEMAGICK_VERSION}"
+
+# --with-rsvg above is a ./configure *detection*, not a guarantee, which is the
+# same trap libwebp has: a miss would ship silently and only surface as a
+# mangled raster once a user uploads a real SVG. Without librsvg, ImageMagick
+# falls back to its built-in MSVG renderer, which draws basic shapes but no
+# gradients, filters, clip paths, CSS or font-rendered text. Assert it here so
+# the build fails instead.
+RUN magick -version | grep -q rsvg
 
 # Copy application source
 WORKDIR /app
